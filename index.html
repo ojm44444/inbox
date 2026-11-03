@@ -452,8 +452,8 @@ function gsi() {
   if (!window.google || !google.accounts) { setTimeout(gsi, 200); return; }
   if (!gsi.done) { google.accounts.id.initialize({ client_id: CLIENT_ID, callback: onCred, auto_select: true, use_fedcm_for_prompt: true, itp_support: true }); gsi.done = true; }
   var b = document.getElementById('gbtn');
-  if (b) google.accounts.id.renderButton(b, { theme: 'filled_black', size: 'large', shape: 'pill', text: 'signin_with' });
-  google.accounts.id.prompt();
+  if (b && !b.childElementCount) google.accounts.id.renderButton(b, { theme: 'filled_black', size: 'large', shape: 'pill', text: 'signin_with' });
+  if (!gsi.prompted) { gsi.prompted = true; google.accounts.id.prompt(); }
 }
 function tokenExp(t) { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).exp * 1000; } catch (e) { return 0; } }
 function onCred(r) {
