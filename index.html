@@ -56,13 +56,14 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .home { overflow-y:auto; padding:28px 32px 60px; }
 .hello { font-size:24px; font-weight:700; letter-spacing:-.02em; margin:0; }
 .hellosub { color:var(--dim); margin:4px 0 22px; }
-.tiles { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:22px; }
+.tiles { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; margin-bottom:22px; }
 .tile { background:var(--panel); border:1px solid var(--line); border-radius:var(--r); padding:14px 16px; cursor:pointer; transition:border-color .15s, transform .15s; }
 .tile:hover { border-color:var(--line2); transform:translateY(-1px); }
 .tile .lab { display:flex; align-items:center; gap:7px; color:var(--dim); font-size:12.5px; }
 .tile .num { font-size:28px; font-weight:700; letter-spacing:-.02em; margin-top:6px; font-variant-numeric:tabular-nums; }
 .tile .hint { color:var(--faint); font-size:12px; }
-.grid2 { display:grid; grid-template-columns:1.25fr 1fr; gap:16px; }
+.grid2 { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(0,1fr); gap:16px; }
+.grid2 > div, .home, .chatrow > div { min-width:0; }
 .box { background:var(--panel); border:1px solid var(--line); border-radius:var(--r); padding:16px 18px; margin-bottom:16px; }
 .box h3 { margin:0 0 4px; font-size:14px; font-weight:650; display:flex; align-items:center; gap:8px; }
 .box .bsub { color:var(--faint); font-size:12px; margin-bottom:10px; }
@@ -165,16 +166,23 @@ kbd { font:11px Inter,sans-serif; color:var(--faint); border:1px solid var(--lin
 .toast.show { opacity:1; transform:none; }
 .toast.err { border-color:var(--fix); }
 .warn { margin:0 14px 8px; padding:8px 12px; border-radius:8px; background:rgba(245,165,36,.1); color:var(--chase); font-size:12px; }
+.modal { position:fixed; inset:0; background:rgba(0,0,0,.5); display:grid; place-items:center; z-index:40; }
+.mbox { width:min(640px,92vw); background:var(--panel); border:1px solid var(--line2); border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:10px; box-shadow:var(--shadow); }
+.mbox textarea { height:300px; border:1px solid var(--line2); border-radius:8px; background:var(--bg); color:var(--text); padding:10px; font:12.5px/1.5 Inter,sans-serif; }
 .gate { display:grid; place-items:center; height:100vh; }
 .gate .box2 { width:min(360px,90vw); text-align:center; }
 .back, .tabs { display:none; }
-@media (max-width:1100px) { .tiles { grid-template-columns:repeat(3,1fr); } .grid2 { grid-template-columns:1fr; } }
+@media (max-width:1300px) { .app.mail { grid-template-columns:190px 320px 1fr; } .dhead, .bar, .dbody { padding-left:18px; padding-right:18px; } .explain { margin-left:18px; margin-right:18px; } }
+@media (max-width:1100px) { .tiles { grid-template-columns:repeat(3,minmax(0,1fr)); } .grid2 { grid-template-columns:minmax(0,1fr); } }
 @media (max-width:900px) {
   body { overflow:auto; }
   .app, .app.mail { grid-template-columns:1fr; height:auto; min-height:100dvh; }
   .side { display:none; }
   .home { padding:calc(18px + env(safe-area-inset-top)) 16px 60px; overflow:visible; }
-  .tiles { grid-template-columns:repeat(2,1fr); }
+  html, body { overflow-x:hidden; }
+  .tiles { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+  .tile .hint { display:none; }
+  .chatrow .btn { padding:0 8px; }
   .list { border-right:0; min-height:100dvh; }
   .rows { overflow:visible; }
   .tabs { display:flex; gap:6px; overflow-x:auto; padding:calc(10px + env(safe-area-inset-top)) 14px 6px; scrollbar-width:none; }
@@ -239,7 +247,14 @@ function hue(s) { var h = 0; String(s || '').split('').forEach(function (c) { h 
 function chatShort(c) { return c === 'FANFLOWY / FAN HUB' ? 'Fan hub' : c === 'Hormozi / King Kong Skills' ? 'Hormozi' : c === 'General TO DOs' ? 'General' : c; }
 function toast(msg, bad) { var t = document.getElementById('toast'); t.textContent = msg; t.className = 'toast show' + (bad ? ' err' : ''); clearTimeout(toast.t); toast.t = setTimeout(function () { t.className = 'toast'; }, 2800); }
 
+// Changes (read, unread, move, bin) go one at a time, in the order Owen made them,
+// so a quick read-then-unread can never finish the wrong way round.
+var WRITES = { markRead:1, markUnread:1, setPile:1, setChat:1, bin:1, saveDraft:1 }, queue = Promise.resolve();
 function api(op, args) {
+  if (WRITES[op]) { var p = queue.then(function () { return send(op, args); }); queue = p.catch(function () {}); return p; }
+  return send(op, args);
+}
+function send(op, args) {
   return fetch(API, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, redirect:'follow', body:JSON.stringify({ action:'inboxApi', idToken:S.token, key:S.key, op:op, args:args || {} }) })
     .then(function (r) { return r.json(); })
     .then(function (j) { if (!j.ok) throw new Error(j.error || 'Something went wrong'); return j.data; });
@@ -292,9 +307,11 @@ function wire() {
   if (q) q.addEventListener('input', function () { S.f.q = q.value; var pos = q.selectionStart; render(); var n = document.getElementById('q'); n.focus(); n.setSelectionRange(pos, pos); });
   document.querySelectorAll('iframe[data-mid]').forEach(fitFrame);
 }
+// Emails grow as their images load, so keep fitting the frame to its content for a few seconds.
 function fitFrame(f) {
-  var go = function () { try { var d = f.contentDocument; f.style.height = Math.min(4000, Math.max(120, d.documentElement.scrollHeight + 4)) + 'px'; } catch (e) {} };
-  f.addEventListener('load', function () { go(); setTimeout(go, 400); setTimeout(go, 1500); });
+  var go = function () { try { var d = f.contentDocument; if (!d || !d.body) return; var h = 0; Array.prototype.forEach.call(d.body.children, function (c) { var r = c.getBoundingClientRect(); if (r.height) h = Math.max(h, r.bottom); }); h += 16; if (h > 20) f.style.height = Math.min(6000, h + 8) + 'px'; } catch (e) {} };
+  f.addEventListener('load', go);
+  [0, 150, 500, 1200, 2500, 5000].forEach(function (t) { setTimeout(go, t); });
 }
 
 function side() {
@@ -377,7 +394,7 @@ function list() {
   l.forEach(function (g) {
     var e = g.items[0], chase = e.kind === 'chase', read = !g.unread.length;
     var who = g.isChat ? chatShort(g.chat) + ' chat' : chase ? 'To ' + (e.from_name || e.to_email) : (e.from_name || e.from_email);
-    var l2 = g.isChat ? issues(g).map(function (x) { return x.title; }).slice(0, 3).join(' · ') : e.subject;
+    var l2 = g.isChat ? issues({ items:S.f.unread && g.unread.length ? g.unread : g.items }).map(function (x) { return x.title; }).slice(0, 3).join(' · ') : e.subject;
     var when = chase ? '<span class="wait">' + Math.floor((Date.now() - Date.parse(e.received_at)) / 86400000) + 'd waiting</span>' : ago(e.received_at);
     var n = S.f.unread ? g.unread.length : g.items.length;
     h += '<div class="row' + (S.open === g.id ? ' on' : '') + (read ? ' read' : '') + '" onclick="openG(\'' + g.id + '\')">'
@@ -393,8 +410,9 @@ function list() {
 function issues(g) {
   var by = {}, out = [];
   g.items.forEach(function (e) {
-    var k = String(e.subject || '').replace(/^\W+/, '').replace(/\(.*?\)|\b[0-9a-f]{7,}\b|\d+/g, '').replace(/\s+/g, ' ').trim();
-    if (!by[k]) { by[k] = { title:k.replace(/^MoonOS Script Error:\s*/, '').replace(/^\[ojm44444\/(\w+)\]\s*/, '$1: '), items:[] }; out.push(by[k]); }
+    var subj = String(e.subject || '').replace(/^\W+/, '').replace(/^MoonOS Script Error:\s*/, '').replace(/^\[[\w-]+\/([\w-]+)\]\s*/, '$1: ');
+    var k = subj.replace(/\(.*?\)|\b[0-9a-f]{7,}\b|\b\d+\b/g, '').replace(/\s+/g, ' ').trim();
+    if (!by[k]) { by[k] = { title:k, items:[] }; out.push(by[k]); }
     by[k].items.push(e);
   });
   return out;
@@ -423,7 +441,7 @@ function chatDetail(g) {
 }
 function mailDetail(g) {
   var e = g.items[0], p = pileOf(g.pile), chase = e.kind === 'chase', read = !g.unread.length;
-  var replyable = g.pile === 'reply' || g.pile === 'chase';
+  var many = g.items.length > 1, replyable = (g.pile === 'reply' || g.pile === 'chase') && !many;
   var draft = S.drafts[g.id] != null ? S.drafts[g.id] : (e.draft_text || '');
   var h = '<section class="detail' + (S.phoneOpen ? ' open' : '') + '"><div class="dhead"><div style="display:flex;gap:8px;align-items:flex-start">'
     + '<button class="iconbtn back" onclick="closeG()">' + I.back + '</button><h2 style="flex:1">' + esc(e.subject) + '</h2></div>'
@@ -441,7 +459,14 @@ function mailDetail(g) {
       + '<textarea id="draft">' + esc(draft) + '</textarea><div class="cf"><button class="btn pri" onclick="saveD()" ' + (S.busy ? 'disabled' : '') + '>' + I.gmail + (S.busy === 'save' ? 'Saving…' : 'Save to Gmail drafts') + '</button>'
       + '<button class="btn ghost" onclick="writeD()">' + I.spark + 'Rewrite</button><span style="flex:1"></span><span class="saved" id="savedflag" style="' + (saved ? '' : 'display:none') + '">' + I.check + 'In Gmail drafts</span></div></div>';
   }
-  return h + messages(e.id, e) + '</div></section>';
+  if (!many) return h + messages(e.id, e) + '</div></section>';
+  // Several emails from the same sender (e.g. Google Docs comments): one line each, open to read.
+  g.items.forEach(function (x, i) {
+    var k = g.id + ':m' + i;
+    h += '<div class="issue"><div class="ih" onclick="toggleIssue(\'' + k + '\')">' + (isRead(x) ? '' : '<span class="unreaddot"></span>') + '<span class="t">' + esc(x.subject) + '</span><span class="s">' + ago(x.received_at) + ' ago</span></div>'
+      + (S.openIssue[k] ? '<div style="padding:0 12px 12px">' + messages(x.id, x) + '</div>' : '') + '</div>';
+  });
+  return h + '</div></section>';
 }
 // The real email, as Gmail has it, fetched when opened.
 function messages(id, e) {
@@ -504,9 +529,16 @@ function copyGroup(gid) {
     text = 'From my inbox, for this ' + name + ' chat. ' + (g.pile === 'learn' ? 'Read this and absorb anything useful into the right skill or notes. One-line summary back to me.' : 'Help me deal with this.') + '\n\n'
       + list.map(function (e) { return 'From: ' + (e.from_name || '') + ' <' + (e.from_email || '') + '>\nSubject: ' + e.subject + '\nReceived: ' + e.received_at + '\n\n' + (e.thread_text || e.snippet || ''); }).join('\n\n==========\n\n');
   }
-  (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(function () { toast('Copied. Paste it into your ' + name + ' chat.'); }, function () { toast('Copy failed', true); });
+  copyText(text, 'Copied. Paste it into your ' + name + ' chat.');
 }
-function reGroup() { S.data.emails.forEach(function (e) { e.group = e.category === 'fix' ? 'fix|' + (e.project || 'General TO DOs') : (e.category || 'new') + '|' + (e.from_email || '') + '|' + String(e.subject || '').toLowerCase().replace(/^(re|fwd?):\s*/g, '').replace(/[^a-z ]+/g, ' ').replace(/\s+/g, ' ').trim(); }); }
+// Clipboard API first, then the old way, and if the browser blocks both, the text in a box to copy by hand.
+function copyText(text, okMsg) {
+  var old = function () { var a = document.createElement('textarea'); a.value = text; a.style.position = 'fixed'; a.style.opacity = '0'; document.body.appendChild(a); a.select(); var ok = false; try { ok = document.execCommand('copy'); } catch (e) {} a.remove(); return ok; };
+  var manual = function () { var m = document.createElement('div'); m.className = 'modal'; m.innerHTML = '<div class="mbox"><b>Copy this into the chat</b><textarea readonly></textarea><div style="text-align:right"><button class="btn pri">Done</button></div></div>'; m.querySelector('textarea').value = text; m.querySelector('button').onclick = function () { m.remove(); }; document.body.appendChild(m); m.querySelector('textarea').select(); };
+  var p = navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(text) : Promise.reject();
+  p.then(function () { toast(okMsg); }, function () { if (old()) toast(okMsg); else manual(); });
+}
+function reGroup() { S.data.emails.forEach(function (e) { e.group = e.category === 'fix' ? 'fix|' + (e.project || 'General TO DOs') : /comments-noreply@docs\.google\.com/i.test(e.from_email || '') ? (e.category || 'new') + '|docs|' + (e.from_name || '') : (e.category || 'new') + '|' + (e.from_email || '') + '|' + String(e.subject || '').toLowerCase().replace(/^(re|fwd?):\s*/g, '').replace(/[^a-z ]+/g, ' ').replace(/\s+/g, ' ').trim(); }); }
 function movePile(p) { if (!p) return; var g = current(); var x = g.items.map(function (e) { return e.id; }); api('setPile', { ids:x, pile:p }).catch(fail); S.data.emails.forEach(function (e) { if (x.indexOf(e.id) >= 0) e.category = p; }); reGroup(); afterChange('Moved to ' + pileOf(p).title); }
 function moveChat(c) { if (!c) return; var g = current(); var x = g.items.map(function (e) { return e.id; }); api('setChat', { ids:x, chat:c }).catch(fail); S.data.emails.forEach(function (e) { if (x.indexOf(e.id) >= 0) e.project = c; }); reGroup(); afterChange('Moved to the ' + chatShort(c) + ' chat'); }
 function bulk(op) { var x = selIds(); setStatus(x, op === 'markRead' ? 'done' : 'open'); S.sel = {}; afterChange(x.length + (op === 'markRead' ? ' marked read' : ' marked unread')); api(op, { ids:x }).catch(fail); }
