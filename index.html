@@ -178,6 +178,14 @@ kbd { font:11px Inter,sans-serif; color:var(--faint); border:1px solid var(--lin
 .noteinp { height:34px; border:1px solid var(--line2); border-radius:9px; background:var(--bg); color:var(--text); padding:0 10px; }
 .sentrow { display:flex; gap:10px; align-items:center; padding:7px 0; border-top:1px solid var(--line); font-size:13px; }
 .sentrow:first-of-type { border-top:0; }
+.reader { max-width:900px; margin:0 auto; width:100%; }
+.art { border:1px solid var(--line); border-radius:var(--r); background:var(--panel); margin-top:16px; overflow:hidden; }
+.art.read { opacity:.6; }
+.arth { display:flex; align-items:center; gap:10px; padding:12px 14px; border-bottom:1px solid var(--line); }
+.artn { width:24px; height:24px; border-radius:7px; background:var(--accbg); color:var(--acc2); display:grid; place-items:center; font-size:12px; font-weight:700; flex:none; }
+.artt { font-weight:650; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.art .msg { border:0; border-radius:0; margin:0; }
+.art .msg .mh { display:none; }
 .gate { display:grid; place-items:center; height:100vh; }
 .gate .box2 { width:min(360px,90vw); text-align:center; }
 .back, .tabs { display:none; }
@@ -243,6 +251,7 @@ var I = {
   gmail:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6l8.5 7 8.5-7"/></svg>',
   search:'<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/></svg>',
   send:'<svg viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-2.5-6.5z"/></svg>',
+  book:'<svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M8 7h7M8 11h7"/></svg>',
   info:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>'
 };
 var S = { token:'', key:'', data:null, view:'home', open:null, sel:{}, drafts:{}, threads:{}, openIssue:{}, busy:'', loading:true, refreshing:false, phoneOpen:false,
@@ -305,8 +314,8 @@ function pileOf(k) { return PILES.filter(function (p) { return p.key === k; })[0
 function render() {
   if (!S.token && !S.key) return renderGate();
   var sc = document.querySelector('.rows, .home'), keep = sc ? sc.scrollTop : 0;
-  var mail = S.view !== 'home';
-  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + '">' + side() + (mail ? list() + detail() : home()) + '</div>';
+  var mail = S.view !== 'home' && S.view !== 'reading';
+  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + '">' + side() + (mail ? list() + detail() : S.view === 'reading' ? reading() : home()) + '</div>';
   var ns = document.querySelector('.rows, .home'); if (ns) ns.scrollTop = keep;
   bulkBar(); wire();
 }
@@ -328,6 +337,7 @@ function side() {
   var h = '<aside class="side"><div class="brand"><div class="logo">' + I.inbox + '</div>Inbox</div>'
     + '<button class="nav' + (S.view === 'home' ? ' on' : '') + '" onclick="go(\'home\')">' + I.home + 'Home</button>'
     + '<button class="nav' + (S.view === 'all' ? ' on' : '') + '" onclick="go(\'all\')">' + I.inbox + 'All mail<span class="n">' + (unreadCount('all') || '') + '</span></button>'
+    + '<button class="nav' + (S.view === 'reading' ? ' on' : '') + '" onclick="go(\'reading\')">' + I.book + 'Reading list<span class="n">' + (unreadCount('learn') || '') + '</span></button>'
     + '<div class="navlabel">Piles</div>';
   PILES.forEach(function (p) {
     var n = unreadCount(p.key); if (p.key === 'new' && !n) return;
@@ -340,7 +350,7 @@ function side() {
     + '<button class="iconbtn" title="Sign out" onclick="signOut()">' + I.out + '</button></div></aside>';
 }
 function tabs() {
-  var h = '<div class="tabs"><div class="tab' + (S.view === 'home' ? ' on' : '') + '" onclick="go(\'home\')">Home</div><div class="tab' + (S.view === 'all' ? ' on' : '') + '" onclick="go(\'all\')">All ' + (unreadCount('all') || '') + '</div>';
+  var h = '<div class="tabs"><div class="tab' + (S.view === 'home' ? ' on' : '') + '" onclick="go(\'home\')">Home</div><div class="tab' + (S.view === 'all' ? ' on' : '') + '" onclick="go(\'all\')">All ' + (unreadCount('all') || '') + '</div><div class="tab' + (S.view === 'reading' ? ' on' : '') + '" onclick="go(\'reading\')">Reading ' + (unreadCount('learn') || '') + '</div>';
   PILES.forEach(function (p) { var n = unreadCount(p.key); if (!n && p.key !== S.view) return; h += '<div class="tab' + (S.view === p.key ? ' on' : '') + '" onclick="go(\'' + p.key + '\')"><span class="dot" style="background:' + p.color + '"></span>' + p.title + ' ' + n + '</div>'; });
   return h + '</div>';
 }
@@ -352,7 +362,7 @@ function home() {
   var total = unreadCount('all');
   var h = '<main class="home">' + tabs() + '<h1 class="hello">' + hi + ', Owen</h1><div class="hellosub">' + (total ? total + ' unread, sorted for you.' : 'Inbox clear.') + '</div><div class="tiles">';
   PILES.filter(function (p) { return p.key !== 'new'; }).forEach(function (p) {
-    h += '<div class="tile" onclick="go(\'' + p.key + '\')"><div class="lab"><span class="dot" style="background:' + p.color + '"></span>' + p.title + '</div><div class="num">' + unreadCount(p.key) + '</div><div class="hint">' + p.help + '</div></div>';
+    h += '<div class="tile" onclick="go(\'' + (p.key === 'learn' ? 'reading' : p.key) + '\')"><div class="lab"><span class="dot" style="background:' + p.color + '"></span>' + p.title + '</div><div class="num">' + unreadCount(p.key) + '</div><div class="hint">' + p.help + '</div></div>';
   });
   h += '</div><div class="grid2"><div>';
   var chats = groups().filter(function (g) { return g.isChat && g.unread.length; });
@@ -380,6 +390,23 @@ function home() {
   }).join('') + '</div>';
   return h + '</div></div></main>';
 }
+// Newsletters to read, oldest first, one after another like a magazine (Owen, 3 Nov 2026).
+function reading() {
+  var all = ((S.data && S.data.emails) || []).filter(function (e) { return e.category === 'learn' && (!S.f.unread || !isRead(e)); })
+    .sort(function (a, b) { return Date.parse(a.received_at) - Date.parse(b.received_at); });
+  var h = '<main class="home reader">' + tabs() + '<div style="display:flex;align-items:center;gap:10px"><div style="flex:1"><h1 class="hello">Reading list</h1><div class="hellosub">' + all.length + ' newsletter' + (all.length === 1 ? '' : 's') + ', oldest first.</div></div>'
+    + '<div class="chips"><button class="fchip' + (S.f.unread ? ' on' : '') + '" onclick="setF(\'unread\',true)">Unread</button><button class="fchip' + (!S.f.unread ? ' on' : '') + '" onclick="setF(\'unread\',false)">All</button></div></div>';
+  if (!all.length) return h + '<div class="empty"><b>Nothing to read</b>New marketing emails land here.</div></main>';
+  all.forEach(function (e, i) {
+    var read = isRead(e);
+    h += '<article class="art' + (read ? ' read' : '') + '"><div class="arth"><span class="artn">' + (i + 1) + '</span><div style="flex:1;min-width:0"><div class="artt">' + esc(e.subject) + '</div><div class="l3">' + esc(e.from_name || e.from_email) + ' · ' + ago(e.received_at) + ' ago' + (e.why ? ' · ' + esc(e.why) : '') + '</div></div>'
+      + '<button class="btn sm" onclick="readOne(\'' + e.id + '\',' + (read ? 'false' : 'true') + ')">' + (read ? I.dotc + 'Unread' : I.check + 'Read') + '</button>'
+      + '<button class="btn sm ghost" onclick="sendOne(\'' + e.id + '\')">' + I.send + 'Send to chat</button></div>' + messages(e.id, e) + '</article>';
+  });
+  return h + '</main>';
+}
+function readOne(id, read) { setStatus([id], read ? 'done' : 'open'); render(); toast(read ? 'Marked read' : 'Marked unread'); api(read ? 'markRead' : 'markUnread', { ids:[id] }).catch(fail); }
+function sendOne(id) { var g = groups().filter(function (x) { return x.items.some(function (e) { return e.id === id; }); })[0]; if (g) sendToChat(g.id); }
 function timeline() {
   var c = S.data.calendar; if (!c) return '<div class="empty" style="padding:20px">Calendar not available.</div>';
   var items = c.events.map(function (e) { return { t:e.start, ev:e }; }).concat(c.free.map(function (f) { return { t:f.start, free:f }; })).sort(function (a, b) { return a.t < b.t ? -1 : 1; }).slice(0, 14);
@@ -554,9 +581,16 @@ function suggestChat(project) {
   var exact = l.filter(function (c) { return re && re.test(c.title) && !/:/.test(c.title); })[0];
   return exact || (re && l.filter(function (c) { return re.test(c.title); })[0]) || null;
 }
+// Where Owen sent this sender (or this tool group) before wins over a guess from chat names.
+function suggestFor(g) {
+  var r = (S.data && S.data.routes) || {}, key = g.isChat ? 'chat:' + g.chat : 'from:' + (g.items[0].from_email || ''), hit = r[key];
+  var c = hit && chatList().filter(function (x) { return x.id === hit.id; })[0];
+  if (c) return { chat:c, why:'You sent ' + (g.isChat ? 'these' : 'this sender') + ' here' + (hit.n > 1 ? ' ' + hit.n + ' times' : ' last time') };
+  var s2 = suggestChat(g.chat); return s2 ? { chat:s2, why:'Suggested' } : null;
+}
 function sendToChat(gid) {
   var g = groups().filter(function (x) { return x.id === gid; })[0]; if (!g) return;
-  var list = g.unread.length ? g.unread : g.items, sug = suggestChat(g.chat), l = chatList();
+  var sf = suggestFor(g), list = g.unread.length ? g.unread : g.items, sug = sf && sf.chat, l = chatList();
   if (!l.length) { toast('Chat list not loaded yet. Your Mac fills it within 5 minutes.', true); return; }
   var m = document.createElement('div'); m.className = 'modal';
   var rows = (sug ? [sug] : []).concat(l.filter(function (c) { return !sug || c.id !== sug.id; }));
@@ -567,7 +601,7 @@ function sendToChat(gid) {
   var draw = function (q) {
     m.querySelector('[data-list]').innerHTML = rows.filter(function (c) { return !q || c.title.toLowerCase().indexOf(q) >= 0; }).slice(0, 14).map(function (c, i) {
       return '<button class="pickrow" data-id="' + esc(c.id) + '" data-t="' + esc(c.title) + '"><span class="av" style="background:' + hue(c.title) + '">' + esc(initials(c.title)) + '</span><span style="flex:1;min-width:0;text-align:left"><span class="t">' + esc(c.title) + '</span>'
-        + (sug && c.id === sug.id ? '<span class="sug">Suggested</span>' : '') + '</span><span class="s">' + (c.at ? ago(c.at) + ' ago' : '') + '</span></button>';
+        + (sug && c.id === sug.id ? '<span class="sug">' + esc(sf.why) + '</span>' : '') + '</span><span class="s">' + (c.at ? ago(c.at) + ' ago' : '') + '</span></button>';
     }).join('') || '<div class="empty" style="padding:16px">No chat matches.</div>';
   };
   draw('');
@@ -579,6 +613,8 @@ function sendToChat(gid) {
     m.remove(); setStatus(ids, 'to_claude');
     S.data.sent = [{ session_title: title, created_at: new Date().toISOString(), delivered_at: null, n: ids.length }].concat(S.data.sent || []);
     afterChange('Sending to ' + title + '. It lands within about 5 minutes.');
+    S.data.routes = S.data.routes || {}; var rk = g.isChat ? 'chat:' + g.chat : 'from:' + (g.items[0].from_email || ''); var pr = S.data.routes[rk];
+    S.data.routes[rk] = { id:b.dataset.id, title:title, n:(pr && pr.id === b.dataset.id ? pr.n : 0) + 1 };
     api('sendToChat', { ids: ids, sessionId: b.dataset.id, sessionTitle: title, note: note }).catch(function (err) { setStatus(ids, 'open'); fail(err); });
   });
   document.body.appendChild(m); m.querySelector('[data-q]').focus();
@@ -628,7 +664,7 @@ function onCred(r) { S.token = r.credential; try { localStorage.setItem('inbox-i
 function signOut() { S.token = ''; S.data = null; try { localStorage.removeItem('inbox-id'); } catch (e) {} if (window.google && google.accounts) google.accounts.id.disableAutoSelect(); render(); }
 
 document.addEventListener('keydown', function (ev) {
-  if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || ev.metaKey || ev.ctrlKey || !S.data || S.view === 'home') return;
+  if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || ev.metaKey || ev.ctrlKey || !S.data || S.view === 'home' || S.view === 'reading') return;
   var l = pileList(S.view), i = l.findIndex(function (g) { return g.id === S.open; }), k = ev.key.toLowerCase();
   if (k === 'j' || ev.key === 'ArrowDown') { if (l.length) { S.open = l[Math.min(i + 1, l.length - 1)].id; render(); } ev.preventDefault(); }
   else if (k === 'k' || ev.key === 'ArrowUp') { if (l.length) { S.open = l[Math.max(i - 1, 0)].id; render(); } ev.preventDefault(); }
