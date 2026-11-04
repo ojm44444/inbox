@@ -186,6 +186,18 @@ kbd { font:11px Inter,sans-serif; color:var(--faint); border:1px solid var(--lin
 .artt { font-weight:650; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .art .msg { border:0; border-radius:0; margin:0; }
 .art .msg .mh { display:none; }
+.acct { display:inline-block; font-size:10.5px; font-weight:600; letter-spacing:.02em; color:var(--c); background:color-mix(in srgb, var(--c) 14%, transparent); border-radius:5px; padding:0 5px; margin-right:6px; line-height:16px; vertical-align:1px; }
+.strip { display:flex; gap:8px; flex-wrap:wrap; margin:-8px 0 20px; }
+.ichip { display:inline-flex; align-items:center; gap:7px; border:1px solid var(--line2); background:var(--panel); border-radius:20px; padding:5px 12px; color:var(--dim); cursor:pointer; font-size:12.5px; }
+.ichip b { color:var(--text); font-weight:650; }
+.ichip.on { border-color:var(--text); color:var(--text); }
+.about { border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:12px; background:var(--bg); display:flex; flex-direction:column; gap:8px; }
+.ab1 { display:flex; gap:10px; align-items:center; }
+.abf { color:var(--dim); font-size:12.5px; }
+.abh { display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-size:13px; background:var(--accbg); padding:8px 10px; border-radius:9px; }
+.abh svg { color:var(--acc2); }
+.abr { display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
+.abr .l3 { margin-right:4px; }
 .gate { display:grid; place-items:center; height:100vh; }
 .gate .box2 { width:min(360px,90vw); text-align:center; }
 .back, .tabs { display:none; }
@@ -233,6 +245,8 @@ var PILES = [
   { key:'noise', title:'Noise', color:'var(--noise)', help:'Nothing to do.' },
   { key:'new', title:'Not sorted', color:'var(--faint)', help:'Sorted on the next refresh.' }
 ];
+var ACCOUNTS = { personal:{ label:'Personal', color:'#8b8c96' }, tez:{ label:'TEZ', color:'#e0533d' }, songdrafts:{ label:'songdrafts', color:'#2fa36b' }, omellette:{ label:'Omellette', color:'#d6a23a' } };
+function acctTag(a) { var x = ACCOUNTS[a || 'personal'] || ACCOUNTS.personal; return '<span class="acct" style="--c:' + x.color + '">' + x.label + '</span>'; }
 var CHAT_COLOURS = { 'Moon':'#6d6af5', 'songdrafts':'#2fa36b', 'TEZ':'#e0533d', 'FANFLOWY / FAN HUB':'#d2457f', 'CFO':'#c8902c', 'Hormozi / King Kong Skills':'#3a86d8', 'General TO DOs':'#6c6d79' };
 var I = {
   inbox:'<svg viewBox="0 0 24 24"><path d="M4 13h4l2 3h4l2-3h4"/><path d="M5.5 5h13L21 13v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-5z"/></svg>',
@@ -255,7 +269,7 @@ var I = {
   info:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>'
 };
 var S = { token:'', key:'', data:null, view:'home', open:null, sel:{}, drafts:{}, threads:{}, openIssue:{}, busy:'', loading:true, refreshing:false, phoneOpen:false,
-  f:{ q:'', unread:true, chat:'' } };
+  f:{ q:'', unread:true, chat:'', acct:'' } };
 
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]; }); }
 function ago(at) { var m = (Date.now() - Date.parse(at)) / 60000; if (m < 60) return Math.max(1, Math.floor(m)) + 'm'; if (m < 1440) return Math.floor(m / 60) + 'h'; return Math.floor(m / 1440) + 'd'; }
@@ -298,6 +312,7 @@ function groups() {
 function visible(g) { return S.f.unread ? g.unread.length > 0 : true; }
 function matches(g) {
   if (S.f.chat && g.chat !== S.f.chat) return false;
+  if (S.f.acct && !g.items.some(function (e) { return (e.account || 'personal') === S.f.acct; })) return false;
   if (!S.f.q) return true;
   var q = S.f.q.toLowerCase();
   return g.items.some(function (e) { return (e.from_name + ' ' + e.from_email + ' ' + e.subject + ' ' + e.snippet + ' ' + (e.why || '')).toLowerCase().indexOf(q) >= 0; });
@@ -307,7 +322,7 @@ function pileList(p) {
   if (p === 'chase') l.sort(function (a, b) { return Date.parse(a.items[0].received_at) - Date.parse(b.items[0].received_at); });
   return l;
 }
-function unreadCount(p) { return groups().filter(function (g) { return p === 'all' || g.pile === p; }).reduce(function (s, g) { return s + g.unread.length; }, 0); }
+function unreadCount(p) { return groups().filter(function (g) { return (p === 'all' || g.pile === p) && (!S.f.acct || g.items.some(function (e) { return (e.account || 'personal') === S.f.acct; })); }).reduce(function (s, g) { return s + g.unread.length; }, 0); }
 function current() { return groups().filter(function (g) { return g.id === S.open; })[0] || null; }
 function pileOf(k) { return PILES.filter(function (p) { return p.key === k; })[0] || PILES[1]; }
 
@@ -360,7 +375,7 @@ function home() {
   var hr = Number(new Date().toLocaleString('en-GB', { hour:'numeric', hour12:false, timeZone:'Europe/London' }));
   var hi = hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
   var total = unreadCount('all');
-  var h = '<main class="home">' + tabs() + '<h1 class="hello">' + hi + ', Owen</h1><div class="hellosub">' + (total ? total + ' unread, sorted for you.' : 'Inbox clear.') + '</div><div class="tiles">';
+  var h = '<main class="home">' + tabs() + '<h1 class="hello">' + hi + ', Owen</h1><div class="hellosub">' + (total ? total + ' unread across your inboxes, sorted for you.' : 'Inbox clear.') + '</div>' + inboxStrip() + '<div class="tiles">';
   PILES.filter(function (p) { return p.key !== 'new'; }).forEach(function (p) {
     h += '<div class="tile" onclick="go(\'' + (p.key === 'learn' ? 'reading' : p.key) + '\')"><div class="lab"><span class="dot" style="background:' + p.color + '"></span>' + p.title + '</div><div class="num">' + unreadCount(p.key) + '</div><div class="hint">' + p.help + '</div></div>';
   });
@@ -383,6 +398,10 @@ function home() {
   var ch = pileList('chase').slice(0, 6);
   h += '<div class="box"><h3><span class="dot" style="background:var(--chase)"></span>Waiting on them</h3><div class="bsub">You emailed, no reply yet.</div>'
     + (ch.length ? ch.map(function (g) { var e = g.items[0]; return '<div class="mini" onclick="openFrom(\'chase\',\'' + g.id + '\')"><div style="min-width:0"><div class="t">' + esc(e.from_name || e.to_email) + '</div><div class="l3">' + esc(e.subject) + '</div></div><div class="s wait">' + Math.floor((Date.now() - Date.parse(e.received_at)) / 86400000) + 'd</div></div>'; }).join('') : '<div class="empty" style="padding:20px">Nothing to chase.</div>') + '</div>';
+  // Littlebird's routine reports (it emails them), newest first, read or not.
+  var lb = (S.data.emails || []).filter(function (e) { return /littlebird\.ai$/i.test(e.from_email || ''); }).slice(0, 4);
+  if (lb.length) h += '<div class="box"><h3>' + I.spark + 'From Littlebird</h3><div class="bsub">Its routine reports. Littlebird can also see this inbox through your Moon connector.</div>'
+    + lb.map(function (e) { var g = groups().filter(function (x) { return x.items.indexOf(e) >= 0; })[0]; return '<div class="mini" onclick="openFrom(\'all\',\'' + (g ? g.id : '') + '\')"><div style="min-width:0"><div class="t">' + esc(e.subject) + '</div><div class="l3">' + esc(e.why || e.snippet) + '</div></div><div class="s">' + ago(e.received_at) + '</div></div>'; }).join('') + '</div>';
   var sent = (S.data.sent || []).slice(0, 6);
   if (sent.length) h += '<div class="box"><h3>' + I.send + 'Sent to chats</h3><div class="bsub">Lands within about 5 minutes while your Mac is on.</div>' + sent.map(function (x) {
     var st = x.delivered_at ? (/^(delivered|queued)/.test(x.result || 'delivered') ? '<span style="color:var(--reply)">Delivered</span>' : '<span style="color:var(--fix)">Failed: ' + esc(x.result) + '</span>') : '<span style="color:var(--chase)">On its way</span>';
@@ -407,6 +426,13 @@ function reading() {
 }
 function readOne(id, read) { setStatus([id], read ? 'done' : 'open'); render(); toast(read ? 'Marked read' : 'Marked unread'); api(read ? 'markRead' : 'markUnread', { ids:[id] }).catch(fail); }
 function sendOne(id) { var g = groups().filter(function (x) { return x.items.some(function (e) { return e.id === id; }); })[0]; if (g) sendToChat(g.id); }
+// One chip per inbox with its unread count; tap to see only that inbox everywhere.
+function inboxStrip() {
+  var by = {}; ((S.data && S.data.emails) || []).forEach(function (e) { if (!isRead(e)) by[e.account || 'personal'] = (by[e.account || 'personal'] || 0) + 1; });
+  return '<div class="strip"><button class="ichip' + (!S.f.acct ? ' on' : '') + '" onclick="setF(\'acct\',\'\')">All inboxes</button>' + Object.keys(ACCOUNTS).map(function (a) {
+    return '<button class="ichip' + (S.f.acct === a ? ' on' : '') + '" style="--c:' + ACCOUNTS[a].color + '" onclick="setF(\'acct\',\'' + a + '\')"><span class="dot" style="background:' + ACCOUNTS[a].color + '"></span>' + ACCOUNTS[a].label + '<b>' + (by[a] || 0) + '</b></button>';
+  }).join('') + '</div>';
+}
 function timeline() {
   var c = S.data.calendar; if (!c) return '<div class="empty" style="padding:20px">Calendar not available.</div>';
   var items = c.events.map(function (e) { return { t:e.start, ev:e }; }).concat(c.free.map(function (f) { return { t:f.start, free:f }; })).sort(function (a, b) { return a.t < b.t ? -1 : 1; }).slice(0, 14);
@@ -426,6 +452,7 @@ function list() {
     + '<button class="iconbtn' + (S.refreshing ? ' spin' : '') + '" onclick="refresh()" title="Check Gmail now">' + I.refresh + '</button></div>'
     + '<div class="filters"><div class="search">' + I.search + '<input id="q" placeholder="Search sender, subject, words" value="' + esc(S.f.q) + '"></div>'
     + '<div class="chips"><button class="fchip' + (S.f.unread ? ' on' : '') + '" onclick="setF(\'unread\',true)">Unread</button><button class="fchip' + (!S.f.unread ? ' on' : '') + '" onclick="setF(\'unread\',false)">All</button>'
+    + '<select class="fsel" onchange="setF(\'acct\',this.value)"><option value="">All inboxes</option>' + Object.keys(ACCOUNTS).map(function (a) { return '<option value="' + a + '"' + (S.f.acct === a ? ' selected' : '') + '>' + ACCOUNTS[a].label + '</option>'; }).join('') + '</select>'
     + '<select class="fsel" onchange="setF(\'chat\',this.value)"><option value="">Any project</option>' + chats.map(function (c) { return '<option value="' + esc(c) + '"' + (S.f.chat === c ? ' selected' : '') + '>' + esc(chatShort(c)) + '</option>'; }).join('') + '</select></div></div>';
   var errs = ((S.data && S.data.errors) || []).concat((S.data && S.data.last && S.data.last.errors) || []);
   if (errs.length) h += '<div class="warn">' + esc(errs.join(' · ').slice(0, 240)) + '</div>';
@@ -442,7 +469,7 @@ function list() {
     h += '<div class="row' + (S.open === g.id ? ' on' : '') + (read ? ' read' : '') + '" onclick="openG(\'' + g.id + '\')">'
       + '<div class="ck' + (S.sel[g.id] ? ' show' : '') + '" onclick="event.stopPropagation();pick(\'' + g.id + '\')"></div>'
       + '<div style="min-width:0"><div class="who">' + (read ? '' : '<span class="unreaddot"></span>') + esc(who) + (n > 1 ? '<span class="badge">' + n + '</span>' : '') + '</div>'
-      + '<div class="l2">' + esc(l2) + '</div><div class="l3">' + esc(e.why || e.snippet) + '</div></div>'
+      + '<div class="l2">' + esc(l2) + '</div><div class="l3">' + (g.isChat ? '' : acctTag(e.account)) + esc(e.why || e.snippet) + '</div></div>'
       + '<div class="when">' + when + (S.view === 'all' ? '<span class="pd"><span class="dot" style="background:' + pileOf(g.pile).color + '"></span></span>' : '') + '</div></div>';
   });
   return h + '</div></section>';
@@ -487,7 +514,7 @@ function mailDetail(g) {
   var draft = S.drafts[g.id] != null ? S.drafts[g.id] : (e.draft_text || '');
   var h = '<section class="detail' + (S.phoneOpen ? ' open' : '') + '"><div class="dhead"><div style="display:flex;gap:8px;align-items:flex-start">'
     + '<button class="iconbtn back" onclick="closeG()">' + I.back + '</button><h2 style="flex:1">' + esc(e.subject) + '</h2></div>'
-    + '<div class="meta"><span class="chip"><span class="dot" style="background:' + p.color + '"></span>' + p.title + '</span>'
+    + '<div class="meta">' + acctTag(e.account) + '<span class="chip"><span class="dot" style="background:' + p.color + '"></span>' + p.title + '</span>'
     + (e.why ? '<span class="chip">' + I.spark.replace('<svg', '<svg style="width:12px;height:12px"') + esc(e.why) + '</span>' : '') + (g.items.length > 1 ? '<span class="chip">' + g.items.length + ' emails</span>' : '') + '</div></div><div class="bar">';
   if (replyable && !draft) h += '<button class="btn pri" onclick="writeD()" ' + (S.busy ? 'disabled' : '') + '>' + I.pen + (S.busy === 'write' ? 'Writing…' : chase ? 'Write a nudge' : 'Write reply') + '<kbd>W</kbd></button>';
   h += '<button class="btn' + (replyable && !draft ? '' : ' pri') + '" onclick="sendToChat(\'' + g.id + '\')">' + I.send + 'Send to chat</button>';
@@ -501,6 +528,7 @@ function mailDetail(g) {
       + '<textarea id="draft">' + esc(draft) + '</textarea><div class="cf"><button class="btn pri" onclick="saveD()" ' + (S.busy ? 'disabled' : '') + '>' + I.gmail + (S.busy === 'save' ? 'Saving…' : 'Save to Gmail drafts') + '</button>'
       + '<button class="btn ghost" onclick="writeD()">' + I.spark + 'Rewrite</button><span style="flex:1"></span><span class="saved" id="savedflag" style="' + (saved ? '' : 'display:none') + '">' + I.check + 'In Gmail drafts</span></div></div>';
   }
+  h += aboutSender(g);
   if (!many) return h + messages(e.id, e) + '</div></section>';
   // Several emails from the same sender (e.g. Google Docs comments): one line each, open to read.
   g.items.forEach(function (x, i) {
@@ -510,6 +538,36 @@ function mailDetail(g) {
   });
   return h + '</div></section>';
 }
+// What Owen has done with this sender before, and one tap to make it a rule.
+function aboutSender(g) {
+  var e = g.items[0], k = String(e.from_email || '').toLowerCase(); if (!k || e.kind === 'chase') return '';
+  var hb = (S.data.habits || {})[k], rule = (S.data.rules || {})[k];
+  var here = (S.data.emails || []).filter(function (x) { return String(x.from_email || '').toLowerCase() === k; }).length;
+  var facts = [here + ' email' + (here === 1 ? '' : 's') + ' from them this week'];
+  if (e.knows) facts.push('you have written to them before');
+  var hint = '';
+  if (hb) {
+    if (hb.read) facts.push('you marked ' + hb.read + ' read');
+    if (hb.reply) facts.push('replied ' + hb.reply + '×');
+    if (hb.bin) facts.push('binned ' + hb.bin);
+    var chats = Object.keys(hb.chat || {}); if (chats.length) facts.push('sent to ' + chats.map(function (c) { return c + (hb.chat[c] > 1 ? ' ×' + hb.chat[c] : ''); }).join(', '));
+    if (!rule && hb.read >= 3 && !hb.reply) hint = 'You always just mark these read. Put them straight in Noise from now on?';
+  }
+  var piles = ['noise', 'learn', 'reply', 'fix'];
+  return '<div class="about"><div class="ab1"><span class="av" style="background:' + hue(k) + '">' + esc(initials(e.from_name || k)) + '</span><div style="min-width:0;flex:1"><b>' + esc(e.from_name || k) + '</b><div class="l3">' + esc(k) + '</div></div></div>'
+    + '<div class="abf">' + esc(facts.join(' · ')) + '</div>'
+    + (hint ? '<div class="abh">' + I.spark + esc(hint) + ' <button class="btn sm pri" onclick="setRule(\'' + esc(k) + '\',\'noise\')">Yes, always Noise</button></div>' : '')
+    + '<div class="abr"><span class="l3">' + (rule ? 'Rule: always <b>' + pileOf(rule).title + '</b>' : 'Always put this sender in:') + '</span>'
+    + (rule ? '<button class="btn sm ghost" onclick="setRule(\'' + esc(k) + '\',\'\')">Remove rule</button>' : piles.map(function (x) { return '<button class="btn sm ghost" onclick="setRule(\'' + esc(k) + '\',\'' + x + '\')">' + pileOf(x).title + '</button>'; }).join(''))
+    + '</div></div>';
+}
+function setRule(from, pile) {
+  S.data.rules = S.data.rules || {}; if (pile) S.data.rules[from] = pile; else delete S.data.rules[from];
+  if (pile) S.data.emails.forEach(function (x) { if (String(x.from_email || '').toLowerCase() === from && !isRead(x)) { x.category = pile; x.why = 'Your rule'; } });
+  reGroup(); afterChange(pile ? 'Done. Everything from them goes to ' + pileOf(pile).title + ' from now on.' : 'Rule removed.');
+  api('setRule', { from:from, pile:pile }).catch(fail);
+}
+
 // The real email, as Gmail has it, fetched when opened.
 function messages(id, e) {
   var t = S.threads[id];
