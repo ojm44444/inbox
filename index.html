@@ -35,8 +35,11 @@ body { margin:0; background:var(--bg); color:var(--text); font:13.5px/1.45 Inter
 button, select, input, textarea { font:inherit; color:inherit; }
 a { color:var(--acc2); text-decoration:none; }
 svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; flex:none; }
-.app { display:grid; grid-template-columns:220px 1fr; height:100vh; height:100dvh; }
-.app.mail { grid-template-columns:220px 420px 1fr; }
+.app { display:grid; grid-template-columns:220px minmax(0,1fr); height:100vh; height:100dvh; }
+.app.mail { grid-template-columns:220px 420px minmax(0,1fr); }
+.detail, .list { min-width:0; }
+.dbody { overflow-x:hidden; }
+.msg pre { overflow-x:auto; }
 .side { background:var(--side); border-right:1px solid var(--line); display:flex; flex-direction:column; padding:14px 10px; gap:2px; min-height:0; }
 .brand { display:flex; align-items:center; gap:10px; padding:4px 8px 16px; font-weight:700; font-size:15px; }
 .logo { width:26px; height:26px; border-radius:8px; background:linear-gradient(135deg,var(--acc),#a26bf5); display:grid; place-items:center; }
@@ -232,10 +235,14 @@ body { background:radial-gradient(1200px 600px at 80% -10%, color-mix(in srgb, v
 @keyframes pop { from { transform:translateY(8px) scale(.98); opacity:0; } to { transform:none; opacity:1; } }
 .undo { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--text); color:var(--bg); border-radius:12px; padding:8px 8px 8px 16px; display:flex; gap:14px; align-items:center; box-shadow:var(--shadow); z-index:35; animation:pop .18s ease; }
 .undo .btn { background:transparent; color:var(--bg); border-color:color-mix(in srgb, var(--bg) 40%, transparent); }
+.msg.folded { cursor:pointer; opacity:.85; }
+.msg.folded .mh { border-bottom:0; }
+.msg.folded:hover { opacity:1; border-color:var(--line2); }
+.artsnip { padding:10px 16px 14px; color:var(--dim); font-size:13px; }
 .gate { display:grid; place-items:center; height:100vh; }
 .gate .box2 { width:min(360px,90vw); text-align:center; }
 .back, .tabs { display:none; }
-@media (max-width:1300px) { .app.mail { grid-template-columns:190px 320px 1fr; } .dhead, .bar, .dbody { padding-left:18px; padding-right:18px; } .explain { margin-left:18px; margin-right:18px; } }
+@media (max-width:1300px) { .app.mail { grid-template-columns:190px 320px minmax(0,1fr); } .dhead, .bar, .dbody { padding-left:18px; padding-right:18px; } .explain { margin-left:18px; margin-right:18px; } }
 @media (max-width:1100px) { .tiles { grid-template-columns:repeat(3,minmax(0,1fr)); } .grid2 { grid-template-columns:minmax(0,1fr); } }
 @media (max-width:900px) {
   body { overflow:auto; }
@@ -310,6 +317,7 @@ var I = {
   book:'<svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M8 7h7M8 11h7"/></svg>',
   info:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>'
 };
+I.reply = PILE_ICON.reply;
 var S = { token:'', key:'', data:null, view:'home', open:null, sel:{}, drafts:{}, threads:{}, openIssue:{}, busy:'', loading:true, refreshing:false, phoneOpen:false,
   f:{ q:'', unread:true, chat:'', acct:'' } };
 
@@ -378,6 +386,8 @@ function render() {
 }
 function wire() {
   var ta = document.getElementById('draft');
+  var grow = function () { if (ta) { ta.style.height = 'auto'; ta.style.height = Math.min(520, ta.scrollHeight + 4) + 'px'; } }; grow();
+  if (ta) ta.addEventListener('input', grow);
   if (ta) ta.addEventListener('keydown', function (ev) { if ((ev.metaKey || ev.ctrlKey) && ev.key === 'Enter') { ev.preventDefault(); sendD(); } });
   if (ta) ta.addEventListener('input', function () { S.drafts[S.open] = ta.value; var sv = document.getElementById('savedflag'); if (sv) sv.style.display = 'none'; });
   var q = document.getElementById('q');
@@ -464,9 +474,11 @@ function reading() {
   if (!all.length) return h + '<div class="empty"><b>Nothing to read</b>New marketing emails land here.</div></main>';
   all.forEach(function (e, i) {
     var read = isRead(e);
-    h += '<article class="art' + (read ? ' read' : '') + '"><div class="arth"><span class="artn">' + (i + 1) + '</span><div style="flex:1;min-width:0"><div class="artt">' + esc(e.subject) + '</div><div class="l3">' + esc(e.from_name || e.from_email) + ' · ' + ago(e.received_at) + ' ago' + (e.why ? ' · ' + esc(e.why) : '') + '</div></div>'
+    S.openArt = S.openArt || {}; if (i === 0 && S.openArt[e.id] == null) S.openArt[e.id] = true;
+    var openA = S.openArt[e.id];
+    h += '<article class="art' + (read ? ' read' : '') + '"><div class="arth" style="cursor:pointer" onclick="if(!event.target.closest(\'button\')){S.openArt[\'' + e.id + '\']=!S.openArt[\'' + e.id + '\'];render()}"><span class="artn">' + (i + 1) + '</span><div style="flex:1;min-width:0"><div class="artt">' + esc(e.subject) + '</div><div class="l3">' + esc(e.from_name || e.from_email) + ' · ' + ago(e.received_at) + ' ago' + (e.why ? ' · ' + esc(e.why) : '') + '</div></div>'
       + '<button class="btn sm" onclick="readOne(\'' + e.id + '\',' + (read ? 'false' : 'true') + ')">' + (read ? I.dotc + 'Unread' : I.check + 'Read') + '</button>'
-      + '<button class="btn sm ghost" onclick="sendOne(\'' + e.id + '\')">' + I.send + 'Send to chat</button></div>' + messages(e.id, e) + '</article>';
+      + '<button class="btn sm ghost" onclick="sendOne(\'' + e.id + '\')">' + I.send + 'Send to chat</button></div>' + (openA ? messages(e.id, e) : '<div class="artsnip">' + esc(e.snippet || '') + '</div>') + '</article>';
   });
   return h + '</main>';
 }
@@ -481,7 +493,8 @@ function inboxStrip() {
 }
 function timeline() {
   var c = S.data.calendar; if (!c) return '<div class="empty" style="padding:20px">Calendar not available.</div>';
-  var items = c.events.map(function (e) { return { t:e.start, ev:e }; }).concat(c.free.map(function (f) { return { t:f.start, free:f }; })).sort(function (a, b) { return a.t < b.t ? -1 : 1; }).slice(0, 14);
+  var nowIso = new Date().toISOString();
+  var items = c.events.map(function (e) { return { t:e.start < nowIso ? nowIso : e.start, ev:e }; }).concat(c.free.map(function (f) { return { t:f.start, free:f }; })).sort(function (a, b) { return a.t < b.t ? -1 : 1; }).slice(0, 14);
   var h = '', day = '';
   items.forEach(function (x) {
     var d = dayName(x.t); if (d !== day) { h += (day ? '</div>' : '') + '<div class="dayh">' + d + '</div><div class="tl">'; day = d; }
@@ -559,24 +572,26 @@ function mailDetail(g) {
   var e = g.items[0], p = pileOf(g.pile), chase = e.kind === 'chase', read = !g.unread.length;
   var many = g.items.length > 1, replyable = !many && g.pile !== 'noise';
   var draft = S.drafts[g.id] != null ? S.drafts[g.id] : (e.draft_text || '');
+  var composing = draft || (S.composing && S.composing[g.id]);
   var h = '<section class="detail' + (S.phoneOpen ? ' open' : '') + '"><div class="dhead"><div style="display:flex;gap:8px;align-items:flex-start">'
     + '<button class="iconbtn back" onclick="closeG()">' + I.back + '</button><h2 style="flex:1">' + esc(e.subject) + '</h2></div>'
     + '<div class="meta">' + acctTag(e.account) + '<span class="chip"><span class="dot" style="background:' + p.color + '"></span>' + p.title + '</span>'
     + (e.why ? '<span class="chip">' + I.spark.replace('<svg', '<svg style="width:12px;height:12px"') + esc(e.why) + '</span>' : '') + (g.items.length > 1 ? '<span class="chip">' + g.items.length + ' emails</span>' : '') + '</div></div><div class="bar">';
-  if (replyable && !draft) h += '<button class="btn' + (g.pile === 'reply' || g.pile === 'chase' ? ' pri' : '') + '" onclick="writeD()" ' + (S.busy ? 'disabled' : '') + '>' + I.pen + (S.busy === 'write' ? 'Writing…' : chase ? 'Write a nudge' : 'Write reply') + '<kbd>W</kbd></button>';
+  if (replyable && !composing) h += '<button class="btn' + (g.pile === 'reply' || g.pile === 'chase' ? ' pri' : '') + '" onclick="startReply()">' + I.reply + 'Reply<kbd>R</kbd></button>'
+    + '<button class="btn ghost" onclick="writeD()" ' + (S.busy ? 'disabled' : '') + '>' + I.spark + (S.busy === 'write' ? 'Writing…' : chase ? 'Write a nudge for me' : 'Write it for me') + '<kbd>W</kbd></button>';
   h += '<button class="btn' + ((g.pile === 'reply' || g.pile === 'chase') ? '' : ' pri') + '" onclick="sendToChat(\'' + g.id + '\')">' + I.send + 'Send to chat</button>';
   var slack = e.account === 'slack';
   h += (e.gmail_url ? '<a class="btn ghost" target="_blank" href="' + esc(e.gmail_url) + '">' + I.gmail + (slack ? 'Open in Slack' : 'Open in Gmail') + '</a>' : '')
     + '<span style="flex:1"></span><select class="sel" onchange="movePile(this.value)" title="Move to another pile"><option value="">Move…</option>' + PILES.filter(function (x) { return x.key !== 'new' && x.key !== g.pile; }).map(function (x) { return '<option value="' + x.key + '">' + x.title + '</option>'; }).join('') + '</select>'
     + (read ? '<button class="btn" onclick="markUnread()">' + I.dotc + 'Mark unread<kbd>U</kbd></button>' : '<button class="btn" onclick="markRead()">' + I.check + (chase ? 'Dismiss' : 'Mark read') + '<kbd>E</kbd></button>')
     + (slack ? '' : '<button class="iconbtn" title="Bin" onclick="binOne()">' + I.bin + '</button>') + '</div><div class="dbody">';
-  if (replyable && draft) {
+  if (replyable && composing) {
     var saved = e.gmail_draft_id && S.drafts[g.id] == null;
     h += '<div class="composer"><div class="ch">' + I.pen + (chase ? 'Nudge to ' : 'Reply to ') + esc(chase ? (e.from_name || e.to_email) : (e.from_name || e.from_email)) + '<span style="flex:1"></span>written in your voice</div>'
       + '<textarea id="draft">' + esc(draft) + '</textarea><div class="cf">'
       + '<button class="btn pri" onclick="sendD()" ' + (S.busy ? 'disabled' : '') + '>' + I.send + (e.account === 'slack' ? 'Send on Slack' : 'Send') + '<kbd>⌘↵</kbd></button>'
       + (e.account === 'slack' ? '' : '<button class="btn ghost" onclick="saveD()" ' + (S.busy ? 'disabled' : '') + '>' + I.gmail + (S.busy === 'save' ? 'Saving…' : 'Save as draft') + '</button>')
-      + '<button class="btn ghost" onclick="writeD()">' + I.spark + 'Rewrite</button><span style="flex:1"></span><span class="saved" id="savedflag" style="' + (saved ? '' : 'display:none') + '">' + I.check + 'In Gmail drafts</span></div></div>';
+      + '<button class="btn ghost" onclick="writeD()">' + I.spark + (draft ? 'Rewrite for me' : 'Write it for me') + '</button><button class="btn ghost" onclick="cancelReply()">Discard</button><span style="flex:1"></span><span class="saved" id="savedflag" style="' + (saved ? '' : 'display:none') + '">' + I.check + 'In Gmail drafts</span></div></div>';
   }
   h += aboutSender(g);
   if (!many) return h + messages(e.id, e) + '</div></section>';
@@ -623,8 +638,12 @@ function messages(id, e) {
   var t = S.threads[id];
   if (!t) { loadThread(id); return '<div class="skel" style="height:220px;margin:0"></div>'; }
   if (t.error) return '<div class="msg"><pre>' + esc(e.thread_text || e.snippet) + '</pre></div>';
-  return t.map(function (m, i) {
+  // Newest first and open; older ones folded to one line until tapped.
+  S.openMsg = S.openMsg || {};
+  return t.map(function (m, i) { return { m:m, i:i }; }).reverse().map(function (x, n) {
+    var m = x.m, i = x.i, key = id + ':' + i;
     var who = m.from.replace(/<.*>/, '').replace(/"/g, '').trim() || m.from;
+    if (n > 0 && !S.openMsg[key]) return '<div class="msg folded" onclick="S.openMsg[\'' + key + '\']=true;render()"><div class="mh"><div class="av" style="background:' + hue(m.from) + '">' + esc(initials(who)) + '</div><div style="min-width:0;flex:1"><div class="f">' + esc(who) + '</div><div class="l3">' + esc((m.plain || '').replace(/\s+/g, ' ').slice(0, 120)) + '</div></div><div class="d">' + new Date(m.at).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) + '</div></div></div>';
     var body = m.html
       ? '<iframe data-mid="' + id + i + '" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" srcdoc="' + esc('<base target="_blank"><style>body{margin:0;padding:16px;font:14px/1.5 -apple-system,Inter,sans-serif;color:#1b1b1f;background:#fff;word-break:break-word}img{max-width:100%;height:auto}table{max-width:100%}</style>' + m.html) + '"></iframe>'
       : '<pre>' + esc(m.plain) + '</pre>';
@@ -680,6 +699,8 @@ function sendD() {
       .catch(function (err) { setStatus([e.id], 'open'); S.drafts[g.id] = text; render(); toast('Did not send: ' + err.message, true); });
   }, 5000);
 }
+function startReply() { var g = current(); if (!g) return; S.composing = S.composing || {}; S.composing[g.id] = true; if (S.drafts[g.id] == null) S.drafts[g.id] = ''; render(); var t = document.getElementById('draft'); if (t) t.focus(); }
+function cancelReply() { var g = current(); if (!g) return; if (S.composing) delete S.composing[g.id]; delete S.drafts[g.id]; g.items[0].draft_text = ''; render(); }
 function slackReply() { var g = current(); if (!g) return; var t = S.drafts[g.id] != null ? S.drafts[g.id] : g.items[0].draft_text; copyText(t, 'Reply copied. Paste it in Slack.'); if (g.items[0].gmail_url) window.open(g.items[0].gmail_url, '_blank'); }
 function writeD() { var g = current(); if (!g) return; S.busy = 'write'; render(); api('writeDraft', { id:g.items[0].id }).then(function (r) { S.drafts[g.id] = r.text; S.busy = ''; render(); }).catch(fail); }
 function saveD() {
@@ -801,7 +822,7 @@ document.addEventListener('keydown', function (ev) {
   else if (k === 'u' && S.open) markUnread();
   else if (k === 'w' && S.open) writeD();
   else if (k === 'x' && S.open) pick(S.open);
-  else if (k === 'r') refresh();
+  else if (k === 'r') { if (S.open && current() && !current().isChat) startReply(); else refresh(); }
   else if (k === '/') { var q = document.getElementById('q'); if (q) { q.focus(); ev.preventDefault(); } }
   else if (ev.key === 'Escape') { S.open = null; S.sel = {}; render(); }
 });
