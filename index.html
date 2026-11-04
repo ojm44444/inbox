@@ -99,7 +99,7 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .fchip.on { background:var(--text); color:var(--bg); border-color:var(--text); }
 .fsel { border:1px solid var(--line2); background:var(--panel); border-radius:20px; padding:3px 8px; font-size:12px; color:var(--dim); cursor:pointer; }
 .rows { overflow-y:auto; flex:1; padding:0 8px 80px; }
-.row { display:grid; grid-template-columns:18px 1fr auto; gap:10px; padding:10px; border-radius:9px; cursor:pointer; }
+.row { display:grid; grid-template-columns:18px 32px 1fr auto; gap:10px; align-items:start; padding:10px; border-radius:9px; cursor:pointer; }
 .row:hover { background:var(--hover); }
 .row.on { background:var(--sel); }
 .row .ck { opacity:0; margin-top:2px; }
@@ -198,6 +198,38 @@ kbd { font:11px Inter,sans-serif; color:var(--faint); border:1px solid var(--lin
 .abh svg { color:var(--acc2); }
 .abr { display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
 .abr .l3 { margin-right:4px; }
+/* design pass, 4 Nov */
+body { background:radial-gradient(1200px 600px at 80% -10%, color-mix(in srgb, var(--acc) 10%, transparent), transparent 60%), var(--bg); }
+.side { background:color-mix(in srgb, var(--side) 88%, transparent); backdrop-filter:blur(14px); }
+.nav { transition:background .15s, color .15s; }
+.hero { margin-bottom:18px; }
+.hero .day { color:var(--faint); font-size:12px; text-transform:uppercase; letter-spacing:.08em; font-weight:600; margin-bottom:4px; }
+.hello { font-size:30px; letter-spacing:-.03em; background:linear-gradient(90deg, var(--text), color-mix(in srgb, var(--acc2) 70%, var(--text))); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.hellosub { font-size:14px; margin-bottom:0; }
+.tile { position:relative; overflow:hidden; background:linear-gradient(160deg, color-mix(in srgb, var(--c) 9%, var(--panel)), var(--panel) 60%); border-color:color-mix(in srgb, var(--c) 18%, var(--line)); box-shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 6px 18px rgba(0,0,0,.12); }
+.tile:hover { border-color:color-mix(in srgb, var(--c) 45%, var(--line)); transform:translateY(-2px); box-shadow:0 10px 26px rgba(0,0,0,.2); }
+.tile::after { content:""; position:absolute; right:-30px; top:-30px; width:110px; height:110px; border-radius:50%; background:radial-gradient(circle, color-mix(in srgb, var(--c) 22%, transparent), transparent 70%); }
+.pico { width:24px; height:24px; border-radius:7px; display:grid; place-items:center; background:color-mix(in srgb, var(--c) 18%, transparent); color:var(--c); }
+.pico svg { width:14px; height:14px; stroke-width:2.1; }
+.tile .num { font-size:32px; }
+.box { box-shadow:0 6px 18px rgba(0,0,0,.08); }
+.box h3 svg { color:var(--acc2); }
+.rowav { width:32px; height:32px; border-radius:50%; display:grid; place-items:center; color:#fff; font-weight:700; font-size:11.5px; margin-top:1px; box-shadow:0 0 0 2px var(--bg); }
+.row { transition:background .12s; }
+.row.on { box-shadow:inset 3px 0 0 var(--acc); }
+.row.read .rowav { opacity:.55; }
+.btn { transition:background .12s, border-color .12s, transform .08s; }
+.btn:active { transform:scale(.97); }
+.btn.pri { box-shadow:0 4px 14px color-mix(in srgb, var(--acc) 35%, transparent); }
+.dhead h2 { font-size:22px; }
+.detail, .list { animation:fadein .18s ease; }
+@keyframes fadein { from { opacity:.6; } to { opacity:1; } }
+.msg { box-shadow:0 4px 14px rgba(0,0,0,.08); }
+.ichip { transition:border-color .12s, background .12s; }
+.ichip:hover { border-color:var(--c, var(--line2)); }
+.modal { animation:fadein .15s ease; backdrop-filter:blur(4px); }
+.mbox { animation:pop .18s ease; }
+@keyframes pop { from { transform:translateY(8px) scale(.98); opacity:0; } to { transform:none; opacity:1; } }
 .gate { display:grid; place-items:center; height:100vh; }
 .gate .box2 { width:min(360px,90vw); text-align:center; }
 .back, .tabs { display:none; }
@@ -237,6 +269,14 @@ kbd { font:11px Inter,sans-serif; color:var(--faint); border:1px solid var(--lin
 // Google sign-in client ID for this site (public). Only ojm221100@gmail.com is let in, checked on the server.
 var CLIENT_ID = '86307135880-audatrgu406khgmndahjrjt3e7ofo2b9.apps.googleusercontent.com';
 var API = 'https://script.google.com/macros/s/AKfycbzUIxAgrR4bZZCPNQ-Eqbc93gq2Tt_CMG5TXIixKmP0P63n_KX1zRMyCs8cHf7_GtFG/exec';
+var PILE_ICON = {
+  fix:'<svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg>',
+  reply:'<svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 6 6v4"/></svg>',
+  chase:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
+  learn:'<svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M8 7h7M8 11h7"/></svg>',
+  noise:'<svg viewBox="0 0 24 24"><path d="M4 12h16"/></svg>',
+  new:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/></svg>'
+};
 var PILES = [
   { key:'fix', title:'Fix', color:'var(--fix)', help:'Your tools broke. One group per chat.' },
   { key:'reply', title:'Reply', color:'var(--reply)', help:'People waiting on you.' },
@@ -359,7 +399,7 @@ function side() {
     h += '<button class="nav' + (S.view === p.key ? ' on' : '') + '" onclick="go(\'' + p.key + '\')"><span class="dot" style="background:' + p.color + '"></span>' + p.title + '<span class="n">' + (n || '') + '</span></button>';
   });
   var last = S.data && S.data.last && S.data.last.at;
-  return h + '<div class="sidefoot"><span style="flex:1">' + (last ? 'Synced ' + ago(last) + ' ago' : '') + '</span>'
+  return h + '<div class="sidefoot"><span style="flex:1">' + (S.stale ? 'Updating…' : last ? 'Synced ' + ago(last) + ' ago' : '') + '</span>'
     + '<button class="iconbtn" title="Light or dark" onclick="theme()">' + I.sun + '</button>'
     + '<button class="iconbtn' + (S.refreshing ? ' spin' : '') + '" title="Check Gmail now (R)" onclick="refresh()">' + I.refresh + '</button>'
     + '<button class="iconbtn" title="Sign out" onclick="signOut()">' + I.out + '</button></div></aside>';
@@ -375,9 +415,12 @@ function home() {
   var hr = Number(new Date().toLocaleString('en-GB', { hour:'numeric', hour12:false, timeZone:'Europe/London' }));
   var hi = hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
   var total = unreadCount('all');
-  var h = '<main class="home">' + tabs() + '<h1 class="hello">' + hi + ', Owen</h1><div class="hellosub">' + (total ? total + ' unread across your inboxes, sorted for you.' : 'Inbox clear.') + '</div>' + inboxStrip() + '<div class="tiles">';
+  var people = pileList('reply').length, chase = unreadCount('chase'), fixN = groups().filter(function (g) { return g.isChat && g.unread.length; }).length;
+  var bits = []; if (people) bits.push(people + ' ' + (people === 1 ? 'person' : 'people') + ' waiting on you'); if (fixN) bits.push(fixN + ' chat' + (fixN === 1 ? '' : 's') + ' to send broken things to'); if (chase) bits.push(chase + ' to chase');
+  var day = new Date().toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', timeZone:'Europe/London' });
+  var h = '<main class="home">' + tabs() + '<div class="hero"><div class="day">' + day + '</div><h1 class="hello">' + hi + ', Owen</h1><div class="hellosub">' + (bits.length ? bits.join(' · ') + '.' : 'Inbox clear. Nice.') + '</div></div>' + inboxStrip() + '<div class="tiles">';
   PILES.filter(function (p) { return p.key !== 'new'; }).forEach(function (p) {
-    h += '<div class="tile" onclick="go(\'' + (p.key === 'learn' ? 'reading' : p.key) + '\')"><div class="lab"><span class="dot" style="background:' + p.color + '"></span>' + p.title + '</div><div class="num">' + unreadCount(p.key) + '</div><div class="hint">' + p.help + '</div></div>';
+    h += '<div class="tile" style="--c:' + p.color + '" onclick="go(\'' + (p.key === 'learn' ? 'reading' : p.key) + '\')"><div class="lab"><span class="pico">' + PILE_ICON[p.key] + '</span>' + p.title + '</div><div class="num">' + unreadCount(p.key) + '</div><div class="hint">' + p.help + '</div></div>';
   });
   h += '</div><div class="grid2"><div>';
   var chats = groups().filter(function (g) { return g.isChat && g.unread.length; });
@@ -468,6 +511,7 @@ function list() {
     var n = S.f.unread ? g.unread.length : g.items.length;
     h += '<div class="row' + (S.open === g.id ? ' on' : '') + (read ? ' read' : '') + '" onclick="openG(\'' + g.id + '\')">'
       + '<div class="ck' + (S.sel[g.id] ? ' show' : '') + '" onclick="event.stopPropagation();pick(\'' + g.id + '\')"></div>'
+      + '<div class="rowav" style="background:' + (g.isChat ? (CHAT_COLOURS[g.chat] || '#6c6d79') : hue(e.from_email)) + '">' + esc(initials(g.isChat ? chatShort(g.chat) : (e.from_name || e.from_email))) + '</div>'
       + '<div style="min-width:0"><div class="who">' + (read ? '' : '<span class="unreaddot"></span>') + esc(who) + (n > 1 ? '<span class="badge">' + n + '</span>' : '') + '</div>'
       + '<div class="l2">' + esc(l2) + '</div><div class="l3">' + (g.isChat ? '' : acctTag(e.account)) + esc(e.why || e.snippet) + '</div></div>'
       + '<div class="when">' + when + (S.view === 'all' ? '<span class="pd"><span class="dot" style="background:' + pileOf(g.pile).color + '"></span></span>' : '') + '</div></div>';
@@ -700,7 +744,7 @@ function theme() { var r = document.documentElement, now = r.dataset.theme || (m
 
 function load(op) {
   if (op === 'refresh') S.refreshing = true; render();
-  return api(op || 'load').then(function (d) { S.data = d; S.loading = false; S.refreshing = false; render(); })
+  return api(op || 'load').then(function (d) { S.data = d; S.loading = false; S.refreshing = false; S.stale = false; saveCache(d); render(); })
     .catch(function (e) {
       S.loading = false; S.refreshing = false;
       if (/sign in again/i.test(e.message)) { S.token = ''; S.key = ''; try { localStorage.removeItem('inbox-id'); } catch (x) {} }
@@ -708,6 +752,9 @@ function load(op) {
     });
 }
 function refresh() { if (!S.refreshing) load('refresh'); }
+// Opens instantly with what it showed last time (this browser only), then updates.
+function saveCache(d) { try { localStorage.setItem('inbox-cache', JSON.stringify(d)); } catch (e) { try { localStorage.removeItem('inbox-cache'); } catch (x) {} } }
+function readCache() { try { return JSON.parse(localStorage.getItem('inbox-cache') || 'null'); } catch (e) { return null; } }
 
 function renderGate() {
   document.getElementById('root').innerHTML = '<div class="gate"><div class="box2"><div class="logo" style="width:44px;height:44px;margin:0 auto 14px;border-radius:12px">' + I.inbox + '</div>'
@@ -724,7 +771,7 @@ function gsi() {
 }
 function tokenExp(t) { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).exp * 1000; } catch (e) { return 0; } }
 function onCred(r) { S.token = r.credential; try { localStorage.setItem('inbox-id', S.token); } catch (e) {} S.loading = true; load('load'); }
-function signOut() { S.token = ''; S.data = null; try { localStorage.removeItem('inbox-id'); } catch (e) {} if (window.google && google.accounts) google.accounts.id.disableAutoSelect(); render(); }
+function signOut() { S.token = ''; S.data = null; try { localStorage.removeItem('inbox-id'); localStorage.removeItem('inbox-cache'); } catch (e) {} if (window.google && google.accounts) google.accounts.id.disableAutoSelect(); render(); }
 
 document.addEventListener('keydown', function (ev) {
   if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || ev.metaKey || ev.ctrlKey || !S.data || S.view === 'home' || S.view === 'reading') return;
@@ -746,7 +793,7 @@ document.addEventListener('keydown', function (ev) {
   var q = new URLSearchParams(location.search).get('k');
   if (q) { S.key = q; history.replaceState(null, '', location.pathname); }
   try { var tok = localStorage.getItem('inbox-id') || ''; if (tok && tokenExp(tok) > Date.now() + 60000) S.token = tok; } catch (e) {}
-  if (S.token || S.key) load('load'); else render();
+  if (S.token || S.key) { var c = readCache(); if (c) { S.data = c; S.loading = false; S.stale = true; S.refreshing = true; render(); } load('load'); } else render();
 })();
 </script>
 </body>
