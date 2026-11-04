@@ -230,6 +230,8 @@ body { background:radial-gradient(1200px 600px at 80% -10%, color-mix(in srgb, v
 .modal { animation:fadein .15s ease; backdrop-filter:blur(4px); }
 .mbox { animation:pop .18s ease; }
 @keyframes pop { from { transform:translateY(8px) scale(.98); opacity:0; } to { transform:none; opacity:1; } }
+.undo { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--text); color:var(--bg); border-radius:12px; padding:8px 8px 8px 16px; display:flex; gap:14px; align-items:center; box-shadow:var(--shadow); z-index:35; animation:pop .18s ease; }
+.undo .btn { background:transparent; color:var(--bg); border-color:color-mix(in srgb, var(--bg) 40%, transparent); }
 .gate { display:grid; place-items:center; height:100vh; }
 .gate .box2 { width:min(360px,90vw); text-align:center; }
 .back, .tabs { display:none; }
@@ -376,6 +378,7 @@ function render() {
 }
 function wire() {
   var ta = document.getElementById('draft');
+  if (ta) ta.addEventListener('keydown', function (ev) { if ((ev.metaKey || ev.ctrlKey) && ev.key === 'Enter') { ev.preventDefault(); sendD(); } });
   if (ta) ta.addEventListener('input', function () { S.drafts[S.open] = ta.value; var sv = document.getElementById('savedflag'); if (sv) sv.style.display = 'none'; });
   var q = document.getElementById('q');
   if (q) q.addEventListener('input', function () { S.f.q = q.value; var pos = q.selectionStart; render(); var n = document.getElementById('q'); n.focus(); n.setSelectionRange(pos, pos); });
@@ -554,14 +557,14 @@ function chatDetail(g) {
 }
 function mailDetail(g) {
   var e = g.items[0], p = pileOf(g.pile), chase = e.kind === 'chase', read = !g.unread.length;
-  var many = g.items.length > 1, replyable = (g.pile === 'reply' || g.pile === 'chase') && !many;
+  var many = g.items.length > 1, replyable = !many && g.pile !== 'noise';
   var draft = S.drafts[g.id] != null ? S.drafts[g.id] : (e.draft_text || '');
   var h = '<section class="detail' + (S.phoneOpen ? ' open' : '') + '"><div class="dhead"><div style="display:flex;gap:8px;align-items:flex-start">'
     + '<button class="iconbtn back" onclick="closeG()">' + I.back + '</button><h2 style="flex:1">' + esc(e.subject) + '</h2></div>'
     + '<div class="meta">' + acctTag(e.account) + '<span class="chip"><span class="dot" style="background:' + p.color + '"></span>' + p.title + '</span>'
     + (e.why ? '<span class="chip">' + I.spark.replace('<svg', '<svg style="width:12px;height:12px"') + esc(e.why) + '</span>' : '') + (g.items.length > 1 ? '<span class="chip">' + g.items.length + ' emails</span>' : '') + '</div></div><div class="bar">';
-  if (replyable && !draft) h += '<button class="btn pri" onclick="writeD()" ' + (S.busy ? 'disabled' : '') + '>' + I.pen + (S.busy === 'write' ? 'Writing…' : chase ? 'Write a nudge' : 'Write reply') + '<kbd>W</kbd></button>';
-  h += '<button class="btn' + (replyable && !draft ? '' : ' pri') + '" onclick="sendToChat(\'' + g.id + '\')">' + I.send + 'Send to chat</button>';
+  if (replyable && !draft) h += '<button class="btn' + (g.pile === 'reply' || g.pile === 'chase' ? ' pri' : '') + '" onclick="writeD()" ' + (S.busy ? 'disabled' : '') + '>' + I.pen + (S.busy === 'write' ? 'Writing…' : chase ? 'Write a nudge' : 'Write reply') + '<kbd>W</kbd></button>';
+  h += '<button class="btn' + ((g.pile === 'reply' || g.pile === 'chase') ? '' : ' pri') + '" onclick="sendToChat(\'' + g.id + '\')">' + I.send + 'Send to chat</button>';
   var slack = e.account === 'slack';
   h += (e.gmail_url ? '<a class="btn ghost" target="_blank" href="' + esc(e.gmail_url) + '">' + I.gmail + (slack ? 'Open in Slack' : 'Open in Gmail') + '</a>' : '')
     + '<span style="flex:1"></span><select class="sel" onchange="movePile(this.value)" title="Move to another pile"><option value="">Move…</option>' + PILES.filter(function (x) { return x.key !== 'new' && x.key !== g.pile; }).map(function (x) { return '<option value="' + x.key + '">' + x.title + '</option>'; }).join('') + '</select>'
@@ -570,9 +573,9 @@ function mailDetail(g) {
   if (replyable && draft) {
     var saved = e.gmail_draft_id && S.drafts[g.id] == null;
     h += '<div class="composer"><div class="ch">' + I.pen + (chase ? 'Nudge to ' : 'Reply to ') + esc(chase ? (e.from_name || e.to_email) : (e.from_name || e.from_email)) + '<span style="flex:1"></span>written in your voice</div>'
-      + '<textarea id="draft">' + esc(draft) + '</textarea><div class="cf">' + (e.account === 'slack'
-        ? '<button class="btn pri" onclick="slackReply()">' + I.copy + 'Copy and open Slack</button>'
-        : '<button class="btn pri" onclick="saveD()" ' + (S.busy ? 'disabled' : '') + '>' + I.gmail + (S.busy === 'save' ? 'Saving…' : 'Save to Gmail drafts') + '</button>')
+      + '<textarea id="draft">' + esc(draft) + '</textarea><div class="cf">'
+      + '<button class="btn pri" onclick="sendD()" ' + (S.busy ? 'disabled' : '') + '>' + I.send + (e.account === 'slack' ? 'Send on Slack' : 'Send') + '<kbd>⌘↵</kbd></button>'
+      + (e.account === 'slack' ? '' : '<button class="btn ghost" onclick="saveD()" ' + (S.busy ? 'disabled' : '') + '>' + I.gmail + (S.busy === 'save' ? 'Saving…' : 'Save as draft') + '</button>')
       + '<button class="btn ghost" onclick="writeD()">' + I.spark + 'Rewrite</button><span style="flex:1"></span><span class="saved" id="savedflag" style="' + (saved ? '' : 'display:none') + '">' + I.check + 'In Gmail drafts</span></div></div>';
   }
   h += aboutSender(g);
@@ -661,6 +664,22 @@ function markRead() { var g = current(); if (!g) return; var x = idsOf(g); setSt
 function markUnread() { var g = current(); if (!g) return; var x = g.items.map(function (e) { return e.id; }); setStatus(x, 'open'); S.busy = ''; render(); toast('Marked unread'); api('markUnread', { ids:x }).catch(fail); }
 function binOne() { var g = current(); if (!g) return; var x = g.items.map(function (e) { return e.id; }); if (!confirm('Bin this? It goes to Gmail\'s bin and can be got back for 30 days.')) return; S.data.emails = S.data.emails.filter(function (e) { return x.indexOf(e.id) < 0; }); afterChange('Binned'); api('bin', { ids:x }).catch(fail); }
 // Slack can't take a draft from here, so the reply goes on the clipboard and Slack opens on the conversation.
+// Send waits 5 seconds with Undo, like Gmail, then goes from the account the email came to.
+function sendD() {
+  var g = current(); if (!g) return; var e = g.items[0];
+  var text = (S.drafts[g.id] != null ? S.drafts[g.id] : e.draft_text || '').trim(); if (!text) { toast('Write something first', true); return; }
+  var to = e.account === 'slack' ? (e.from_name || 'them') + ' on Slack' : (e.kind === 'chase' ? e.to_email : e.from_email);
+  setStatus([e.id], 'done'); afterChange();
+  var undone = false, u = document.createElement('div'); u.className = 'undo';
+  u.innerHTML = '<span>Sending to <b>' + esc(to) + '</b>…</span><button class="btn sm">Undo</button>';
+  u.querySelector('button').onclick = function () { undone = true; u.remove(); setStatus([e.id], 'open'); S.drafts[g.id] = text; S.open = g.id; render(); toast('Not sent'); };
+  document.body.appendChild(u);
+  setTimeout(function () {
+    if (undone) return; u.remove();
+    api('sendReply', { id:e.id, text:text }).then(function () { e.draft_text = text; delete S.drafts[g.id]; toast('Sent to ' + to); })
+      .catch(function (err) { setStatus([e.id], 'open'); S.drafts[g.id] = text; render(); toast('Did not send: ' + err.message, true); });
+  }, 5000);
+}
 function slackReply() { var g = current(); if (!g) return; var t = S.drafts[g.id] != null ? S.drafts[g.id] : g.items[0].draft_text; copyText(t, 'Reply copied. Paste it in Slack.'); if (g.items[0].gmail_url) window.open(g.items[0].gmail_url, '_blank'); }
 function writeD() { var g = current(); if (!g) return; S.busy = 'write'; render(); api('writeDraft', { id:g.items[0].id }).then(function (r) { S.drafts[g.id] = r.text; S.busy = ''; render(); }).catch(fail); }
 function saveD() {
