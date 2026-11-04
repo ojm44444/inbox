@@ -245,9 +245,9 @@ var PILES = [
   { key:'noise', title:'Noise', color:'var(--noise)', help:'Nothing to do.' },
   { key:'new', title:'Not sorted', color:'var(--faint)', help:'Sorted on the next refresh.' }
 ];
-var ACCOUNTS = { personal:{ label:'Personal', color:'#8b8c96' }, tez:{ label:'TEZ', color:'#e0533d' }, songdrafts:{ label:'songdrafts', color:'#2fa36b' }, omellette:{ label:'Omellette', color:'#d6a23a' } };
+var ACCOUNTS = { personal:{ label:'Personal', color:'#8b8c96' }, tez:{ label:'TEZ', color:'#e0533d' }, songdrafts:{ label:'songdrafts', color:'#2fa36b' }, omellette:{ label:'Omellette', color:'#d6a23a' }, rt:{ label:'RideTandem', color:'#3a86d8' }, slack:{ label:'Slack', color:'#a35bd6' } };
 function acctTag(a) { var x = ACCOUNTS[a || 'personal'] || ACCOUNTS.personal; return '<span class="acct" style="--c:' + x.color + '">' + x.label + '</span>'; }
-var CHAT_COLOURS = { 'Moon':'#6d6af5', 'songdrafts':'#2fa36b', 'TEZ':'#e0533d', 'FANFLOWY / FAN HUB':'#d2457f', 'CFO':'#c8902c', 'Hormozi / King Kong Skills':'#3a86d8', 'General TO DOs':'#6c6d79' };
+var CHAT_COLOURS = { 'Moon':'#6d6af5', 'songdrafts':'#2fa36b', 'TEZ':'#e0533d', 'FANFLOWY / FAN HUB':'#d2457f', 'CFO':'#c8902c', 'Hormozi / King Kong Skills':'#3a86d8', 'RideTandem':'#2f6fb5', 'General TO DOs':'#6c6d79' };
 var I = {
   inbox:'<svg viewBox="0 0 24 24"><path d="M4 13h4l2 3h4l2-3h4"/><path d="M5.5 5h13L21 13v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-5z"/></svg>',
   home:'<svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg>',
@@ -518,14 +518,17 @@ function mailDetail(g) {
     + (e.why ? '<span class="chip">' + I.spark.replace('<svg', '<svg style="width:12px;height:12px"') + esc(e.why) + '</span>' : '') + (g.items.length > 1 ? '<span class="chip">' + g.items.length + ' emails</span>' : '') + '</div></div><div class="bar">';
   if (replyable && !draft) h += '<button class="btn pri" onclick="writeD()" ' + (S.busy ? 'disabled' : '') + '>' + I.pen + (S.busy === 'write' ? 'Writing…' : chase ? 'Write a nudge' : 'Write reply') + '<kbd>W</kbd></button>';
   h += '<button class="btn' + (replyable && !draft ? '' : ' pri') + '" onclick="sendToChat(\'' + g.id + '\')">' + I.send + 'Send to chat</button>';
-  h += (e.gmail_url ? '<a class="btn ghost" target="_blank" href="' + esc(e.gmail_url) + '">' + I.gmail + 'Open in Gmail</a>' : '')
+  var slack = e.account === 'slack';
+  h += (e.gmail_url ? '<a class="btn ghost" target="_blank" href="' + esc(e.gmail_url) + '">' + I.gmail + (slack ? 'Open in Slack' : 'Open in Gmail') + '</a>' : '')
     + '<span style="flex:1"></span><select class="sel" onchange="movePile(this.value)" title="Move to another pile"><option value="">Move…</option>' + PILES.filter(function (x) { return x.key !== 'new' && x.key !== g.pile; }).map(function (x) { return '<option value="' + x.key + '">' + x.title + '</option>'; }).join('') + '</select>'
     + (read ? '<button class="btn" onclick="markUnread()">' + I.dotc + 'Mark unread<kbd>U</kbd></button>' : '<button class="btn" onclick="markRead()">' + I.check + (chase ? 'Dismiss' : 'Mark read') + '<kbd>E</kbd></button>')
-    + '<button class="iconbtn" title="Bin" onclick="binOne()">' + I.bin + '</button></div><div class="dbody">';
+    + (slack ? '' : '<button class="iconbtn" title="Bin" onclick="binOne()">' + I.bin + '</button>') + '</div><div class="dbody">';
   if (replyable && draft) {
     var saved = e.gmail_draft_id && S.drafts[g.id] == null;
     h += '<div class="composer"><div class="ch">' + I.pen + (chase ? 'Nudge to ' : 'Reply to ') + esc(chase ? (e.from_name || e.to_email) : (e.from_name || e.from_email)) + '<span style="flex:1"></span>written in your voice</div>'
-      + '<textarea id="draft">' + esc(draft) + '</textarea><div class="cf"><button class="btn pri" onclick="saveD()" ' + (S.busy ? 'disabled' : '') + '>' + I.gmail + (S.busy === 'save' ? 'Saving…' : 'Save to Gmail drafts') + '</button>'
+      + '<textarea id="draft">' + esc(draft) + '</textarea><div class="cf">' + (e.account === 'slack'
+        ? '<button class="btn pri" onclick="slackReply()">' + I.copy + 'Copy and open Slack</button>'
+        : '<button class="btn pri" onclick="saveD()" ' + (S.busy ? 'disabled' : '') + '>' + I.gmail + (S.busy === 'save' ? 'Saving…' : 'Save to Gmail drafts') + '</button>')
       + '<button class="btn ghost" onclick="writeD()">' + I.spark + 'Rewrite</button><span style="flex:1"></span><span class="saved" id="savedflag" style="' + (saved ? '' : 'display:none') + '">' + I.check + 'In Gmail drafts</span></div></div>';
   }
   h += aboutSender(g);
@@ -613,6 +616,8 @@ function fail(e) { S.busy = ''; render(); toast(e.message, true); }
 function markRead() { var g = current(); if (!g) return; var x = idsOf(g); setStatus(x, 'done'); afterChange(x.length > 1 ? x.length + ' marked read' : 'Marked read'); api('markRead', { ids:x }).catch(function (e) { setStatus(x, 'open'); fail(e); }); }
 function markUnread() { var g = current(); if (!g) return; var x = g.items.map(function (e) { return e.id; }); setStatus(x, 'open'); S.busy = ''; render(); toast('Marked unread'); api('markUnread', { ids:x }).catch(fail); }
 function binOne() { var g = current(); if (!g) return; var x = g.items.map(function (e) { return e.id; }); if (!confirm('Bin this? It goes to Gmail\'s bin and can be got back for 30 days.')) return; S.data.emails = S.data.emails.filter(function (e) { return x.indexOf(e.id) < 0; }); afterChange('Binned'); api('bin', { ids:x }).catch(fail); }
+// Slack can't take a draft from here, so the reply goes on the clipboard and Slack opens on the conversation.
+function slackReply() { var g = current(); if (!g) return; var t = S.drafts[g.id] != null ? S.drafts[g.id] : g.items[0].draft_text; copyText(t, 'Reply copied. Paste it in Slack.'); if (g.items[0].gmail_url) window.open(g.items[0].gmail_url, '_blank'); }
 function writeD() { var g = current(); if (!g) return; S.busy = 'write'; render(); api('writeDraft', { id:g.items[0].id }).then(function (r) { S.drafts[g.id] = r.text; S.busy = ''; render(); }).catch(fail); }
 function saveD() {
   var g = current(); if (!g) return; var text = S.drafts[g.id] != null ? S.drafts[g.id] : g.items[0].draft_text; S.busy = 'save'; render();
@@ -632,7 +637,7 @@ function copyGroup(gid) {
   copyText(text, 'Copied. Paste it into your ' + name + ' chat.');
 }
 // Which of Owen's Claude chats fits a group best (by its title), then the rest by recent use.
-var CHAT_HINT = { 'Moon':/moon/i, 'songdrafts':/^songdrafts chat$|songdrafts/i, 'TEZ':/^tez$|tez/i, 'CFO':/cfo|money/i, 'FANFLOWY / FAN HUB':/fan ?flowy|fan hub/i, 'Hormozi / King Kong Skills':/hormozi|king kong/i };
+var CHAT_HINT = { 'Moon':/moon/i, 'songdrafts':/^songdrafts chat$|songdrafts/i, 'TEZ':/^tez$|tez/i, 'CFO':/cfo|money/i, 'FANFLOWY / FAN HUB':/fan ?flowy|fan hub/i, 'Hormozi / King Kong Skills':/hormozi|king kong/i, 'RideTandem':/ridetandem|\brt\b/i };
 function chatList() { return (S.data && S.data.chats && S.data.chats.chats) || []; }
 function suggestChat(project) {
   var re = CHAT_HINT[project], l = chatList();
