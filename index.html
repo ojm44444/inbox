@@ -368,6 +368,43 @@ a.mini { color:var(--text); }
   kbd { display:none; }
   .row .ck { opacity:1; }
 }
+
+/* Slack */
+.slrow { display:flex; gap:10px; align-items:center; padding:8px 10px; border-radius:8px; cursor:pointer; }
+.slrow:hover { background:var(--hover, rgba(255,255,255,.04)); }
+.slrow.on { background:var(--accbg, rgba(124,108,255,.16)); }
+.slrow .t { font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.slrow.unread .t { font-weight:700; }
+.slrow .l3 { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.slsec { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); padding:14px 10px 4px; }
+.slhash { width:28px; height:28px; display:grid; place-items:center; color:var(--dim); font-weight:600; flex:none; }
+.slav { width:36px; height:36px; border-radius:8px; flex:none; display:grid; place-items:center; color:#fff; font-size:13px; font-weight:600; object-fit:cover; }
+.slav.sm { width:28px; height:28px; border-radius:6px; font-size:11px; }
+.sldetail { display:flex; flex-direction:column; }
+.slmsgs { flex:1; overflow-y:auto; padding:8px 0 12px; min-height:0; }
+.slmsg { display:flex; gap:10px; padding:6px 24px; }
+.slmsg.cont { padding-top:1px; padding-bottom:1px; }
+.slmsg:hover { background:var(--hover, rgba(255,255,255,.03)); }
+.sltime { width:36px; flex:none; font-size:10px; color:var(--dim); opacity:0; padding-top:4px; text-align:right; }
+.slmsg:hover .sltime { opacity:1; }
+.slbody { min-width:0; flex:1; }
+.slwho { display:flex; gap:8px; align-items:baseline; }
+.sltext { line-height:1.5; overflow-wrap:anywhere; }
+.sltext code { background:var(--bg); border:1px solid var(--line); border-radius:4px; padding:0 4px; font-size:12px; }
+.slcode { background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:8px; white-space:pre-wrap; font-size:12px; }
+.slmention { background:rgba(29,155,209,.18); color:#5bb8ef; border-radius:4px; padding:0 3px; }
+.slday { text-align:center; margin:14px 0 6px; position:relative; }
+.slday:before { content:''; position:absolute; left:24px; right:24px; top:50%; border-top:1px solid var(--line); }
+.slday span { position:relative; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:2px 12px; font-size:12px; font-weight:600; }
+.slreacts, .slfiles { display:flex; gap:6px; flex-wrap:wrap; margin-top:4px; }
+.slreact { border:1px solid var(--line2); border-radius:12px; padding:1px 8px; font-size:12px; }
+.slfile { border:1px solid var(--line2); border-radius:8px; padding:4px 10px; font-size:12px; color:var(--text); text-decoration:none; }
+.slreplies { background:none; border:0; color:#5bb8ef; font-weight:600; font-size:12px; padding:2px 0; cursor:pointer; }
+.slcompose { display:flex; gap:8px; align-items:flex-end; margin:0 20px 16px; border:1px solid var(--line2); border-radius:10px; padding:8px; background:var(--bg); }
+.slcompose textarea { flex:1; border:0; background:transparent; color:var(--text); font:14px/1.5 Inter,sans-serif; resize:none; outline:none; max-height:180px; }
+.slacktag { display:inline-flex; gap:4px; align-items:center; }
+.slacktag svg, .plat svg { width:13px; height:13px; }
+.seg.plat button { display:inline-flex; gap:4px; align-items:center; }
 </style>
 </head>
 <body>
@@ -394,7 +431,7 @@ var PILES = [
   { key:'noise', title:'Noise', color:'var(--noise)', help:'Nothing to do.' },
   { key:'new', title:'Not sorted', color:'var(--faint)', help:'Sorted on the next refresh.' }
 ];
-var ACCOUNTS = { personal:{ label:'Personal', color:'#8b8c96' }, tez:{ label:'TEZ', color:'#e0533d' }, songdrafts:{ label:'songdrafts', color:'#2fa36b' }, omellette:{ label:'Omellette', color:'#d6a23a' }, rt:{ label:'RideTandem', color:'#3a86d8' }, slack:{ label:'Slack', color:'#a35bd6' } };
+var ACCOUNTS = { personal:{ label:'Personal', color:'#8b8c96' }, tez:{ label:'TEZ', color:'#e0533d' }, songdrafts:{ label:'songdrafts', color:'#2fa36b' }, omellette:{ label:'Omellette', color:'#d6a23a' }, rt:{ label:'RideTandem', color:'#3a86d8' }, slack:{ label:'lazygecko Slack', color:'#a35bd6' } };
 function acctTag(a) { var x = ACCOUNTS[a || 'personal'] || ACCOUNTS.personal; return '<span class="acct" style="--c:' + x.color + '">' + x.label + '</span>'; }
 var CHAT_COLOURS = { 'Moon':'#6d6af5', 'songdrafts':'#2fa36b', 'TEZ':'#e0533d', 'FANFLOWY / FAN HUB':'#d2457f', 'CFO':'#c8902c', 'Hormozi / King Kong Skills':'#3a86d8', 'RideTandem':'#2f6fb5', 'General TO DOs':'#6c6d79' };
 var I = {
@@ -404,6 +441,7 @@ var I = {
   cal:'<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
   spark:'<svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>',
   copy:'<svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>',
+  slack:'<svg viewBox="0 0 24 24"><path d="M9 3a2 2 0 0 0 0 4h2V5a2 2 0 0 0-2-2zM3 9a2 2 0 0 0 2 2h6V9a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2zM15 21a2 2 0 0 0 0-4h-2v2a2 2 0 0 0 2 2zM21 15a2 2 0 0 0-2-2h-6v2a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2zM21 9a2 2 0 0 0-4 0v2h2a2 2 0 0 0 2-2zM3 15a2 2 0 0 0 4 0v-2H5a2 2 0 0 0-2 2z"/></svg>',
   check:'<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   dotc:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg>',
   pen:'<svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>',
@@ -469,6 +507,7 @@ function visible(g) { return S.f.unread ? g.unread.length > 0 : true; }
 function matches(g) {
   if (S.f.chat && g.chat !== S.f.chat) return false;
   if (S.f.acct && !g.items.some(function (e) { return (e.account || 'personal') === S.f.acct; })) return false;
+  if (!(!S.f.plat || g.items.some(function (e) { return (e.account === 'slack') === (S.f.plat === 'slack'); }))) return false;
   if (!S.f.q) return true;
   var q = S.f.q.toLowerCase();
   return g.items.some(function (e) { return (e.from_name + ' ' + e.from_email + ' ' + e.subject + ' ' + e.snippet + ' ' + (e.why || '')).toLowerCase().indexOf(q) >= 0; });
@@ -478,7 +517,7 @@ function pileList(p) {
   if (p === 'chase') l.sort(function (a, b) { return Date.parse(a.items[0].received_at) - Date.parse(b.items[0].received_at); });
   return l;
 }
-function unreadCount(p) { return groups().filter(function (g) { return (p === 'all' || g.pile === p) && (!S.f.acct || g.items.some(function (e) { return (e.account || 'personal') === S.f.acct; })); }).reduce(function (s, g) { return s + g.unread.length; }, 0); }
+function unreadCount(p) { return groups().filter(function (g) { return (p === 'all' || g.pile === p) && (!S.f.acct || g.items.some(function (e) { return (e.account || 'personal') === S.f.acct; })) && (!S.f.plat || g.items.some(function (e) { return (e.account === 'slack') === (S.f.plat === 'slack'); })); }).reduce(function (s, g) { return s + g.unread.length; }, 0); }
 function current() { return groups().filter(function (g) { return g.id === S.open; })[0] || null; }
 function pileOf(k) { return PILES.filter(function (p) { return p.key === k; })[0] || PILES[1]; }
 
@@ -486,7 +525,7 @@ function render() {
   if (!S.token && !S.key) return renderGate();
   var sc = document.querySelector('.rows, .home'), keep = sc ? sc.scrollTop : 0;
   var mail = S.view !== 'home' && S.view !== 'reading' && S.view !== 'trello';
-  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : list() + detail()) : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : home()) + '</div>';
+  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'slack' ? slackView() : list() + detail()) : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : home()) + '</div>';
   var ns = document.querySelector('.rows, .home'); if (ns) ns.scrollTop = keep;
   bulkBar(); wire(); phoneBar(); swipes();
 }
@@ -534,6 +573,7 @@ function side() {
     + '<button class="nav' + (S.view === 'all' ? ' on' : '') + '" onclick="go(\'all\')">' + I.inbox + 'All mail<span class="n">' + (unreadCount('all') || '') + '</span></button>'
     + '<button class="nav' + (S.view === 'reading' ? ' on' : '') + '" onclick="go(\'reading\')">' + I.book + 'Reading list<span class="n">' + (unreadCount('learn') || '') + '</span></button>'
     + '<button class="nav' + (S.view === 'trello' ? ' on' : '') + '" onclick="go(\'trello\')">' + I.board + 'Trello</button>'
+    + '<button class="nav' + (S.view === 'slack' ? ' on' : '') + '" onclick="go(\'slack\')">' + I.slack + 'Slack<span class="n">' + (slackWaiting() || '') + '</span></button>'
     + '<button class="nav' + (S.view === 'notes' ? ' on' : '') + '" onclick="go(\'notes\')">' + I.note + 'Notes</button>'
     + '<div class="navlabel">Piles</div>';
   PILES.forEach(function (p) {
@@ -774,6 +814,111 @@ function snooze(kind) {
   api('snooze', { ids:ids, until:until.toISOString() }).catch(fail);
 }
 
+// ---- Slack, looking and working like Slack (lazygecko workspace, sends as Owen) ----
+var SL = { ch:null, busy:false, hist:{}, sending:false };
+var EMO = { grin:'😁', smile:'😄', joy:'😂', heart:'❤️', '+1':'👍', thumbsup:'👍', pray:'🙏', fire:'🔥', tada:'🎉', eyes:'👀', white_check_mark:'✅', heavy_check_mark:'✔️', x:'❌', warning:'⚠️', rocket:'🚀', raised_hands:'🙌', clap:'👏', sweat_smile:'😅', slightly_smiling_face:'🙂', wink:'😉', thinking_face:'🤔', sob:'😭', cry:'😢', muscle:'💪', ok_hand:'👌', star:'⭐', sparkles:'✨', iphone:'📱', spiral_calendar_pad:'🗓️', speech_balloon:'💬', memo:'📝', bell:'🔔', rotating_light:'🚨', chart_with_upwards_trend:'📈', moneybag:'💰', sunglasses:'😎', partying_face:'🥳', hugging_face:'🤗', blush:'😊', laughing:'😆', upside_down_face:'🙃', heart_eyes:'😍', point_right:'👉', wave:'👋', 100:'💯', zap:'⚡', bulb:'💡', calendar:'📅', link:'🔗', camera:'📷', movie_camera:'🎥', musical_note:'🎵', headphones:'🎧', microphone:'🎤', guitar:'🎸' };
+function slackWaiting() { return ((S.data && S.data.emails) || []).filter(function (e) { return e.account === 'slack' && !isRead(e); }).length; }
+// Slack's own markup to HTML: mentions, channels, links, bold, italics, code, emoji.
+function mrkdwn(t, names) {
+  names = names || {};
+  var h = esc(t);
+  h = h.replace(/```([\s\S]*?)```/g, function (m, c) { return '<pre class="slcode">' + c + '</pre>'; });
+  h = h.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  h = h.replace(/&lt;@([A-Z0-9]+)(?:\|[^&]*)?&gt;/g, function (m, id) { return '<span class="slmention">@' + esc(names[id] || 'someone') + '</span>'; });
+  h = h.replace(/&lt;#[A-Z0-9]+\|([^&]*)&gt;/g, '<span class="slmention">#$1</span>');
+  h = h.replace(/&lt;!(here|channel|everyone)[^&]*&gt;/g, '<span class="slmention">@$1</span>');
+  h = h.replace(/&lt;((?:https?|mailto):[^|&]+?)\|([^&]+?)&gt;/g, '<a href="$1" target="_blank">$2</a>');
+  h = h.replace(/&lt;((?:https?|mailto):[^&]+?)&gt;/g, '<a href="$1" target="_blank">$1</a>');
+  h = h.replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,!?:;]|$)/g, '$1<b>$2</b>');
+  h = h.replace(/(^|[\s(])_([^_\n]+)_(?=[\s).,!?:;]|$)/g, '$1<i>$2</i>');
+  h = h.replace(/(^|[\s(])~([^~\n]+)~(?=[\s).,!?:;]|$)/g, '$1<s>$2</s>');
+  h = h.replace(/:([a-z0-9_+\-]+):/g, function (m, n) { return EMO[n] || m; });
+  return h.replace(/\n/g, '<br>');
+}
+function slackChannels(force) {
+  if (SL.busy) return; SL.busy = true; render();
+  api('slackChannels', { force:!!force }).then(function (r) { SL.list = r; SL.busy = false; if (!SL.ch && r.channels.length && window.innerWidth > 800) SL.ch = r.channels[0].id; render(); })
+    .catch(function (e) { SL.busy = false; SL.err = e.message; render(); });
+}
+function slackLoad(ch, thread) {
+  var k = ch + (thread ? ':' + thread : '');
+  if (slackLoad.p[k]) return; slackLoad.p[k] = true;
+  api('slackHistory', { channel:ch, thread:thread || '' }).then(function (r) { SL.hist[k] = r; slackLoad.p[k] = false; render(); slackScroll(); })
+    .catch(function (e) { SL.hist[k] = { error:e.message }; slackLoad.p[k] = false; render(); });
+}
+slackLoad.p = {};
+function slackScroll() { setTimeout(function () { var b = document.querySelector('.slmsgs'); if (b && !SL.keepScroll) b.scrollTop = b.scrollHeight; SL.keepScroll = false; }, 20); }
+function slackOpen(ch) { SL.ch = ch; SL.thread = null; S.phoneOpen = true; render(); slackScroll(); }
+function slackView() {
+  if (!SL.list && !SL.busy && !SL.err) slackChannels();
+  var L = SL.list, chans = L ? L.channels : [];
+  var waiting = {}; ((S.data && S.data.emails) || []).forEach(function (e) { if (e.account === 'slack' && !isRead(e)) waiting[String(e.id).split(':')[1]] = 1; });
+  var row = function (c) {
+    var ic = c.kind === 'channel' ? '<span class="slhash">' + (c.priv ? '🔒' : '#') + '</span>' : c.img ? '<img class="slav sm" src="' + esc(c.img) + '">' : '<span class="slav sm" style="background:' + hue(c.name) + '">' + esc(initials(c.name)) + '</span>';
+    return '<div class="slrow' + (SL.ch === c.id ? ' on' : '') + (waiting[c.id] ? ' unread' : '') + '" onclick="slackOpen(\'' + c.id + '\')">' + ic + '<div style="min-width:0;flex:1"><div class="t">' + esc(c.name) + '</div><div class="l3">' + esc(mrkdwnPlain(c.last || '', L.people)) + '</div></div>' + (c.ts && c.ts !== '0' ? '<span class="l3">' + ago(new Date(Number(c.ts) * 1000).toISOString()) + '</span>' : '') + '</div>';
+  };
+  var dms = chans.filter(function (c) { return c.kind !== 'channel'; }), cs = chans.filter(function (c) { return c.kind === 'channel'; });
+  var list = '<section class="list">' + tabs() + '<div class="listhead"><div style="flex:1;min-width:0"><h1>Slack</h1><div class="sub">' + esc(L ? L.teamName : 'lazygecko') + ', as you.</div></div><button class="iconbtn' + (SL.busy ? ' spin' : '') + '" onclick="slackChannels(true)" title="Refresh">' + I.refresh + '</button></div><div class="rows">'
+    + (SL.err ? '<div class="empty">' + esc(SL.err) + '</div>' : !L ? '<div class="skel"></div>'.repeat(8) : '<div class="slsec">Direct messages</div>' + dms.map(row).join('') + '<div class="slsec">Channels</div>' + cs.map(row).join(''))
+    + '</div></section>';
+  var c = chans.filter(function (x) { return x.id === SL.ch; })[0];
+  return list + (c ? slackPane(c.id, SL.thread || '', null, c) : '<section class="detail"><div class="placeholder"><div>' + I.slack.replace('<svg', '<svg style="width:34px;height:34px;opacity:.5"') + '<div style="margin-top:10px">Pick a conversation</div></div></div></section>');
+}
+function mrkdwnPlain(t, people) { return String(t).replace(/<@([A-Z0-9]+)[^>]*>/g, function (m, id) { return '@' + ((people && people[id] && people[id].name) || 'someone'); }).replace(/<([^|>]+)\|([^>]+)>/g, '$2').replace(/<([^>]+)>/g, '$1').replace(/:([a-z0-9_+\-]+):/g, function (m, n) { return EMO[n] || ''; }); }
+// One conversation (or thread), Slack style, with the message box at the bottom.
+function slackPane(ch, thread, g, c) {
+  var k = ch + (thread ? ':' + thread : ''), h = SL.hist[k];
+  if (!h) slackLoad(ch, thread);
+  var title = c ? (c.kind === 'channel' ? '#' + c.name : c.name) : g ? (g.items[0].from_name || 'Slack') : 'Slack';
+  var out = '<section class="detail sldetail' + (S.phoneOpen ? ' open' : '') + '"><div class="dhead slhead"><div style="display:flex;gap:10px;align-items:center"><button class="iconbtn back" onclick="' + (S.view === 'slack' ? 'S.phoneOpen=false;render()' : 'closeG()') + '">' + I.back + '</button>'
+    + (thread ? '<button class="btn sm ghost" onclick="SL.thread=null;render();slackScroll()">' + I.back + ' ' + esc(title) + '</button><h2 style="margin:0;flex:1">Thread</h2>' : '<h2 style="margin:0;flex:1">' + esc(title) + '</h2>')
+    + '<span class="acct" style="--c:#a35bd6">lazygecko Slack</span>'
+    + (g ? '<button class="btn sm" onclick="markRead()">' + I.check + 'Done<kbd>E</kbd></button>' : '') + '</div></div>';
+  out += '<div class="slmsgs">';
+  if (!h || (!h.messages && !h.error)) out += '<div class="skel" style="height:260px;margin:16px"></div>';
+  else if (h.error) out += '<div class="empty">' + esc(h.error) + '</div>';
+  else {
+    var prev = null, day = '';
+    h.messages.forEach(function (m) {
+      var d = new Date(Number(m.ts) * 1000), dk = d.toDateString();
+      if (dk !== day) { day = dk; prev = null; out += '<div class="slday"><span>' + d.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' }) + '</span></div>'; }
+      var same = prev && prev.user === m.user && Number(m.ts) - Number(prev.ts) < 300;
+      var av = m.img ? '<img class="slav" src="' + esc(m.img) + '">' : '<span class="slav" style="background:' + hue(m.name) + '">' + esc(initials(m.name)) + '</span>';
+      out += '<div class="slmsg' + (same ? ' cont' : '') + (m.user === h.me ? ' mine' : '') + '">' + (same ? '<span class="sltime">' + d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' }) + '</span>' : av)
+        + '<div class="slbody">' + (same ? '' : '<div class="slwho"><b>' + esc(m.name) + '</b><span class="l3">' + d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' }) + '</span></div>')
+        + '<div class="sltext">' + mrkdwn(m.text, h.names) + (m.edited ? ' <span class="l3">(edited)</span>' : '') + '</div>'
+        + (m.files.length ? '<div class="slfiles">' + m.files.map(function (f) { return '<a class="slfile" target="_blank" href="' + esc(f.url) + '">📎 ' + esc(f.name) + '</a>'; }).join('') + '</div>' : '')
+        + (m.reactions.length ? '<div class="slreacts">' + m.reactions.map(function (r) { return '<span class="slreact">' + (EMO[r.name] || ':' + esc(r.name) + ':') + ' ' + r.count + '</span>'; }).join('') + '</div>' : '')
+        + (!thread && m.replies ? '<button class="slreplies" onclick="SL.ch=\'' + ch + '\';SL.thread=\'' + m.ts + '\';' + (S.view === 'slack' ? '' : 'go(\'slack\');') + 'render();slackScroll()">' + m.replies + ' repl' + (m.replies === 1 ? 'y' : 'ies') + '</button>' : '')
+        + '</div></div>';
+      prev = m;
+    });
+    if (!h.messages.length) out += '<div class="empty">No messages yet.</div>';
+  }
+  out += '</div><form class="slcompose" onsubmit="event.preventDefault();slackSend(\'' + ch + '\',\'' + (thread || '') + '\')"><textarea id="slbox" rows="1" placeholder="Message ' + esc(thread ? 'thread' : title) + '" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();slackSend(\'' + ch + '\',\'' + (thread || '') + '\')}" oninput="SL.draft=SL.draft||{};SL.draft[\'' + k + '\']=this.value;this.style.height=\'auto\';this.style.height=Math.min(this.scrollHeight,180)+\'px\'">' + esc(SL.draft && SL.draft[k] || '') + '</textarea><button class="btn pri sm"' + (SL.sending ? ' disabled' : '') + '>' + I.send + 'Send</button></form>';
+  return out + '</section>';
+}
+function slackSend(ch, thread) {
+  var box = document.getElementById('slbox'), t = box ? box.value.trim() : ''; if (!t || SL.sending) return;
+  var k = ch + (thread ? ':' + thread : ''), h = SL.hist[k];
+  SL.sending = true; SL.draft = SL.draft || {}; SL.draft[k] = '';
+  if (h && h.messages) h.messages.push({ ts:String(Date.now() / 1000), user:h.me, name:'You', img:'', text:t, replies:0, files:[], reactions:[], edited:false });
+  ((S.data && S.data.emails) || []).forEach(function (e) { if (e.account === 'slack' && (e.id === 'slack:' + ch || e.id === 'slack:' + ch + ':' + thread)) e.status = 'done'; });
+  render(); slackScroll();
+  api('slackSend', { channel:ch, text:t, thread:thread || '' }).then(function () { SL.sending = false; toast('Sent'); slackLoad.p[k] = false; slackLoad(ch, thread); })
+    .catch(function (e) { SL.sending = false; SL.draft[k] = t; if (h && h.messages) h.messages.pop(); render(); fail(e); });
+}
+// While a Slack conversation is on screen, new messages show up by themselves.
+setInterval(function () {
+  if (document.hidden || !S.data) return;
+  var g = S.view !== 'slack' && current(), ch = null, th = '';
+  if (S.view === 'slack' && SL.ch) { ch = SL.ch; th = SL.thread || ''; }
+  else if (g && !g.isChat && g.items[0].account === 'slack') { var sp = String(g.items[0].id).split(':'); ch = sp[1]; th = sp[2] || ''; }
+  if (!ch || document.activeElement && document.activeElement.id === 'slbox' && document.activeElement.value) return;
+  var b = document.querySelector('.slmsgs'); SL.keepScroll = b && b.scrollHeight - b.scrollTop - b.clientHeight > 80;
+  slackLoad(ch, th);
+}, 30000);
+
 // ---- Trello, looking like Trello ----
 var TL = { boards:null, board:null, busy:false, id:null };
 var LABEL_COL = { green:'#4bce97', yellow:'#f5cd47', orange:'#fea362', red:'#f87168', purple:'#9f8fef', blue:'#579dff', sky:'#6cc3e0', lime:'#94c748', pink:'#e774bb', black:'#8c9bab' };
@@ -894,6 +1039,7 @@ function list() {
     + '<button class="iconbtn' + (S.refreshing ? ' spin' : '') + '" onclick="refresh()" title="Check Gmail now">' + I.refresh + '</button></div>'
     + '<div class="filters"><div class="search">' + I.search + '<input id="q" placeholder="Search sender, subject, words" value="' + esc(S.f.q) + '"></div>'
     + '<div class="chips"><button class="fchip' + (S.f.unread ? ' on' : '') + '" onclick="setF(\'unread\',true)">Unread</button><button class="fchip' + (!S.f.unread ? ' on' : '') + '" onclick="setF(\'unread\',false)">All</button>'
+    + '<span class="seg plat"><button class="' + (!S.f.plat ? 'on' : '') + '" onclick="setF(\'plat\',\'\')">Everything</button><button class="' + (S.f.plat === 'email' ? 'on' : '') + '" onclick="setF(\'plat\',\'email\')">' + I.inbox + 'Email</button><button class="' + (S.f.plat === 'slack' ? 'on' : '') + '" onclick="setF(\'plat\',\'slack\')">' + I.slack + 'Slack</button></span>'
     + '<select class="fsel" onchange="setF(\'acct\',this.value)"><option value="">All inboxes</option>' + Object.keys(ACCOUNTS).map(function (a) { return '<option value="' + a + '"' + (S.f.acct === a ? ' selected' : '') + '>' + ACCOUNTS[a].label + '</option>'; }).join('') + '</select>'
     + '<select class="fsel" onchange="setF(\'chat\',this.value)"><option value="">Any project</option>' + chats.map(function (c) { return '<option value="' + esc(c) + '"' + (S.f.chat === c ? ' selected' : '') + '>' + esc(chatShort(c)) + '</option>'; }).join('') + '</select></div></div>';
   var errs = ((S.data && S.data.errors) || []).concat((S.data && S.data.last && S.data.last.errors) || []);
@@ -933,6 +1079,7 @@ function issues(g) {
 function detail() {
   var g = current();
   if (!g) return '<section class="detail"><div class="placeholder"><div>' + I.inbox.replace('<svg', '<svg style="width:34px;height:34px;opacity:.5"') + '<div style="margin-top:10px">Pick an email</div><div style="margin-top:6px;font-size:12px">J / K move · E read · U unread · W reply · / search</div></div></div></section>';
+  if (!g.isChat && g.items[0].account === 'slack') { var sp = String(g.items[0].id).split(':'); return slackPane(sp[1], sp[2] || '', g); }
   return g.isChat ? chatDetail(g) : mailDetail(g);
 }
 function chatDetail(g) {
@@ -1104,6 +1251,8 @@ function copyGroup(gid) {
       + list.map(function (e) { return 'From: ' + (e.from_name || '') + ' <' + (e.from_email || '') + '>\nSubject: ' + e.subject + '\nReceived: ' + e.received_at + '\n\n' + (e.thread_text || e.snippet || ''); }).join('\n\n==========\n\n');
   }
   copyText(text, 'Copied. Paste it into your ' + name + ' chat.');
+  // Copying a broken-tool group to paste into its chat is the same as sending it: done here.
+  if (g.isChat) { var ids = list.map(function (e) { return e.id; }); setStatus(ids, 'done'); afterChange('Copied and marked done. Paste it into your ' + name + ' chat.'); api('markRead', { ids:ids }).catch(function (e) { setStatus(ids, 'open'); fail(e); }); }
 }
 // Which of Owen's Claude chats fits a group best (by its title), then the rest by recent use.
 var CHAT_HINT = { 'Moon':/moon/i, 'songdrafts':/^songdrafts chat$|songdrafts/i, 'TEZ':/^tez$|tez/i, 'CFO':/cfo|money/i, 'FANFLOWY / FAN HUB':/fan ?flowy|fan hub/i, 'Hormozi / King Kong Skills':/hormozi|king kong/i, 'RideTandem':/ridetandem|\brt\b/i };
