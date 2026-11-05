@@ -8,6 +8,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Inbox">
 <meta name="robots" content="noindex">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
 <title>Inbox</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%236d6af5'/%3E%3Cpath d='M16 34h8l4 6h8l4-6h8' stroke='white' stroke-width='4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M18 20h28l4 14v10a2 2 0 0 1-2 2H16a2 2 0 0 1-2-2V34z' stroke='white' stroke-width='4' fill='none' stroke-linejoin='round'/%3E%3C/svg%3E">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -246,6 +248,44 @@ body { background:radial-gradient(1200px 600px at 80% -10%, color-mix(in srgb, v
 .sert { font-weight:650; }
 .chev { color:var(--faint); width:14px; text-align:center; }
 .artsnip { padding:10px 16px 14px; color:var(--dim); font-size:13px; }
+/* ask, brief, tasks */
+.ask { display:flex; align-items:center; gap:10px; background:var(--panel); border:1px solid color-mix(in srgb, var(--acc) 35%, var(--line)); border-radius:14px; padding:6px 6px 6px 14px; margin:0 0 14px; box-shadow:0 8px 24px color-mix(in srgb, var(--acc) 12%, transparent); }
+.ask svg { color:var(--acc2); }
+.ask input { flex:1; border:0; outline:0; background:none; font-size:14px; min-width:0; color:var(--text); }
+.answer, .brief { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px 16px; margin:0 0 14px; }
+.ansh { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+.ansh svg { color:var(--acc2); }
+.anst { line-height:1.6; }
+.elink { display:inline-block; background:var(--accbg); color:var(--acc2); border-radius:6px; padding:0 6px; margin:0 2px; cursor:pointer; font-size:12px; }
+.blines { margin:4px 0 10px; padding-left:18px; line-height:1.6; color:var(--dim); }
+.blines li { margin:2px 0; }
+.top3 { display:flex; gap:8px; flex-wrap:wrap; }
+.t3 { flex:1 1 220px; display:flex; gap:10px; align-items:center; text-align:left; border:1px solid var(--line2); background:var(--bg); color:var(--text); border-radius:10px; padding:9px 12px; cursor:pointer; }
+.t3:hover { border-color:var(--acc); }
+.t3n { width:22px; height:22px; border-radius:50%; background:var(--acc); color:#fff; display:grid; place-items:center; font-size:12px; font-weight:700; flex:none; }
+.taskadd { display:flex; gap:6px; margin-bottom:8px; }
+.taskadd input { height:32px; border:1px solid var(--line2); border-radius:8px; background:var(--bg); color:var(--text); padding:0 10px; min-width:0; }
+.taskadd input[name=t] { flex:1; }
+.task { display:flex; gap:10px; align-items:center; padding:7px 0; border-top:1px solid var(--line); }
+.task .tt { flex:1; min-width:0; }
+.task.done .tt { color:var(--faint); text-decoration:line-through; }
+.due { font-size:12px; color:var(--faint); white-space:nowrap; }
+.due.late { color:var(--fix); }
+.pbar { display:none; }
+@media (max-width:900px) {
+  .pbar { display:flex; position:fixed; left:0; right:0; bottom:0; z-index:15; background:color-mix(in srgb, var(--panel) 92%, transparent); backdrop-filter:blur(16px); border-top:1px solid var(--line); padding:6px 4px calc(6px + env(safe-area-inset-bottom)); }
+  .pbar button { flex:1; border:0; background:none; color:var(--faint); display:flex; flex-direction:column; align-items:center; gap:2px; font-size:10.5px; position:relative; padding:4px 0; }
+  .pbar button svg { width:20px; height:20px; }
+  .pbar button.on { color:var(--acc2); }
+  .pbar i { position:absolute; top:0; left:calc(50% + 6px); background:var(--acc); color:#fff; font-style:normal; font-size:9.5px; border-radius:8px; padding:0 5px; line-height:15px; }
+  .tabs { display:none !important; }
+  .home, .rows { padding-bottom:calc(90px + env(safe-area-inset-bottom)) !important; }
+  .dbody { padding-bottom:calc(100px + env(safe-area-inset-bottom)); }
+  .ask kbd { display:none; }
+  .bar { overflow-x:auto; flex-wrap:nowrap; }
+  .bulk { bottom:calc(76px + env(safe-area-inset-bottom)); }
+  .row { touch-action:pan-y; }
+}
 .gate { display:grid; place-items:center; height:100vh; }
 .gate .box2 { width:min(360px,90vw); text-align:center; }
 .back, .tabs { display:none; }
@@ -345,7 +385,9 @@ function api(op, args) {
   return send(op, args);
 }
 function send(op, args) {
-  return fetch(API, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, redirect:'follow', body:JSON.stringify({ action:'inboxApi', idToken:S.token, key:S.key, op:op, args:args || {} }) })
+  // Never hang: Google's server is given 2 minutes, then the page says so.
+  var ctl = window.AbortController ? new AbortController() : null; if (ctl) setTimeout(function () { ctl.abort(); }, 120000);
+  return fetch(API, { signal: ctl ? ctl.signal : undefined, method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, redirect:'follow', body:JSON.stringify({ action:'inboxApi', idToken:S.token, key:S.key, op:op, args:args || {} }) })
     .then(function (r) { return r.json(); })
     .then(function (j) { if (!j.ok) throw new Error(j.error || 'Something went wrong'); return j.data; });
 }
@@ -389,7 +431,28 @@ function render() {
   var mail = S.view !== 'home' && S.view !== 'reading';
   document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + '">' + side() + (mail ? list() + detail() : S.view === 'reading' ? reading() : home()) + '</div>';
   var ns = document.querySelector('.rows, .home'); if (ns) ns.scrollTop = keep;
-  bulkBar(); wire();
+  bulkBar(); wire(); phoneBar(); swipes();
+}
+// Phone: a bottom bar like a real app.
+function phoneBar() {
+  var b = document.getElementById('pbar'); if (!b) { b = document.createElement('nav'); b.id = 'pbar'; b.className = 'pbar'; document.body.appendChild(b); }
+  var it = function (v, icon, label, n) { return '<button class="' + (S.view === v ? 'on' : '') + '" onclick="go(\'' + v + '\')">' + icon + '<span>' + label + '</span>' + (n ? '<i>' + n + '</i>' : '') + '</button>'; };
+  b.innerHTML = it('home', I.home, 'Home', 0) + it('all', I.inbox, 'Inbox', unreadCount('all')) + it('reply', PILE_ICON.reply, 'Reply', unreadCount('reply')) + it('reading', I.book, 'Read', 0) + it('fix', PILE_ICON.fix, 'Fix', unreadCount('fix'));
+}
+// Swipe a row right to mark read, left to snooze until tomorrow.
+function swipes() {
+  document.querySelectorAll('.row').forEach(function (r) {
+    var x0 = 0, y0 = 0, dx = 0;
+    r.addEventListener('touchstart', function (e) { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; dx = 0; r.style.transition = 'none'; }, { passive:true });
+    r.addEventListener('touchmove', function (e) { dx = e.touches[0].clientX - x0; if (Math.abs(dx) > Math.abs(e.touches[0].clientY - y0)) { r.style.transform = 'translateX(' + dx + 'px)'; r.style.background = dx > 0 ? 'color-mix(in srgb, var(--reply) 25%, transparent)' : 'color-mix(in srgb, var(--chase) 25%, transparent)'; } }, { passive:true });
+    r.addEventListener('touchend', function () {
+      r.style.transition = 'transform .2s'; r.style.transform = ''; r.style.background = '';
+      var id = (r.getAttribute('onclick') || '').match(/openG\('([^']+)'\)/); if (!id || Math.abs(dx) < 90) return;
+      S.open = id[1];
+      if (dx > 0) markRead(); else snooze('tomorrow');
+      S.phoneOpen = false; render();
+    });
+  });
 }
 function wire() {
   var ta = document.getElementById('draft');
@@ -438,11 +501,11 @@ function home() {
   var people = pileList('reply').length, chase = unreadCount('chase'), fixN = groups().filter(function (g) { return g.isChat && g.unread.length; }).length;
   var bits = []; if (people) bits.push(people + ' ' + (people === 1 ? 'person' : 'people') + ' waiting on you'); if (fixN) bits.push(fixN + ' chat' + (fixN === 1 ? '' : 's') + ' to send broken things to'); if (chase) bits.push(chase + ' to chase');
   var day = new Date().toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', timeZone:'Europe/London' });
-  var h = '<main class="home">' + tabs() + '<div class="hero"><div class="day">' + day + '</div><h1 class="hello">' + hi + ', Owen</h1><div class="hellosub">' + (bits.length ? bits.join(' · ') + '.' : 'Inbox clear. Nice.') + '</div></div>' + inboxStrip() + '<div class="tiles">';
+  var h = '<main class="home">' + tabs() + '<div class="hero"><div class="day">' + day + '</div><h1 class="hello">' + hi + ', Owen</h1><div class="hellosub">' + (bits.length ? bits.join(' · ') + '.' : 'Inbox clear. Nice.') + '</div></div>' + askBar() + briefCard() + inboxStrip() + '<div class="tiles">';
   PILES.filter(function (p) { return p.key !== 'new'; }).forEach(function (p) {
     h += '<div class="tile" style="--c:' + p.color + '" onclick="go(\'' + (p.key === 'learn' ? 'reading' : p.key) + '\')"><div class="lab"><span class="pico">' + PILE_ICON[p.key] + '</span>' + p.title + '</div><div class="num">' + unreadCount(p.key) + '</div><div class="hint">' + p.help + '</div></div>';
   });
-  h += '</div><div class="grid2"><div>';
+  h += '</div><div class="grid2"><div>' + tasksBox();
   var chats = groups().filter(function (g) { return g.isChat && g.unread.length; });
   h += '<div class="box"><h3>' + I.spark + 'Send to your chats</h3><div class="bsub">Every broken-tool email, grouped. Send to chat: you pick the Claude chat and it all lands there.</div>';
   if (!chats.length) h += '<div class="empty" style="padding:20px">Nothing broken.</div>';
@@ -524,6 +587,67 @@ function inboxStrip() {
     return '<button class="ichip' + (S.f.acct === a ? ' on' : '') + '" style="--c:' + ACCOUNTS[a].color + '" onclick="setF(\'acct\',\'' + a + '\')"><span class="dot" style="background:' + ACCOUNTS[a].color + '"></span>' + ACCOUNTS[a].label + '<b>' + (by[a] || 0) + '</b></button>';
   }).join('') + '</div>';
 }
+// ---- Ask your inbox ----
+function askBar() {
+  var a = S.ask || {};
+  var h = '<form class="ask" onsubmit="event.preventDefault();askIt(this.q.value)">' + I.spark + '<input name="q" id="askq" placeholder="Ask your inbox anything… (who\'s waiting on me? what do I owe The Grace?)" value="' + esc(a.q || '') + '" autocomplete="off"><kbd>⌘K</kbd><button class="btn pri sm">' + (a.busy ? 'Thinking…' : 'Ask') + '</button></form>';
+  if (a.answer) h += '<div class="answer"><div class="ansh">' + I.spark + '<b>Answer</b><span style="flex:1"></span><button class="iconbtn" onclick="S.ask={};render()">✕</button></div><div class="anst">' + linkify(a.answer) + '</div></div>';
+  return h;
+}
+function linkify(t) {
+  return esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/^\s*[*-]\s+/gm, '• ').replace(/\n/g, '<br>')
+    .replace(/\[((?:[a-z]+:)?[0-9A-Za-z:.]{8,40})\]/g, function (m, id) { var e = (S.data.emails || []).filter(function (x) { return x.id === id; })[0]; return e ? '<a class="elink" onclick="openEmail(\'' + id + '\')">' + esc((e.from_name || '').split(' ')[0] || 'email') + ' ↗</a>' : ''; });
+}
+function askIt(q) {
+  q = String(q || '').trim(); if (!q) return;
+  S.ask = { q:q, busy:true }; render();
+  api('ask', { q:q }).then(function (r) { S.ask = { q:q, answer:r.answer, ids:r.ids }; render(); }).catch(function (e) { S.ask = { q:q }; render(); toast(e.message, true); });
+}
+function openEmail(id) { var g = groups().filter(function (x) { return x.items.some(function (e) { return e.id === id; }); })[0]; if (!g) return; S.f.unread = false; openFrom(g.pile, g.id); }
+
+// ---- Morning brief ----
+function briefCard() {
+  var b = S.data.brief || {}; if (!b.lines || !b.lines.length) return '<div class="brief"><div class="ansh">' + I.sun + '<b>Morning brief</b><span style="flex:1"></span><button class="btn sm ghost" onclick="newBrief()">' + (S.briefBusy ? 'Writing…' : 'Write it now') + '</button></div></div>';
+  var stale = b.date !== new Date().toLocaleDateString('en-CA', { timeZone:'Europe/London' });
+  return '<div class="brief"><div class="ansh">' + I.sun + '<b>' + (stale ? 'Last brief' : 'Today\'s brief') + '</b><span class="l3">' + ago(b.at) + ' ago</span><span style="flex:1"></span><button class="btn sm ghost" onclick="newBrief()">' + (S.briefBusy ? 'Writing…' : 'Refresh') + '</button></div>'
+    + '<ul class="blines">' + b.lines.map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul>'
+    + (b.top3 && b.top3.length ? '<div class="top3">' + b.top3.map(function (t, i) { return '<button class="t3" onclick="' + (t.id ? 'openEmail(\'' + esc(t.id) + '\')' : '') + '"><span class="t3n">' + (i + 1) + '</span>' + esc(t.text) + '</button>'; }).join('') + '</div>' : '') + '</div>';
+}
+function newBrief() { S.briefBusy = true; render(); api('brief').then(function (b) { S.data.brief = b; S.briefBusy = false; load('load'); }).catch(function (e) { S.briefBusy = false; render(); toast(e.message, true); }); }
+
+// ---- Tasks ----
+function tasksBox() {
+  var t = (S.data.tasks || []);
+  var open = t.filter(function (x) { return !x.done; }), done = t.filter(function (x) { return x.done; });
+  return '<div class="box"><h3>' + PILE_ICON.reply.replace('M9 14L4 9l5-5', 'M5 12.5l4.5 4.5L19 7.5').replace('<path d="M4 9h10a6 6 0 0 1 6 6v4"/>', '') + 'Tasks <span class="badge">' + open.length + '</span></h3><div class="bsub">Pulled from your emails each morning, plus your own.</div>'
+    + '<form class="taskadd" onsubmit="event.preventDefault();addTask(this.t.value,this.d.value);this.reset()"><input name="t" placeholder="Add a task…"><input name="d" type="date"><button class="btn sm">Add</button></form>'
+    + open.map(taskRow).join('') + (done.length ? '<div class="l3" style="margin:8px 0 2px">Done</div>' + done.slice(0, 5).map(taskRow).join('') : '') + '</div>';
+}
+function taskRow(x) {
+  var overdue = x.due && !x.done && x.due < new Date().toLocaleDateString('en-CA', { timeZone:'Europe/London' });
+  return '<div class="task' + (x.done ? ' done' : '') + '"><span class="ck' + (x.done ? ' show' : '') + '" onclick="doneTask(' + x.id + ',' + (!x.done) + ')"></span><span class="tt" ' + (x.email_id ? 'onclick="openEmail(\'' + esc(x.email_id) + '\')" style="cursor:pointer"' : '') + '>' + esc(x.text) + '</span>' + (x.due ? '<span class="due' + (overdue ? ' late' : '') + '">' + new Date(x.due + 'T12:00:00').toLocaleDateString('en-GB', { day:'numeric', month:'short' }) + '</span>' : '') + '</div>';
+}
+function addTask(t, d) { t = String(t || '').trim(); if (!t) return; S.data.tasks = [{ id:0, text:t, due:d || null, done:false }].concat(S.data.tasks || []); render(); api('taskAdd', { text:t, due:d }).then(function () { load('load'); }).catch(fail); }
+function doneTask(id, done) { (S.data.tasks || []).forEach(function (x) { if (x.id === id) x.done = done; }); render(); if (done) toast('Done'); api('taskDone', { id:id, done:done }).catch(fail); }
+function taskFromEmail() { var g = current(); if (!g) return; var t = prompt('Task:', g.items[0].subject); if (t) { api('taskAdd', { text:t, emailId:g.items[0].id }).then(function () { toast('Added to Tasks'); load('load'); }).catch(fail); } }
+
+// ---- Snooze ----
+function snoozeAt(kind) {
+  var d = new Date(), L = function (h) { var x = new Date(); x.setHours(h, 0, 0, 0); return x; };
+  if (kind === 'later') d = L(18); else if (kind === 'tomorrow') { d = L(9); d.setDate(d.getDate() + 1); }
+  else if (kind === 'weekend') { d = L(10); d.setDate(d.getDate() + ((6 - d.getDay() + 7) % 7 || 7)); }
+  else if (kind === 'nextweek') { d = L(9); d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); }
+  if (kind === 'later' && d < new Date()) d = new Date(Date.now() + 3 * 3600000);
+  return d;
+}
+function snooze(kind) {
+  if (!kind) return; var g = current(); if (!g) return;
+  var until = snoozeAt(kind), ids = g.items.map(function (e) { return e.id; });
+  S.data.emails = S.data.emails.filter(function (e) { return ids.indexOf(e.id) < 0; });
+  afterChange('Snoozed until ' + until.toLocaleString('en-GB', { weekday:'short', hour:'2-digit', minute:'2-digit' }));
+  api('snooze', { ids:ids, until:until.toISOString() }).catch(fail);
+}
+
 function timeline() {
   var c = S.data.calendar; if (!c) return '<div class="empty" style="padding:20px">Calendar not available.</div>';
   var nowIso = new Date().toISOString();
@@ -615,7 +739,9 @@ function mailDetail(g) {
   h += '<button class="btn' + ((g.pile === 'reply' || g.pile === 'chase') ? '' : ' pri') + '" onclick="sendToChat(\'' + g.id + '\')">' + I.send + 'Send to chat</button>';
   var slack = e.account === 'slack';
   h += (e.gmail_url ? '<a class="btn ghost" target="_blank" href="' + esc(e.gmail_url) + '">' + I.gmail + (slack ? 'Open in Slack' : 'Open in Gmail') + '</a>' : '')
-    + '<span style="flex:1"></span><select class="sel" onchange="movePile(this.value)" title="Move to another pile"><option value="">Move…</option>' + PILES.filter(function (x) { return x.key !== 'new' && x.key !== g.pile; }).map(function (x) { return '<option value="' + x.key + '">' + x.title + '</option>'; }).join('') + '</select>'
+    + '<span style="flex:1"></span><select class="sel" onchange="snooze(this.value)" title="Snooze"><option value="">Snooze…</option><option value="later">Later today</option><option value="tomorrow">Tomorrow 9am</option><option value="weekend">This weekend</option><option value="nextweek">Next week</option></select>'
+    + '<button class="iconbtn" title="Add as a task" onclick="taskFromEmail()">' + PILE_ICON.learn + '</button>'
+    + '<select class="sel" onchange="movePile(this.value)" title="Move to another pile"><option value="">Move…</option>' + PILES.filter(function (x) { return x.key !== 'new' && x.key !== g.pile; }).map(function (x) { return '<option value="' + x.key + '">' + x.title + '</option>'; }).join('') + '</select>'
     + (read ? '<button class="btn" onclick="markUnread()">' + I.dotc + 'Mark unread<kbd>U</kbd></button>' : '<button class="btn" onclick="markRead()">' + I.check + (chase ? 'Dismiss' : 'Mark read') + '<kbd>E</kbd></button>')
     + (slack ? '' : '<button class="iconbtn" title="Bin" onclick="binOne()">' + I.bin + '</button>') + '</div><div class="dbody">';
   if (replyable && composing) {
@@ -847,6 +973,7 @@ function onCred(r) { S.token = r.credential; try { localStorage.setItem('inbox-i
 function signOut() { S.token = ''; S.data = null; try { localStorage.removeItem('inbox-id'); localStorage.removeItem('inbox-cache'); } catch (e) {} if (window.google && google.accounts) google.accounts.id.disableAutoSelect(); render(); }
 
 document.addEventListener('keydown', function (ev) {
+  if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === 'k') { ev.preventDefault(); if (S.view !== 'home') go('home'); setTimeout(function () { var a = document.getElementById('askq'); if (a) a.focus(); }, 30); return; }
   if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || ev.metaKey || ev.ctrlKey || !S.data || S.view === 'home' || S.view === 'reading') return;
   var l = pileList(S.view), i = l.findIndex(function (g) { return g.id === S.open; }), k = ev.key.toLowerCase();
   if (k === 'j' || ev.key === 'ArrowDown') { if (l.length) { S.open = l[Math.min(i + 1, l.length - 1)].id; render(); } ev.preventDefault(); }
