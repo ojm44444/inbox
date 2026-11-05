@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1793914382">
+<html lang="en" data-build="b1793915502">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -431,6 +431,18 @@ a.iconbtn { display:inline-grid; place-items:center; color:inherit; }
 .sumline { display:inline-flex; gap:6px; align-items:flex-start; color:var(--text); }
 .sumline svg { width:13px; height:13px; color:var(--acc2); flex:none; margin-top:3px; }
 @media (max-width:1000px) { .sumgrid { grid-template-columns:minmax(0,1fr); } .sumcard { margin:4px 8px 12px; } }
+/* People */
+.phead { display:flex; gap:14px; align-items:center; margin-bottom:16px; }
+.pav { width:52px; height:52px; border-radius:50%; display:grid; place-items:center; color:#fff; font-size:18px; font-weight:700; flex:none; }
+.plink { cursor:pointer; }
+.plink:hover { text-decoration:underline; }
+.hist { display:flex; gap:12px; align-items:flex-start; padding:9px 4px; border-top:1px solid var(--line); cursor:pointer; }
+.hist:hover { background:var(--hover, rgba(255,255,255,.03)); }
+.hist .hd { width:56px; flex:none; color:var(--faint); font-size:12px; padding-top:2px; }
+.hist .t { font-weight:550; }
+.histbody { padding:4px 0 12px 68px; }
+.person .hgrid .box { max-height:none; }
+@media (max-width:900px) { .person .hgrid { grid-template-columns:minmax(0,1fr) !important; } .histbody { padding-left:0; } }
 /* Home overhaul: calmer, shorter */
 .home { max-width:1500px; }
 .hero2 { display:flex; align-items:flex-end; gap:20px; margin-bottom:16px; flex-wrap:wrap; }
@@ -588,8 +600,8 @@ function pileOf(k) { return PILES.filter(function (p) { return p.key === k; })[0
 function render() {
   if (!S.token && !S.key) return renderGate();
   var sc = document.querySelector('.rows, .home'), keep = sc ? sc.scrollTop : 0;
-  var mail = S.view !== 'home' && S.view !== 'reading' && S.view !== 'trello';
-  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : home()) + '</div>';
+  var mail = S.view !== 'home' && S.view !== 'reading' && S.view !== 'trello' && S.view !== 'person';
+  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : home()) + '</div>';
   var ns = document.querySelector('.rows, .home'); if (ns) ns.scrollTop = keep;
   bulkBar(); wire(); phoneBar(); swipes();
 }
@@ -668,7 +680,7 @@ function home() {
     + askBar() + briefCard() + '<div class="hgrid"><div class="hcol">' + tasksBox() + '</div><div class="hcol">';
   var people2 = pileList('reply').slice(0, 7);
   h += '<div class="box"><h3>' + I.pen + 'People waiting on you<span class="badge">' + pileList('reply').length + '</span><span style="flex:1"></span><button class="btn sm ghost" onclick="go(\'reply\')">All</button></h3>'
-    + (people2.length ? people2.map(function (g) { var e = g.items[0]; return '<div class="mini" onclick="openFrom(\'reply\',\'' + g.id + '\')"><div class="av" style="background:' + hue(e.from_email) + '">' + esc(initials(e.from_name || e.from_email)) + '</div><div style="min-width:0"><div class="t">' + esc(e.from_name || e.from_email) + ' ' + acctTag(e.account) + '</div><div class="l3">' + esc(e.subject) + '</div></div><div class="s">' + ago(e.received_at) + '</div></div>'; }).join('') : '<div class="empty" style="padding:20px">No one waiting.</div>') + '</div>';
+    + (people2.length ? people2.map(function (g) { var e = g.items[0]; return '<div class="mini" onclick="openFrom(\'reply\',\'' + g.id + '\')"><div class="av" title="Everything with them" style="background:' + hue(e.from_email) + '" onclick="event.stopPropagation();openPerson(\'' + esc(e.from_email || '') + '\')">' + esc(initials(e.from_name || e.from_email)) + '</div><div style="min-width:0"><div class="t">' + esc(e.from_name || e.from_email) + ' ' + acctTag(e.account) + '</div><div class="l3">' + esc(e.subject) + '</div></div><div class="s">' + ago(e.received_at) + '</div></div>'; }).join('') : '<div class="empty" style="padding:20px">No one waiting.</div>') + '</div>';
   var ch = pileList('chase').slice(0, 6);
   if (ch.length) h += '<div class="box"><h3><span class="dot" style="background:var(--chase)"></span>Waiting on them</h3>'
     + ch.map(function (g) { var e = g.items[0]; return '<div class="mini" onclick="openFrom(\'chase\',\'' + g.id + '\')"><div style="min-width:0"><div class="t">' + esc(e.from_name || e.to_email) + '</div><div class="l3">' + esc(e.subject) + '</div></div><div class="s wait">' + Math.floor((Date.now() - Date.parse(e.received_at)) / 86400000) + 'd</div></div>'; }).join('') + '</div>';
@@ -1043,6 +1055,43 @@ function restoreMail(id) {
   toast('Restored. It is back where it was in Gmail.'); api('restore', { id:id }).catch(fail);
 }
 
+
+// ---- People: one person, everything in one place ----
+var PP = { data:{}, busy:{} };
+function openPerson(email) { email = String(email || '').toLowerCase(); if (!email || email.indexOf('@') < 0) return; S.person = email; if (S.view !== 'person') S.prevView = S.view; S.view = 'person'; S.phoneOpen = false; render(); if (!PP.data[email]) personLoad(email); }
+function personLoad(email, force) {
+  if (PP.busy[email]) return; PP.busy[email] = true; render();
+  api('person', { email:email, force:!!force }).then(function (r) { PP.data[email] = r; PP.busy[email] = false; render(); }).catch(function (e) { PP.data[email] = { error:e.message }; PP.busy[email] = false; render(); });
+}
+function personView() {
+  var em = S.person, p = PP.data[em], busy = PP.busy[em];
+  var h = '<main class="home person">' + tabs() + '<button class="btn sm ghost" style="margin-bottom:12px" onclick="go(S.prevView || \'home\')">' + I.back + ' Back</button>';
+  if (!p) return h + '<div class="phead"><span class="pav" style="background:' + hue(em) + '">' + esc(initials(em)) + '</span><div><h1 class="hello" style="font-size:26px">' + esc(em) + '</h1><div class="l3">Looking through all five inboxes…</div></div></div><div class="skel" style="height:140px"></div><div class="skel" style="height:300px;margin-top:14px"></div></main>';
+  if (p.error) return h + '<div class="empty"><b>Could not load</b>' + esc(p.error) + '</div></main>';
+  var accts = {}; p.history.forEach(function (x) { accts[x.acct] = 1; });
+  h += '<div class="phead"><span class="pav" style="background:' + hue(em) + '">' + esc(initials(p.name)) + '</span><div style="flex:1;min-width:0"><h1 class="hello" style="font-size:26px">' + esc(p.name) + '</h1><div class="l3">' + esc(em) + ' · ' + Object.keys(accts).map(function (a) { return acctTag(a); }).join(' ') + (p.slack ? ' ' + '<span class="acct" style="--c:#a35bd6">on lazygecko Slack</span>' : '') + '</div></div>'
+    + '<button class="btn sm ghost" onclick="personLoad(\'' + esc(em) + '\',true)"' + (busy ? ' disabled' : '') + '>' + (busy ? 'Updating…' : 'Refresh') + '</button></div>';
+  if (p.note) h += '<div class="sumcard" style="margin:0 0 16px"><div class="sumtop">' + I.spark + '<b style="flex:1">' + esc(p.note.who) + '</b></div>'
+    + (p.note.open && p.note.open.length ? '<div class="sumsec"><div class="sumh">Open between you</div><ul>' + p.note.open.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>' : '')
+    + (p.note.tone ? '<div class="l3" style="margin-top:6px">How you write to them: ' + esc(p.note.tone) + '</div>' : '') + '</div>';
+  h += '<div class="hgrid" style="grid-template-columns:minmax(0,1fr) minmax(0,1.6fr)"><div class="hcol">';
+  h += '<div class="box"><h3>' + I.inbox + 'On your list now<span class="badge">' + p.open.length + '</span></h3>' + (p.open.length ? p.open.map(function (e) {
+    var pl = pileOf(e.category || 'new'); return '<div class="mini" onclick="openEmail(\'' + esc(e.id) + '\')"><span class="dot" style="background:' + pl.color + ';margin-top:6px"></span><div style="min-width:0"><div class="t">' + esc(e.subject) + '</div><div class="l3">' + pl.title + (e.why ? ' · ' + esc(e.why) : '') + '</div></div><div class="s">' + ago(e.received_at) + '</div></div>'; }).join('') : '<div class="empty" style="padding:16px">Nothing open with them.</div>') + '</div>';
+  if (p.slack) h += '<div class="box"><h3>' + I.slack + 'Slack</h3><div class="mini" onclick="slackDm(\'' + esc(p.slack.id) + '\')"><div style="min-width:0"><div class="t">Message ' + esc(p.slack.name) + ' on lazygecko</div><div class="l3">Opens your DM with them</div></div></div></div>';
+  var hb = p.habit, rule = p.rule;
+  h += '<div class="box"><h3>' + I.check + 'What you do with their emails</h3><div class="l3" style="line-height:1.7">' + (hb ? [hb.reply ? 'replied ' + hb.reply + '×' : '', hb.read ? 'marked ' + hb.read + ' read' : '', hb.bin ? 'binned ' + hb.bin : '', Object.keys(hb.chat || {}).length ? 'sent to ' + Object.keys(hb.chat).join(', ') : ''].filter(Boolean).join(' · ') || 'Nothing yet.' : 'Nothing yet.') + '</div>'
+    + '<div style="margin-top:8px">' + (rule ? 'Always <b>' + pileOf(rule).title + '</b> <button class="btn sm ghost" onclick="setRule(\'' + esc(em) + '\',\'\');PP.data[\'' + esc(em) + '\'].rule=\'\';render()">Undo</button>' : '<select class="sel sm" onchange="if(this.value){setRule(\'' + esc(em) + '\',this.value);PP.data[\'' + esc(em) + '\'].rule=this.value;render()}"><option value="">Always put their emails in…</option>' + ['reply', 'learn', 'noise', 'fix'].map(function (x) { return '<option value="' + x + '">' + pileOf(x).title + '</option>'; }).join('') + '</select>') + '</div></div>';
+  h += '</div><div class="hcol"><div class="box" style="max-height:none"><h3>' + I.cal + 'History<span class="badge">' + p.history.length + '</span><span class="l3" style="font-weight:400;margin-left:6px">every inbox, newest first</span></h3>'
+    + (p.history.length ? p.history.map(function (x) { return '<div class="hist" onclick="personThread(\'' + esc(x.id) + '\')"><div class="hd">' + new Date(x.at).toLocaleDateString('en-GB', { day:'numeric', month:'short', year: new Date(x.at).getFullYear() === new Date().getFullYear() ? undefined : '2-digit' }) + '</div><div style="min-width:0;flex:1"><div class="t">' + esc(x.subject) + (x.n > 1 ? ' <span class="l3">(' + x.n + ')</span>' : '') + '</div><div class="l3">' + acctTag(x.acct) + ' ' + (x.mineLast ? '<b>You:</b> ' : '') + esc(x.snippet) + '</div></div><a class="iconbtn" title="Open in Gmail" target="_blank" href="' + esc(x.url) + '" onclick="event.stopPropagation()">' + I.gmail + '</a></div>'
+      + (S.personOpen === x.id ? '<div class="histbody">' + messages(x.id, { snippet:x.snippet }) + '</div>' : ''); }).join('') : '<div class="empty" style="padding:16px">No emails with them.</div>') + '</div></div></div></main>';
+  return h;
+}
+function personThread(id) { S.personOpen = S.personOpen === id ? null : id; render(); }
+function slackDm(uid) {
+  var go2 = function () { var c = SL.list && SL.list.channels.filter(function (x) { return x.kind === 'dm' && x.user === uid; })[0]; if (c) { go('slack'); slackOpen(c.id); } else toast('No DM with them yet. Start one in Slack.', true); };
+  if (SL.list) go2(); else { slackChannels(); var t = setInterval(function () { if (SL.list) { clearInterval(t); go2(); } }, 500); }
+}
+
 // ---- Trello, looking like Trello ----
 var TL = { boards:null, board:null, busy:false, id:null };
 var LABEL_COL = { green:'#4bce97', yellow:'#f5cd47', orange:'#fea362', red:'#f87168', purple:'#9f8fef', blue:'#579dff', sky:'#6cc3e0', lime:'#94c748', pink:'#e774bb', black:'#8c9bab' };
@@ -1278,7 +1327,7 @@ function aboutSender(g) {
     if (!rule && hb.read >= 3 && !hb.reply) hint = 'You always just mark these read. Put them straight in Noise from now on?';
   }
   var piles = ['noise', 'learn', 'reply', 'fix'];
-  return '<div class="about2"><span class="av" style="background:' + hue(k) + '">' + esc(initials(e.from_name || k)) + '</span><div style="min-width:0;flex:1"><b>' + esc(e.from_name || k) + '</b> <span class="l3">' + esc(k) + '</span><div class="l3">' + esc(facts.join(' · ')) + '</div></div>'
+  return '<div class="about2"><span class="av" style="background:' + hue(k) + ';cursor:pointer" onclick="openPerson(\'' + esc(k) + '\')">' + esc(initials(e.from_name || k)) + '</span><div style="min-width:0;flex:1"><b class="plink" title="Everything with them" onclick="openPerson(\'' + esc(k) + '\')">' + esc(e.from_name || k) + '</b> <span class="l3">' + esc(k) + '</span><div class="l3">' + esc(facts.join(' · ')) + '</div></div>'
     + (rule ? '<span class="l3">Always <b>' + pileOf(rule).title + '</b></span><button class="btn sm ghost" onclick="setRule(\'' + esc(k) + '\',\'\')">Undo</button>'
       : '<select class="sel sm" title="From now on, put everything from this sender in" onchange="if(this.value)setRule(\'' + esc(k) + '\',this.value)"><option value="">Always put in…</option>' + piles.map(function (x) { return '<option value="' + x + '">' + pileOf(x).title + '</option>'; }).join('') + '</select>')
     + '</div>' + (hint ? '<div class="abh">' + I.spark + esc(hint) + ' <button class="btn sm pri" onclick="setRule(\'' + esc(k) + '\',\'noise\')">Yes, always Noise</button></div>' : '');
@@ -1322,7 +1371,7 @@ function bulkBar() {
 }
 function selIds() { var out = []; groups().forEach(function (g) { if (S.sel[g.id]) out = out.concat((S.f.unread && g.unread.length ? g.unread : g.items).map(function (e) { return e.id; })); }); return out; }
 
-function go(v) { S.view = v; S.open = null; S.phoneOpen = false; S.sel = {}; render(); }
+function go(v) { if (S.view !== 'person') S.prevView = S.view; S.view = v; S.open = null; S.phoneOpen = false; S.sel = {}; render(); }
 function openFrom(v, id) { S.view = v; S.open = id; S.phoneOpen = true; render(); }
 function openG(id) { S.open = id; S.phoneOpen = true; render(); }
 function closeG() { S.phoneOpen = false; render(); }
