@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-build="b1793911446">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -370,6 +370,8 @@ a.mini { color:var(--text); }
 }
 
 /* Slack */
+.nav.sub { padding-left:30px; font-size:13px; opacity:.85; }
+.newver { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); z-index:99; background:var(--panel); border:1px solid var(--line2); border-radius:12px; padding:10px 14px; display:flex; gap:12px; align-items:center; box-shadow:0 10px 30px rgba(0,0,0,.4); }
 .slrow { display:flex; gap:10px; align-items:center; padding:8px 10px; border-radius:8px; cursor:pointer; }
 .slrow:hover { background:var(--hover, rgba(255,255,255,.04)); }
 .slrow.on { background:var(--accbg, rgba(124,108,255,.16)); }
@@ -479,7 +481,26 @@ function api(op, args) {
   if (WRITES[op]) { var p = queue.then(function () { return send(op, args); }); queue = p.catch(function () {}); return p; }
   return send(op, args);
 }
-function send(op, args) {
+// Google sign-in lasts an hour: renew it quietly before it runs out, or when the server says so.
+function freshToken() {
+  if (S.key || !S.token || tokenExp(S.token) > Date.now() + 120000) return Promise.resolve();
+  if (freshToken.p) return freshToken.p;
+  freshToken.p = new Promise(function (ok) {
+    freshToken.ok = ok;
+    try { gsi.prompted = false; gsi(); } catch (e) {}
+    setTimeout(function () { ok(); }, 15000);
+  }).then(function () { freshToken.p = null; });
+  return freshToken.p;
+}
+function send(op, args, again) {
+  return freshToken().then(function () { return send1(op, args); }).catch(function (e) {
+    if (again || S.key || !/sign|token|auth|allowed|expired/i.test(String(e.message))) throw e;
+    S.token = ''; try { localStorage.removeItem('inbox-id'); } catch (x) {}
+    freshToken.p = null; S.token = 'x';
+    return freshToken().then(function () { if (!S.token || S.token === 'x') { S.token = ''; render(); throw new Error('Please sign in again.'); } return send(op, args, true); });
+  });
+}
+function send1(op, args) {
   // Never hang: Google's server is given 2 minutes, then the page says so.
   var ctl = window.AbortController ? new AbortController() : null; if (ctl) setTimeout(function () { ctl.abort(); }, 120000);
   return fetch(API, { signal: ctl ? ctl.signal : undefined, method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, redirect:'follow', body:JSON.stringify({ action:'inboxApi', idToken:S.token, key:S.key, op:op, args:args || {} }) })
@@ -525,7 +546,7 @@ function render() {
   if (!S.token && !S.key) return renderGate();
   var sc = document.querySelector('.rows, .home'), keep = sc ? sc.scrollTop : 0;
   var mail = S.view !== 'home' && S.view !== 'reading' && S.view !== 'trello';
-  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'slack' ? slackView() : list() + detail()) : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : home()) + '</div>';
+  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : home()) + '</div>';
   var ns = document.querySelector('.rows, .home'); if (ns) ns.scrollTop = keep;
   bulkBar(); wire(); phoneBar(); swipes();
 }
@@ -573,6 +594,7 @@ function side() {
     + '<button class="nav' + (S.view === 'all' ? ' on' : '') + '" onclick="go(\'all\')">' + I.inbox + 'All mail<span class="n">' + (unreadCount('all') || '') + '</span></button>'
     + '<button class="nav' + (S.view === 'reading' ? ' on' : '') + '" onclick="go(\'reading\')">' + I.book + 'Reading list<span class="n">' + (unreadCount('learn') || '') + '</span></button>'
     + '<button class="nav' + (S.view === 'trello' ? ' on' : '') + '" onclick="go(\'trello\')">' + I.board + 'Trello</button>'
+    + ['sent', 'drafts', 'trash'].map(function (b) { return '<button class="nav sub' + (S.view === 'box:' + b ? ' on' : '') + '" onclick="FD.open=null;go(\'box:' + b + '\')">' + (b === 'sent' ? I.send : b === 'drafts' ? I.note : I.bin) + BOXES[b] + '</button>'; }).join('')
     + '<button class="nav' + (S.view === 'slack' ? ' on' : '') + '" onclick="go(\'slack\')">' + I.slack + 'Slack<span class="n">' + (slackWaiting() || '') + '</span></button>'
     + '<button class="nav' + (S.view === 'notes' ? ' on' : '') + '" onclick="go(\'notes\')">' + I.note + 'Notes</button>'
     + '<div class="navlabel">Piles</div>';
@@ -800,7 +822,8 @@ function taskFromEmail() { var g = current(); if (!g) return; var t = prompt('Ad
 // ---- Snooze ----
 function snoozeAt(kind) {
   var d = new Date(), L = function (h) { var x = new Date(); x.setHours(h, 0, 0, 0); return x; };
-  if (kind === 'later') d = L(18); else if (kind === 'tomorrow') { d = L(9); d.setDate(d.getDate() + 1); }
+  if (kind === 'later') d = new Date(Date.now() + 3 * 3600000); else if (kind === 'tomorrow') { d = L(9); d.setDate(d.getDate() + 1); }
+  else if (kind === 'days3') { d = L(9); d.setDate(d.getDate() + 3); }
   else if (kind === 'weekend') { d = L(10); d.setDate(d.getDate() + ((6 - d.getDay() + 7) % 7 || 7)); }
   else if (kind === 'nextweek') { d = L(9); d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); }
   if (kind === 'later' && d < new Date()) d = new Date(Date.now() + 3 * 3600000);
@@ -810,7 +833,7 @@ function snooze(kind) {
   if (!kind) return; var g = current(); if (!g) return;
   var until = snoozeAt(kind), ids = g.items.map(function (e) { return e.id; });
   S.data.emails = S.data.emails.filter(function (e) { return ids.indexOf(e.id) < 0; });
-  afterChange('Snoozed until ' + until.toLocaleString('en-GB', { weekday:'short', hour:'2-digit', minute:'2-digit' }));
+  afterChange('Back at the top ' + until.toLocaleString('en-GB', { weekday:'short', hour:'2-digit', minute:'2-digit' }));
   api('snooze', { ids:ids, until:until.toISOString() }).catch(fail);
 }
 
@@ -919,11 +942,50 @@ setInterval(function () {
   slackLoad(ch, th);
 }, 30000);
 
+
+// ---- Sent, Drafts and Bin, per inbox, straight from Gmail ----
+var FD = { data:{}, busy:{}, acct:'personal', open:null };
+var BOXES = { sent:'Sent', drafts:'Drafts', trash:'Bin' };
+function folderLoad(box, acct, force) {
+  var k = box + ':' + acct; if (FD.busy[k] || (FD.data[k] && !force)) return;
+  FD.busy[k] = true; render();
+  api('folder', { box:box, acct:acct }).then(function (r) { FD.data[k] = r.items; FD.busy[k] = false; render(); }).catch(function (e) { FD.data[k] = { error:e.message }; FD.busy[k] = false; render(); });
+}
+function folderView() {
+  var box = S.view.split(':')[1], acct = FD.acct, k = box + ':' + acct, items = FD.data[k];
+  if (!items && !FD.busy[k]) folderLoad(box, acct);
+  var accts = Object.keys(ACCOUNTS).filter(function (a) { return a !== 'slack'; });
+  var list = '<section class="list">' + tabs() + '<div class="listhead"><div style="flex:1;min-width:0"><h1>' + BOXES[box] + '</h1><div class="sub">' + (box === 'trash' ? 'Binned emails. Restore puts one back.' : box === 'drafts' ? 'Saved drafts, newest first.' : 'What you sent, newest first.') + '</div></div><button class="iconbtn' + (FD.busy[k] ? ' spin' : '') + '" onclick="folderLoad(\'' + box + '\',FD.acct,true)" title="Refresh">' + I.refresh + '</button></div>'
+    + '<div class="filters"><div class="chips">' + accts.map(function (a) { return '<button class="fchip' + (acct === a ? ' on' : '') + '" onclick="FD.acct=\'' + a + '\';FD.open=null;render()">' + ACCOUNTS[a].label + '</button>'; }).join('') + '</div></div><div class="rows">';
+  if (!items || FD.busy[k] && !items.length) list += '<div class="skel"></div>'.repeat(8);
+  else if (items.error) list += '<div class="empty">' + esc(items.error) + '</div>';
+  else if (!items.length) list += '<div class="empty">Nothing here.</div>';
+  else list += items.map(function (x, i) {
+    var who = box === 'sent' || box === 'drafts' ? 'To ' + String(x.to || '').replace(/<.*?>/g, '').replace(/"/g, '').trim() : String(x.from || '').replace(/<.*?>/g, '').replace(/"/g, '').trim();
+    return '<div class="row nrow' + (FD.open === i ? ' on' : '') + '" onclick="FD.open=' + i + ';S.phoneOpen=true;render()"><div style="min-width:0;flex:1"><div style="display:flex;gap:8px"><b class="t" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(who || '(nobody)') + '</b><span class="l3">' + (x.at ? ago(new Date(x.at).toISOString()) : '') + '</span></div><div class="t" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(x.subject) + '</div><div class="l3" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(x.snippet) + '</div></div></div>';
+  }).join('');
+  list += '</div></section>';
+  var x = items && !items.error && FD.open != null ? items[FD.open] : null;
+  var det = '<section class="detail' + (S.phoneOpen && x ? ' open' : '') + '">';
+  if (!x) det += '<div class="placeholder"><div>Pick an email</div></div>';
+  else {
+    det += '<div class="dhead"><div style="display:flex;gap:10px;align-items:center"><button class="iconbtn back" onclick="S.phoneOpen=false;FD.open=null;render()">' + I.back + '</button><h2 style="margin:0;flex:1">' + esc(x.subject) + '</h2></div><div style="margin-top:6px">' + acctTag(acct) + '</div>'
+      + '<div class="bar" style="padding-left:0;padding-right:0">' + (box === 'trash' ? '<button class="btn pri" onclick="restoreMail(\'' + esc(x.id) + '\')">Restore</button>' : '') + '<a class="btn ghost" target="_blank" href="' + esc(x.url) + '">' + I.inbox + 'Open in Gmail</a></div></div>'
+      + '<div class="dbody">' + messages(x.id, { snippet:x.snippet }) + '</div>';
+  }
+  return list + det + '</section>';
+}
+function restoreMail(id) {
+  var k = 'trash:' + FD.acct, l = FD.data[k]; if (l && l.filter) FD.data[k] = l.filter(function (x) { return x.id !== id; }); FD.open = null; render();
+  toast('Restored. It is back where it was in Gmail.'); api('restore', { id:id }).catch(fail);
+}
+
 // ---- Trello, looking like Trello ----
 var TL = { boards:null, board:null, busy:false, id:null };
 var LABEL_COL = { green:'#4bce97', yellow:'#f5cd47', orange:'#fea362', red:'#f87168', purple:'#9f8fef', blue:'#579dff', sky:'#6cc3e0', lime:'#94c748', pink:'#e774bb', black:'#8c9bab' };
 function trello() {
-  if (!TL.boards) { if (!TL.busy) { TL.busy = true; api('trelloBoards').then(function (b) { TL.boards = b; TL.busy = false; var last = ''; try { last = localStorage.getItem('inbox-board') || ''; } catch (e) {} openBoard(b.some(function (x) { return x.id === last; }) ? last : (b.filter(function (x) { return x.name === 'Life'; })[0] || b[0]).id); }).catch(function (e) { TL.busy = false; toast(e.message, true); }); }
+  if (!TL.boards) { if (!TL.busy && !TL.err) { TL.busy = true; api('trelloBoards').then(function (b) { TL.boards = b; TL.busy = false; var last = ''; try { last = localStorage.getItem('inbox-board') || ''; } catch (e) {} openBoard(b.some(function (x) { return x.id === last; }) ? last : (b.filter(function (x) { return x.name === 'Life'; })[0] || b[0]).id); }).catch(function (e) { TL.busy = false; TL.err = e.message; render(); }); }
+    if (TL.err) return '<main class="tboard"><div class="empty"><b>Trello did not load</b>' + esc(TL.err) + '<div style="margin-top:10px"><button class="btn sm pri" onclick="TL.err=null;render()">Try again</button></div></div></main>';
     return '<main class="tboard"><div class="empty">Loading your boards…</div></main>'; }
   var b = TL.board, bg = b && b.bg ? (b.bg.image ? 'url(' + b.bg.image + ') center/cover' : b.bg.color) : '#0079BF';
   var h = '<main class="tboard" style="background:linear-gradient(rgba(0,0,0,.25),rgba(0,0,0,.35)),' + bg + '">'
@@ -1112,7 +1174,7 @@ function mailDetail(g) {
   h += '<button class="btn' + ((g.pile === 'reply' || g.pile === 'chase') ? '' : ' pri') + '" onclick="sendToChat(\'' + g.id + '\')">' + I.send + 'Send to chat</button>';
   var slack = e.account === 'slack';
   h += (e.gmail_url ? '<a class="btn ghost" target="_blank" href="' + esc(e.gmail_url) + '">' + I.gmail + (slack ? 'Open in Slack' : 'Open in Gmail') + '</a>' : '')
-    + '<span style="flex:1"></span><select class="sel" onchange="snooze(this.value)" title="Snooze"><option value="">Snooze…</option><option value="later">Later today</option><option value="tomorrow">Tomorrow 9am</option><option value="weekend">This weekend</option><option value="nextweek">Next week</option></select>'
+    + '<span style="flex:1"></span><select class="sel" onchange="snooze(this.value)" title="Hide it and bring it back to the top later"><option value="">⏰ Remind me…</option><option value="later">In 3 hours</option><option value="tomorrow">Tomorrow 9am</option><option value="days3">In 3 days</option><option value="weekend">This weekend</option><option value="nextweek">Next week</option></select>'
     + '<button class="iconbtn" title="Add to Reminders" onclick="taskFromEmail()">' + PILE_ICON.learn + '</button>'
     + '<select class="sel" onchange="movePile(this.value)" title="Move to another pile"><option value="">Move…</option>' + PILES.filter(function (x) { return x.key !== 'new' && x.key !== g.pile; }).map(function (x) { return '<option value="' + x.key + '">' + x.title + '</option>'; }).join('') + '</select>'
     + (read ? '<button class="btn" onclick="markUnread()">' + I.dotc + 'Mark unread<kbd>U</kbd></button>' : '<button class="btn" onclick="markRead()">' + I.check + (chase ? 'Dismiss' : 'Mark read') + '<kbd>E</kbd></button>')
@@ -1344,7 +1406,7 @@ function gsi() {
   if (!gsi.prompted) { gsi.prompted = true; google.accounts.id.prompt(); }
 }
 function tokenExp(t) { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).exp * 1000; } catch (e) { return 0; } }
-function onCred(r) { S.token = r.credential; try { localStorage.setItem('inbox-id', S.token); } catch (e) {} S.loading = true; load('load'); }
+function onCred(r) { var renew = !!S.data; S.token = r.credential; try { localStorage.setItem('inbox-id', S.token); } catch (e) {} if (freshToken.ok) { freshToken.ok(); freshToken.ok = null; } if (!renew) { S.loading = true; load('load'); } }
 function signOut() { S.token = ''; S.data = null; try { localStorage.removeItem('inbox-id'); localStorage.removeItem('inbox-cache'); } catch (e) {} if (window.google && google.accounts) google.accounts.id.disableAutoSelect(); render(); }
 
 document.addEventListener('keydown', function (ev) {
@@ -1362,6 +1424,14 @@ document.addEventListener('keydown', function (ev) {
   else if (ev.key === 'Escape') { S.open = null; S.sel = {}; render(); }
 });
 
+// A newer version of this page went live: offer it (Owen keeps the tab open for days).
+var BUILD = document.documentElement.dataset.build || '';
+setInterval(function () {
+  if (document.hidden || S.newVersion) return;
+  fetch(location.pathname + '?v=' + Date.now(), { cache:'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
+    var m = t.match(/data-build="([^"]+)"/); if (m && BUILD && m[1] !== BUILD) { S.newVersion = true; var b = document.createElement('div'); b.className = 'newver'; b.innerHTML = 'A new version is ready. <button class="btn sm pri" onclick="location.reload()">Update</button>'; document.body.appendChild(b); }
+  }).catch(function () {});
+}, 300000);
 (function init() {
   try { var t = localStorage.getItem('inbox-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
   // ?k= is Claude's test key from Owen's Mac: this tab only, never stored.
