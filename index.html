@@ -322,6 +322,12 @@ body { background:radial-gradient(1200px 600px at 80% -10%, color-mix(in srgb, v
 .kpis b { display:block; font-size:18px; letter-spacing:-.02em; }
 .kpis span { color:var(--faint); font-size:12px; }
 a.mini { color:var(--text); }
+.seg { display:inline-flex; border:1px solid var(--line2); border-radius:8px; overflow:hidden; }
+.seg button { border:0; background:none; color:var(--dim); font-size:12px; padding:3px 10px; cursor:pointer; }
+.seg button.on { background:var(--raise); color:var(--text); }
+.note { padding:8px 0; border-top:1px solid var(--line); cursor:pointer; }
+.note .t { font-weight:550; }
+.note pre { white-space:pre-wrap; font:13px/1.5 Inter,sans-serif; margin:6px 0 0; color:var(--dim); }
 .gate { display:grid; place-items:center; height:100vh; }
 .gate .box2 { width:min(360px,90vw); text-align:center; }
 .back, .tabs { display:none; }
@@ -401,6 +407,7 @@ var I = {
   board:'<svg viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M9 4v16M15 4v10"/></svg>',
   bag:'<svg viewBox="0 0 24 24"><path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>',
   chat:'<svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg>',
+  note:'<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 12h7M9 16h5"/></svg>',
   info:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>'
 };
 I.reply = PILE_ICON.reply;
@@ -545,7 +552,7 @@ function home() {
   PILES.filter(function (p) { return p.key !== 'new'; }).forEach(function (p) {
     h += '<div class="tile" style="--c:' + p.color + '" onclick="go(\'' + (p.key === 'learn' ? 'reading' : p.key) + '\')"><div class="lab"><span class="pico">' + PILE_ICON[p.key] + '</span>' + p.title + '</div><div class="num">' + unreadCount(p.key) + '</div><div class="hint">' + p.help + '</div></div>';
   });
-  h += '</div><div class="grid2"><div>' + tasksBox();
+  h += '</div><div class="grid2"><div>' + tasksBox() + macBox();
   var chats = groups().filter(function (g) { return g.isChat && g.unread.length; });
   h += '<div class="box"><h3>' + I.spark + 'Send to your chats</h3><div class="bsub">Every broken-tool email, grouped. Send to chat: you pick the Claude chat and it all lands there.</div>';
   if (!chats.length) h += '<div class="empty" style="padding:20px">Nothing broken.</div>';
@@ -742,6 +749,24 @@ function socialBox() {
     + dms.slice(0, 4).map(function (d) { return '<a class="mini" target="_blank" href="https://fans.wearetez.com/inbox"><div class="av" style="background:' + hue(d.participant_username || d.participant_name) + '">' + esc(initials(d.participant_name || d.participant_username)) + '</div><div style="min-width:0"><div class="t">' + esc(d.participant_name || '@' + d.participant_username) + '</div><div class="l3">' + esc(d.last_message || '') + '</div></div><div class="s">' + (d.last_message_time ? ago(d.last_message_time) : '') + '</div></a>'; }).join('')
     + '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><a class="btn sm' + (nd ? ' pri' : '') + '" target="_blank" href="https://fans.wearetez.com/inbox">' + nd + ' DM' + (nd === 1 ? '' : 's') + ' to answer</a><a class="btn sm" target="_blank" href="https://moon-dashboard-six.vercel.app/?page=comments">' + nc + ' comment' + (nc === 1 ? '' : 's') + ' in Moon</a></div></div>';
 }
+
+// ---- Apple Notes and Reminders (from Owen's Mac, every 15 minutes) ----
+function macBox() {
+  var r = S.data.reminders || [], n = S.data.notes || []; if (!r.length && !n.length && !S.data.macLast) return '';
+  var tab = S.macTab || (r.length ? 'rem' : 'notes');
+  var h = '<div class="box"><h3>' + I.note + 'Notes and Reminders<span style="flex:1"></span><span class="seg"><button class="' + (tab === 'rem' ? 'on' : '') + '" onclick="S.macTab=\'rem\';render()">Reminders ' + r.length + '</button><button class="' + (tab === 'notes' ? 'on' : '') + '" onclick="S.macTab=\'notes\';render()">Notes</button></span></h3>'
+    + '<div class="bsub">From your Mac' + (S.data.macLast && S.data.macLast.at ? ', synced ' + ago(S.data.macLast.at) + ' ago' : '') + '.</div>';
+  if (tab === 'rem') {
+    h += '<form class="taskadd" onsubmit="event.preventDefault();addRem(this.t.value);this.reset()"><input name="t" placeholder="Add a reminder… (lands on your phone too)"><button class="btn sm">Add</button></form>';
+    h += r.map(function (x) { var late = x.due && new Date(x.due) < new Date(); return '<div class="task"><span class="ck" onclick="doneRem(\'' + esc(x.id) + '\')"></span><span class="tt">' + esc(x.title) + ' <span class="l3">· ' + esc(x.list) + '</span></span>' + (x.due ? '<span class="due' + (late ? ' late' : '') + '">' + new Date(x.due).toLocaleDateString('en-GB', { day:'numeric', month:'short' }) + '</span>' : '') + '</div>'; }).join('') || '<div class="empty" style="padding:16px">No open reminders.</div>';
+  } else {
+    S.openNote = S.openNote || {};
+    h += n.slice(0, S.allNotes ? 25 : 8).map(function (x) { var o = S.openNote[x.id]; return '<div class="note" onclick="S.openNote[\'' + esc(x.id) + '\']=!S.openNote[\'' + esc(x.id) + '\'];render()"><div class="t">' + esc(x.title) + '<span class="l3"> · ' + (x.modified_at ? ago(x.modified_at) + ' ago' : '') + '</span></div>' + (o ? '<pre>' + esc(x.body) + '</pre>' : '<div class="l3">' + esc(String(x.body || '').replace(/\s+/g, ' ').slice(0, 110)) + '</div>') + '</div>'; }).join('') + (n.length > 8 ? '<button class="btn sm ghost" style="margin-top:6px" onclick="S.allNotes=!S.allNotes;render()">' + (S.allNotes ? 'Show fewer' : 'Show all ' + n.length) + '</button>' : '');
+  }
+  return h + '</div>';
+}
+function doneRem(id) { S.data.reminders = (S.data.reminders || []).filter(function (x) { return x.id !== id; }); render(); toast('Ticked. Your Mac updates Reminders within 15 minutes.'); api('macComplete', { id:id }).catch(fail); }
+function addRem(t) { t = String(t || '').trim(); if (!t) return; toast('Added. It appears in Reminders within 15 minutes.'); api('macAddReminder', { text:t }).catch(fail); }
 
 function timeline() {
   var c = S.data.calendar; if (!c) return '<div class="empty" style="padding:20px">Calendar not available.</div>';
