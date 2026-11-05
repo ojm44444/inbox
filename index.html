@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1793912654">
+<html lang="en" data-build="b1793914382">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -419,6 +419,18 @@ a.mini { color:var(--text); }
 .sel.sm { height:30px; font-size:12px; }
 a.iconbtn { display:inline-grid; place-items:center; color:inherit; }
 @media (max-width:900px) { .sldetail .slcompose { margin:0 12px calc(78px + env(safe-area-inset-bottom)); } .slmsg { padding:6px 14px; } }
+/* Reading list summaries */
+.sumcard { margin:4px 16px 14px; border:1px solid color-mix(in srgb, var(--acc) 30%, var(--line)); background:color-mix(in srgb, var(--acc) 6%, var(--panel)); border-radius:12px; padding:12px 14px; }
+.sumcard.empty1 { display:flex; gap:12px; align-items:center; }
+.sumcard svg { color:var(--acc2); width:16px; height:16px; flex:none; }
+.sumtop { display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap; }
+.sumgrid { display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:14px; }
+.sumh { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--faint); font-weight:600; margin-bottom:4px; }
+.sumsec ul { margin:0; padding-left:16px; line-height:1.5; }
+.sumsec li { margin:3px 0; }
+.sumline { display:inline-flex; gap:6px; align-items:flex-start; color:var(--text); }
+.sumline svg { width:13px; height:13px; color:var(--acc2); flex:none; margin-top:3px; }
+@media (max-width:1000px) { .sumgrid { grid-template-columns:minmax(0,1fr); } .sumcard { margin:4px 8px 12px; } }
 /* Home overhaul: calmer, shorter */
 .home { max-width:1500px; }
 .hero2 { display:flex; align-items:flex-end; gap:20px; margin-bottom:16px; flex-wrap:wrap; }
@@ -712,6 +724,7 @@ function reading() {
       + '<div class="l3">' + acctTag(first.account) + (g.items.length > 1 ? 'From ' + ago(first.received_at) + ' ago to ' + ago(last.received_at) + ' ago' : ago(first.received_at) + ' ago') + (first.why ? ' · ' + esc(first.why) : '') + '</div></div>'
       + (g.unread ? '<button class="btn sm ghost" onclick="readSeries(\'' + esc(g.key) + '\')">' + I.check + 'Mark all read</button>' : '')
       + '<span class="chev">' + (open ? '▾' : '▸') + '</span></div>';
+    if (open) h += seriesSummary(g);
     if (open) {
       var firstUnread = g.items.filter(function (e) { return !isRead(e); })[0] || g.items[0];
       g.items.forEach(function (e, i) {
@@ -721,12 +734,35 @@ function reading() {
           + '<button class="btn sm" onclick="readOne(\'' + [e.id].concat(e.dupes || []).join(',') + '\',' + (read ? 'false' : 'true') + ')">' + (read ? I.dotc + 'Unread' : I.check + 'Read') + '</button>'
           + '<button class="btn sm ghost" onclick="copyEmail(\'' + e.id + '\')">' + I.copy + 'Copy email</button>'
           + '<button class="btn sm ghost" onclick="sendOne(\'' + e.id + '\')">' + I.send + 'Send to chat</button></div>'
-          + (openA ? messages(e.id, e) : '<div class="artsnip">' + esc(e.snippet || '') + '</div>') + '</article>';
+          + (openA ? messages(e.id, e) : '<div class="artsnip">' + (sumLine(g.key, e.id) ? '<span class="sumline">' + I.spark + esc(sumLine(g.key, e.id)) + '</span>' : esc(e.snippet || '')) + '</div>') + '</article>';
       });
     }
     h += '</section>';
   });
   return h + '</main>';
+}
+// What a sender's series teaches, written once and kept (refreshes when new emails arrive).
+function sumLine(key, id) { var r = ((S.data && S.data.reading) || {})[key]; return r && r.lines ? r.lines[id] || '' : ''; }
+function seriesSummary(g) {
+  var r = ((S.data && S.data.reading) || {})[g.key], busy = S.sumBusy && S.sumBusy[g.key], total = g.items.length + g.items.reduce(function (n, e) { return n + (e.dupes || []).length; }, 0);
+  if (!r) return '<div class="sumcard empty1">' + I.spark + '<div style="flex:1"><b>What this series teaches</b><div class="l3">Reads all ' + g.items.length + ' emails, read or not, and pulls out the lessons, how they write and how you could use it.</div></div><button class="btn sm pri" onclick="makeSummary(\'' + esc(g.key) + '\')"' + (busy ? ' disabled' : '') + '>' + (busy ? 'Reading…' : 'Summarise') + '</button></div>';
+  var newer = r.n < total;
+  var sec = function (t, a) { return a && a.length ? '<div class="sumsec"><div class="sumh">' + t + '</div><ul>' + a.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>' : ''; };
+  return '<div class="sumcard"><div class="sumtop">' + I.spark + '<b style="flex:1">What this series teaches</b><span class="l3">' + r.n + ' emails · ' + ago(r.at) + ' ago</span>'
+    + '<button class="btn sm ghost" onclick="copySummary(\'' + esc(g.key) + '\',' + esc(JSON.stringify(g.name || g.key)) + ')">' + I.copy + 'Copy</button>'
+    + '<button class="btn sm' + (newer ? ' pri' : ' ghost') + '" onclick="makeSummary(\'' + esc(g.key) + '\',true)"' + (busy ? ' disabled' : '') + '>' + (busy ? 'Reading…' : newer ? 'Update (new emails)' : 'Refresh') + '</button></div>'
+    + '<div class="sumgrid">' + sec('The lessons', r.teaches) + sec('How they write and sell', r.how) + sec('Use it for songdrafts or TEZ', r.use) + '</div></div>';
+}
+function makeSummary(key, force) {
+  S.sumBusy = S.sumBusy || {}; S.sumBusy[key] = true; render();
+  api('readingSummary', { sender:key, force:!!force }).then(function (r) { S.data.reading = S.data.reading || {}; S.data.reading[key] = r; S.sumBusy[key] = false; render(); })
+    .catch(function (e) { S.sumBusy[key] = false; render(); fail(e); });
+}
+function copySummary(key, name) {
+  var r = (S.data.reading || {})[key]; if (!r) return;
+  var b = function (t, a) { return a && a.length ? t + '\n' + a.map(function (x) { return '- ' + x; }).join('\n') + '\n\n' : ''; };
+  copyText('What ' + name + "'s emails teach (" + r.n + ' emails)\n\n' + b('The lessons', r.teaches) + b('How they write and sell', r.how) + b('Use it for songdrafts or TEZ', r.use)
+    + 'One line per email\n' + Object.keys(r.lines || {}).map(function (id) { var e = (S.data.emails || []).filter(function (x) { return x.id === id; })[0]; return '- ' + (e ? e.subject + ': ' : '') + r.lines[id]; }).join('\n'), 'Summary copied');
 }
 function readSeries(key) {
   var ids = (S.data.emails || []).filter(function (e) { return e.category === 'learn' && !isRead(e) && String(e.from_email || e.from_name || '?').toLowerCase() === key; }).map(function (e) { return e.id; });
