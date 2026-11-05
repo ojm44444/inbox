@@ -286,6 +286,37 @@ body { background:radial-gradient(1200px 600px at 80% -10%, color-mix(in srgb, v
   .bulk { bottom:calc(76px + env(safe-area-inset-bottom)); }
   .row { touch-action:pan-y; }
 }
+/* trello */
+.tboard { overflow:auto; min-height:0; display:flex; flex-direction:column; padding:0 0 20px; }
+.tbar { display:flex; gap:6px; overflow-x:auto; padding:12px 16px; background:rgba(0,0,0,.35); backdrop-filter:blur(8px); scrollbar-width:thin; flex:none; }
+.tchip { display:flex; align-items:center; gap:8px; flex:none; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.1); color:#fff; border-radius:8px; padding:4px 10px 4px 4px; cursor:pointer; font-size:12.5px; }
+.tchip.on { background:rgba(255,255,255,.95); color:#172b4d; }
+.tthumb { width:28px; height:20px; border-radius:4px; flex:none; }
+.thead { display:flex; align-items:center; gap:10px; padding:12px 16px; color:#fff; flex:none; }
+.thead h2 { margin:0; font-size:18px; flex:1; text-shadow:0 1px 3px rgba(0,0,0,.4); }
+.thead .btn { background:rgba(255,255,255,.18); border-color:transparent; color:#fff; }
+.tlists { display:flex; gap:12px; align-items:flex-start; padding:0 16px; overflow-x:auto; flex:1; }
+.tlist { width:272px; flex:none; background:#101204; color:#b6c2cf; border-radius:12px; padding:8px; max-height:calc(100vh - 170px); display:flex; flex-direction:column; }
+:root[data-theme="light"] .tlist { background:#f1f2f4; color:#44546f; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .tlist { background:#f1f2f4; color:#44546f; } }
+.tlist.over { outline:2px solid #579dff; }
+.tlh { font-weight:600; font-size:14px; padding:6px 8px 10px; display:flex; justify-content:space-between; }
+.tlh span { color:#8c9bab; font-weight:500; font-size:12px; }
+.tcards { overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding:0 2px; min-height:8px; }
+.tcard { background:#22272b; color:#b6c2cf; border-radius:8px; box-shadow:0 1px 1px rgba(0,0,0,.3); cursor:pointer; overflow:hidden; }
+:root[data-theme="light"] .tcard { background:#fff; color:#172b4d; box-shadow:0 1px 1px rgba(9,30,66,.25); }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .tcard { background:#fff; color:#172b4d; box-shadow:0 1px 1px rgba(9,30,66,.25); } }
+.tcard:hover { outline:2px solid #388bff; }
+.tcover { height:32px; }
+.tlabels { display:flex; gap:4px; flex-wrap:wrap; padding:8px 10px 0; }
+.tlabels span { min-width:40px; height:16px; border-radius:4px; font-size:11px; font-weight:600; color:#1d2125; padding:0 6px; line-height:16px; }
+.tname { padding:8px 10px; font-size:14px; line-height:1.35; }
+.tbadges { display:flex; gap:10px; padding:0 10px 8px; font-size:12px; color:#8c9bab; }
+.tbadges .tlate { color:#fff; background:#c9372c; border-radius:3px; padding:0 4px; }
+.tbadges .tdone { color:#fff; background:#1f845a; border-radius:3px; padding:0 4px; }
+.tadd input { width:100%; margin-top:8px; border:0; background:transparent; color:inherit; padding:8px; border-radius:8px; font-size:14px; }
+.tadd input:focus { background:rgba(127,127,127,.15); outline:0; }
+@media (max-width:900px) { .tboard { min-height:100dvh; padding-bottom:90px; } .tlist { width:84vw; max-height:none; } .tlists { scroll-snap-type:x mandatory; } .tlist { scroll-snap-align:start; } }
 .gate { display:grid; place-items:center; height:100vh; }
 .gate .box2 { width:min(360px,90vw); text-align:center; }
 .back, .tabs { display:none; }
@@ -362,6 +393,7 @@ var I = {
   search:'<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/></svg>',
   send:'<svg viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-2.5-6.5z"/></svg>',
   book:'<svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M8 7h7M8 11h7"/></svg>',
+  board:'<svg viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M9 4v16M15 4v10"/></svg>',
   info:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>'
 };
 I.reply = PILE_ICON.reply;
@@ -428,8 +460,8 @@ function pileOf(k) { return PILES.filter(function (p) { return p.key === k; })[0
 function render() {
   if (!S.token && !S.key) return renderGate();
   var sc = document.querySelector('.rows, .home'), keep = sc ? sc.scrollTop : 0;
-  var mail = S.view !== 'home' && S.view !== 'reading';
-  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + '">' + side() + (mail ? list() + detail() : S.view === 'reading' ? reading() : home()) + '</div>';
+  var mail = S.view !== 'home' && S.view !== 'reading' && S.view !== 'trello';
+  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + '">' + side() + (mail ? list() + detail() : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : home()) + '</div>';
   var ns = document.querySelector('.rows, .home'); if (ns) ns.scrollTop = keep;
   bulkBar(); wire(); phoneBar(); swipes();
 }
@@ -437,7 +469,7 @@ function render() {
 function phoneBar() {
   var b = document.getElementById('pbar'); if (!b) { b = document.createElement('nav'); b.id = 'pbar'; b.className = 'pbar'; document.body.appendChild(b); }
   var it = function (v, icon, label, n) { return '<button class="' + (S.view === v ? 'on' : '') + '" onclick="go(\'' + v + '\')">' + icon + '<span>' + label + '</span>' + (n ? '<i>' + n + '</i>' : '') + '</button>'; };
-  b.innerHTML = it('home', I.home, 'Home', 0) + it('all', I.inbox, 'Inbox', unreadCount('all')) + it('reply', PILE_ICON.reply, 'Reply', unreadCount('reply')) + it('reading', I.book, 'Read', 0) + it('fix', PILE_ICON.fix, 'Fix', unreadCount('fix'));
+  b.innerHTML = it('home', I.home, 'Home', 0) + it('all', I.inbox, 'Inbox', unreadCount('all')) + it('reply', PILE_ICON.reply, 'Reply', unreadCount('reply')) + it('reading', I.book, 'Read', 0) + it('trello', I.board, 'Trello', 0);
 }
 // Swipe a row right to mark read, left to snooze until tomorrow.
 function swipes() {
@@ -476,6 +508,7 @@ function side() {
     + '<button class="nav' + (S.view === 'home' ? ' on' : '') + '" onclick="go(\'home\')">' + I.home + 'Home</button>'
     + '<button class="nav' + (S.view === 'all' ? ' on' : '') + '" onclick="go(\'all\')">' + I.inbox + 'All mail<span class="n">' + (unreadCount('all') || '') + '</span></button>'
     + '<button class="nav' + (S.view === 'reading' ? ' on' : '') + '" onclick="go(\'reading\')">' + I.book + 'Reading list<span class="n">' + (unreadCount('learn') || '') + '</span></button>'
+    + '<button class="nav' + (S.view === 'trello' ? ' on' : '') + '" onclick="go(\'trello\')">' + I.board + 'Trello</button>'
     + '<div class="navlabel">Piles</div>';
   PILES.forEach(function (p) {
     var n = unreadCount(p.key); if (p.key === 'new' && !n) return;
@@ -647,6 +680,41 @@ function snooze(kind) {
   afterChange('Snoozed until ' + until.toLocaleString('en-GB', { weekday:'short', hour:'2-digit', minute:'2-digit' }));
   api('snooze', { ids:ids, until:until.toISOString() }).catch(fail);
 }
+
+// ---- Trello, looking like Trello ----
+var TL = { boards:null, board:null, busy:false, id:null };
+var LABEL_COL = { green:'#4bce97', yellow:'#f5cd47', orange:'#fea362', red:'#f87168', purple:'#9f8fef', blue:'#579dff', sky:'#6cc3e0', lime:'#94c748', pink:'#e774bb', black:'#8c9bab' };
+function trello() {
+  if (!TL.boards) { if (!TL.busy) { TL.busy = true; api('trelloBoards').then(function (b) { TL.boards = b; TL.busy = false; var last = ''; try { last = localStorage.getItem('inbox-board') || ''; } catch (e) {} openBoard(b.some(function (x) { return x.id === last; }) ? last : (b.filter(function (x) { return x.name === 'Life'; })[0] || b[0]).id); }).catch(function (e) { TL.busy = false; toast(e.message, true); }); }
+    return '<main class="tboard"><div class="empty">Loading your boards…</div></main>'; }
+  var b = TL.board, bg = b && b.bg ? (b.bg.image ? 'url(' + b.bg.image + ') center/cover' : b.bg.color) : '#0079BF';
+  var h = '<main class="tboard" style="background:linear-gradient(rgba(0,0,0,.25),rgba(0,0,0,.35)),' + bg + '">'
+    + '<div class="tbar">' + TL.boards.map(function (x) { return '<button class="tchip' + (b && x.id === b.id ? ' on' : '') + '" onclick="openBoard(\'' + x.id + '\')"><span class="tthumb" style="background:' + (x.bg.thumb ? 'url(' + x.bg.thumb + ') center/cover' : x.bg.color) + '"></span>' + esc(x.name.trim()) + '</button>'; }).join('') + '</div>';
+  if (!b || TL.loadingBoard) return h + '<div class="empty" style="color:#fff">Loading…</div></main>';
+  h += '<div class="thead"><h2>' + esc(b.name) + '</h2><a class="btn sm" target="_blank" href="' + esc(b.url) + '">Open in Trello</a><button class="btn sm" onclick="openBoard(\'' + b.id + '\')">' + I.refresh + '</button></div><div class="tlists">';
+  b.lists.forEach(function (l) {
+    h += '<div class="tlist" ondragover="event.preventDefault();this.classList.add(\'over\')" ondragleave="this.classList.remove(\'over\')" ondrop="dropCard(event,\'' + l.id + '\')"><div class="tlh">' + esc(l.name) + '<span>' + l.cards.length + '</span></div><div class="tcards">';
+    l.cards.forEach(function (c) {
+      var due = c.due ? new Date(c.due) : null, late = due && !c.done && due < new Date();
+      h += '<div class="tcard" draggable="true" ondragstart="event.dataTransfer.setData(\'text\',\'' + c.id + '\')" onclick="window.open(\'' + esc(c.url) + '\',\'_blank\')">'
+        + (c.cover ? '<div class="tcover" style="background:' + (LABEL_COL[c.cover] || c.cover) + '"></div>' : '')
+        + (c.labels.length ? '<div class="tlabels">' + c.labels.map(function (x) { return '<span style="background:' + (LABEL_COL[x.color] || '#8c9bab') + '">' + esc(x.name || '') + '</span>'; }).join('') + '</div>' : '')
+        + '<div class="tname">' + esc(c.name) + '</div>'
+        + ((due || c.comments || c.checks || c.attach || c.desc) ? '<div class="tbadges">' + (due ? '<span class="' + (c.done ? 'tdone' : late ? 'tlate' : '') + '">🕒 ' + due.toLocaleDateString('en-GB', { day:'numeric', month:'short' }) + '</span>' : '') + (c.desc ? '<span>≡</span>' : '') + (c.comments ? '<span>💬 ' + c.comments + '</span>' : '') + (c.attach ? '<span>📎 ' + c.attach + '</span>' : '') + (c.checks ? '<span>☑ ' + c.checks + '</span>' : '') + '</div>' : '')
+        + '</div>';
+    });
+    h += '</div><form class="tadd" onsubmit="event.preventDefault();addCard(\'' + l.id + '\',this.n.value);this.reset()"><input name="n" placeholder="+ Add a card"></form></div>';
+  });
+  return h + '</div></main>';
+}
+function openBoard(id) { TL.loadingBoard = true; try { localStorage.setItem('inbox-board', id); } catch (e) {} if (TL.board && TL.board.id !== id) TL.board = { id:id, bg:(TL.boards.filter(function (x) { return x.id === id; })[0] || {}).bg }; render(); api('trelloBoard', { id:id }).then(function (b) { TL.board = b; TL.loadingBoard = false; render(); }).catch(function (e) { TL.loadingBoard = false; render(); toast(e.message, true); }); }
+function dropCard(ev, listId) {
+  ev.preventDefault(); ev.currentTarget.classList.remove('over'); var id = ev.dataTransfer.getData('text'); if (!id) return;
+  var card = null; TL.board.lists.forEach(function (l) { l.cards = l.cards.filter(function (c) { if (c.id === id) { card = c; return false; } return true; }); });
+  if (!card) return; TL.board.lists.filter(function (l) { return l.id === listId; })[0].cards.unshift(card); render();
+  api('trelloMove', { card:id, list:listId, pos:'top' }).catch(function (e) { toast(e.message, true); openBoard(TL.board.id); });
+}
+function addCard(listId, name) { name = String(name || '').trim(); if (!name) return; var l = TL.board.lists.filter(function (x) { return x.id === listId; })[0]; l.cards.push({ id:'new', name:name, labels:[], url:'#' }); render(); api('trelloAdd', { list:listId, name:name }).then(function () { openBoard(TL.board.id); }).catch(fail); }
 
 function timeline() {
   var c = S.data.calendar; if (!c) return '<div class="empty" style="padding:20px">Calendar not available.</div>';
