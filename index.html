@@ -332,6 +332,8 @@ a.mini { color:var(--text); }
 .note { padding:8px 0; border-top:1px solid var(--line); cursor:pointer; }
 .note .t { font-weight:550; }
 .row.nrow { grid-template-columns:1fr; }
+.noteed { width:100%; min-height:55vh; border:1px solid var(--line2); border-radius:10px; background:var(--bg); color:var(--text); padding:12px; font:14px/1.6 Inter,sans-serif; resize:vertical; }
+.notebody { white-space:pre-wrap; line-height:1.65; overflow-wrap:anywhere; }
 .nline { display:flex; align-items:center; gap:10px; padding:8px 0; border-top:1px solid var(--line); }
 .nline .tt { flex:1; min-width:0; overflow-wrap:anywhere; }
 .nline.done .tt { color:var(--dim); text-decoration:line-through; }
@@ -562,7 +564,7 @@ function home() {
   PILES.filter(function (p) { return p.key !== 'new'; }).forEach(function (p) {
     h += '<div class="tile" style="--c:' + p.color + '" onclick="go(\'' + (p.key === 'learn' ? 'reading' : p.key) + '\')"><div class="lab"><span class="pico">' + PILE_ICON[p.key] + '</span>' + p.title + '</div><div class="num">' + unreadCount(p.key) + '</div><div class="hint">' + p.help + '</div></div>';
   });
-  h += '</div><div class="grid2"><div>' + tasksBox() + remBox() + notesBox();
+  h += '</div><div class="grid2"><div>' + tasksBox() + notesBox();
   var chats = groups().filter(function (g) { return g.isChat && g.unread.length; });
   h += '<div class="box"><h3>' + I.spark + 'Send to your chats</h3><div class="bsub">Every broken-tool email, grouped. Send to chat: you pick the Claude chat and it all lands there.</div>';
   if (!chats.length) h += '<div class="empty" style="padding:20px">Nothing broken.</div>';
@@ -603,7 +605,11 @@ function reading() {
     if (!by[k]) { by[k] = { key:k, name:e.from_name || e.from_email, items:[] }; groupsR.push(by[k]); }
     by[k].items.push(e);
   });
-  groupsR.forEach(function (g) { g.items.sort(function (a, b) { return Date.parse(a.received_at) - Date.parse(b.received_at); }); g.unread = g.items.filter(function (e) { return !isRead(e); }).length; });
+  // On a sender's list twice (Sabri Suby): the same email counts once, the earliest kept; reading it reads both.
+  var dk = function (e) { return String(e.subject || '').toLowerCase().replace(/\s+/g, ' ').trim() + '|' + String(e.snippet || '').toLowerCase().replace(/&[#a-z0-9]+;/g, '').replace(/[^a-z0-9]+/g, '').slice(0, 80); };
+  groupsR.forEach(function (g) { g.items.sort(function (a, b) { return Date.parse(a.received_at) - Date.parse(b.received_at); });
+    var seen = {}; g.items = g.items.filter(function (e) { var k = dk(e); if (seen[k]) { seen[k].dupes = (seen[k].dupes || []).concat([e.id]); return false; } seen[k] = e; e.dupes = []; return true; }); });
+  groupsR.forEach(function (g) { g.unread = g.items.filter(function (e) { return !isRead(e); }).length; });
   groupsR.sort(function (a, b) { return b.items.length - a.items.length || Date.parse(a.items[0].received_at) - Date.parse(b.items[0].received_at); });
   S.openSeries = S.openSeries || {}; S.openArt = S.openArt || {};
   var h = '<main class="home reader">' + tabs() + '<div style="display:flex;align-items:center;gap:10px"><div style="flex:1"><h1 class="hello">Reading list</h1><div class="hellosub">' + all.length + ' newsletter' + (all.length === 1 ? '' : 's') + ' from ' + groupsR.length + ' sender' + (groupsR.length === 1 ? '' : 's') + '. Each series reads oldest first.</div></div>'
@@ -623,7 +629,8 @@ function reading() {
         if (S.openArt[e.id] == null) S.openArt[e.id] = e === firstUnread;
         var openA = S.openArt[e.id], read = isRead(e);
         h += '<article class="art' + (read ? ' read' : '') + '"><div class="arth" style="cursor:pointer" onclick="if(!event.target.closest(\'button\')){S.openArt[\'' + e.id + '\']=!S.openArt[\'' + e.id + '\'];render()}"><span class="artn">' + (i + 1) + '</span><div style="flex:1;min-width:0"><div class="artt">' + esc(e.subject) + '</div><div class="l3">' + ago(e.received_at) + ' ago</div></div>'
-          + '<button class="btn sm" onclick="readOne(\'' + e.id + '\',' + (read ? 'false' : 'true') + ')">' + (read ? I.dotc + 'Unread' : I.check + 'Read') + '</button>'
+          + '<button class="btn sm" onclick="readOne(\'' + [e.id].concat(e.dupes || []).join(',') + '\',' + (read ? 'false' : 'true') + ')">' + (read ? I.dotc + 'Unread' : I.check + 'Read') + '</button>'
+          + '<button class="btn sm ghost" onclick="copyEmail(\'' + e.id + '\')">' + I.copy + 'Copy email</button>'
           + '<button class="btn sm ghost" onclick="sendOne(\'' + e.id + '\')">' + I.send + 'Send to chat</button></div>'
           + (openA ? messages(e.id, e) : '<div class="artsnip">' + esc(e.snippet || '') + '</div>') + '</article>';
       });
@@ -636,7 +643,30 @@ function readSeries(key) {
   var ids = (S.data.emails || []).filter(function (e) { return e.category === 'learn' && !isRead(e) && String(e.from_email || e.from_name || '?').toLowerCase() === key; }).map(function (e) { return e.id; });
   if (!ids.length) return; setStatus(ids, 'done'); render(); toast(ids.length + ' marked read'); api('markRead', { ids:ids }).catch(fail);
 }
-function readOne(id, read) { setStatus([id], read ? 'done' : 'open'); render(); toast(read ? 'Marked read' : 'Marked unread'); api(read ? 'markRead' : 'markUnread', { ids:[id] }).catch(fail); }
+function readOne(id, read) { var ids = String(id).split(','); setStatus(ids, read ? 'done' : 'open'); render(); toast(read ? 'Marked read' : 'Marked unread'); api(read ? 'markRead' : 'markUnread', { ids:ids }).catch(fail); }
+// The whole email with its formatting and pictures, ready to paste into Claude (text too, as a fallback).
+function copyEmail(id) {
+  var e = (S.data.emails || []).filter(function (x) { return x.id === id; })[0] || {};
+  var got = S.threads[id] && !S.threads[id].error ? Promise.resolve(S.threads[id]) : api('thread', { id:id }).then(function (r) { S.threads[id] = r.messages; return r.messages; });
+  var parts = got.then(function (ms) {
+    var m = ms[ms.length - 1] || {}, head = 'From: ' + (m.from || e.from_name || '') + '\nSubject: ' + (e.subject || '') + '\nDate: ' + (m.date || '') + '\n\n';
+    var html = '<p><b>From:</b> ' + esc(m.from || e.from_name || '') + '<br><b>Subject:</b> ' + esc(e.subject || '') + '<br><b>Date:</b> ' + esc(m.date || '') + '</p>' + (m.html || '<pre>' + esc(m.plain || '') + '</pre>');
+    var plain = head + (m.plain || (new DOMParser().parseFromString(m.html || '', 'text/html').body.innerText || ''));
+    return { html:html, plain:plain };
+  });
+  var done = function () { toast('Copied, with formatting. Paste it into Claude.'); };
+  if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+    navigator.clipboard.write([new ClipboardItem({ 'text/html': parts.then(function (p) { return new Blob([p.html], { type:'text/html' }); }), 'text/plain': parts.then(function (p) { return new Blob([p.plain], { type:'text/plain' }); }) })])
+      .then(done, function () { parts.then(copyRich).then(function (ok) { if (ok) done(); }); });
+  } else parts.then(copyRich).then(function (ok) { if (ok) done(); });
+}
+// Older browsers: select the email on the page and copy it, which keeps the formatting.
+function copyRich(p) {
+  var d = document.createElement('div'); d.contentEditable = 'true'; d.style.cssText = 'position:fixed;left:-9999px;top:0;width:600px'; d.innerHTML = p.html; document.body.appendChild(d);
+  var r = document.createRange(); r.selectNodeContents(d); var sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+  var ok = false; try { ok = document.execCommand('copy'); } catch (x) {} sel.removeAllRanges(); d.remove();
+  if (!ok) copyText(p.plain, 'Copied as text'); return ok;
+}
 function sendOne(id) { var g = groups().filter(function (x) { return x.items.some(function (e) { return e.id === id; }); })[0]; if (g) sendToChat(g.id); }
 // One chip per inbox with its unread count; tap to see only that inbox everywhere.
 function inboxStrip() {
@@ -697,12 +727,27 @@ function briefDone(k) {
 function newBrief() { S.briefBusy = true; render(); api('brief').then(function (b) { S.data.brief = b; S.briefBusy = false; load('load'); }).catch(function (e) { S.briefBusy = false; render(); toast(e.message, true); }); }
 
 // ---- Tasks ----
+// Tasks are Owen's Apple Reminders, synced both ways (5 Nov 2026: "Tasks, like stuff and
+// reminders, are their own things", emails are not tasks). Older tasks added here show too.
 function tasksBox() {
-  var t = (S.data.tasks || []);
-  var open = t.filter(function (x) { return !x.done; }), done = t.filter(function (x) { return x.done; });
-  return '<div class="box"><h3>' + PILE_ICON.reply.replace('M9 14L4 9l5-5', 'M5 12.5l4.5 4.5L19 7.5').replace('<path d="M4 9h10a6 6 0 0 1 6 6v4"/>', '') + 'Tasks <span class="badge">' + open.length + '</span></h3><div class="bsub">Pulled from your emails each morning, plus your own.</div>'
-    + '<form class="taskadd" onsubmit="event.preventDefault();addTask(this.t.value,this.d.value);this.reset()"><input name="t" placeholder="Add a task…"><input name="d" type="date"><button class="btn sm">Add</button></form>'
-    + open.map(taskRow).join('') + (done.length ? '<div class="l3" style="margin:8px 0 2px">Done</div>' + done.slice(0, 5).map(taskRow).join('') : '') + '</div>';
+  var r = S.data.reminders || [], own = (S.data.tasks || []).filter(function (x) { return !x.done; });
+  var lists = {}; r.forEach(function (x) { lists[x.list] = 1; }); var ln = Object.keys(lists);
+  var shown = r.filter(function (x) { return !S.remList || x.list === S.remList; });
+  return '<div class="box"><h3>' + I.check + 'Tasks<span class="badge">' + (r.length + own.length) + '</span></h3><div class="bsub">Your Reminders. Add, tick or rename here or on your phone and it changes in both. ' + macStatus() + '</div>'
+    + '<form class="taskadd" onsubmit="event.preventDefault();addRem(this.t.value,this.d.value);this.reset()"><input name="t" placeholder="Add a task…"><input name="d" type="date"><button class="btn sm">Add</button></form>'
+    + (ln.length > 1 ? '<div class="chips" style="margin:2px 0 6px"><button class="fchip' + (!S.remList ? ' on' : '') + '" onclick="S.remList=null;render()">All</button>' + ln.map(function (l) { return '<button class="fchip' + (S.remList === l ? ' on' : '') + '" onclick="S.remList=' + esc(JSON.stringify(l)) + ';render()">' + esc(l) + '</button>'; }).join('') + '</div>' : '')
+    + own.map(taskRow).join('')
+    + (shown.slice(0, S.allRem ? 999 : 12).map(function (x) { var late = x.due && new Date(x.due) < new Date(); return '<div class="task"><span class="ck" title="Done" onclick="doneRem(\'' + esc(x.id) + '\')"></span><span class="tt" title="Tap to rename" style="cursor:text" onclick="renameRem(\'' + esc(x.id) + '\')">' + esc(x.title) + (ln.length > 1 && !S.remList ? ' <span class="l3">· ' + esc(x.list) + '</span>' : '') + '</span>' + (x.due ? '<span class="due' + (late ? ' late' : '') + '">' + new Date(x.due).toLocaleDateString('en-GB', { day:'numeric', month:'short' }) + '</span>' : '') + '</div>'; }).join('') || (own.length ? '' : '<div class="empty" style="padding:16px">Nothing to do.</div>'))
+    + (shown.length > 12 ? '<button class="btn sm ghost" style="margin-top:6px" onclick="S.allRem=!S.allRem;render()">' + (S.allRem ? 'Show fewer' : 'Show all ' + shown.length) + '</button>' : '') + '</div>';
+}
+function macStatus() {
+  var e = (S.data.macErrors || [])[0], p = S.data.macPending || 0;
+  return (S.data.macLast && S.data.macLast.at ? 'Synced ' + ago(S.data.macLast.at) + ' ago.' : '') + (p ? ' ' + p + ' change' + (p > 1 ? 's' : '') + ' on the way to your Mac.' : '') + (e ? ' <span style="color:var(--red,#e5484d)">Last change failed: ' + esc(String(e.result).replace(/^error:\s*/, '').replace(/^execution error: (Error: )+/, '').replace(/ \(-\d+\)$/, '')) + '</span>' : '');
+}
+function renameRem(id) {
+  var x = (S.data.reminders || []).filter(function (r) { return r.id === id; })[0]; if (!x) return;
+  var t = prompt('Rename', x.title); t = String(t || '').trim(); if (!t || t === x.title) return;
+  x.title = t; render(); toast('Renamed. Changes in Reminders within a minute.'); api('macRenameReminder', { id:id, text:t }).catch(fail);
 }
 function taskRow(x) {
   var overdue = x.due && !x.done && x.due < new Date().toLocaleDateString('en-CA', { timeZone:'Europe/London' });
@@ -710,7 +755,7 @@ function taskRow(x) {
 }
 function addTask(t, d) { t = String(t || '').trim(); if (!t) return; S.data.tasks = [{ id:0, text:t, due:d || null, done:false }].concat(S.data.tasks || []); render(); api('taskAdd', { text:t, due:d }).then(function () { load('load'); }).catch(fail); }
 function doneTask(id, done) { (S.data.tasks || []).forEach(function (x) { if (x.id === id) x.done = done; }); render(); if (done) toast('Done'); api('taskDone', { id:id, done:done }).catch(fail); }
-function taskFromEmail() { var g = current(); if (!g) return; var t = prompt('Task:', g.items[0].subject); if (t) { api('taskAdd', { text:t, emailId:g.items[0].id }).then(function () { toast('Added to Tasks'); load('load'); }).catch(fail); } }
+function taskFromEmail() { var g = current(); if (!g) return; var t = prompt('Add to your Reminders:', g.items[0].subject); if (t) addRem(t); }
 
 // ---- Snooze ----
 function snoozeAt(kind) {
@@ -785,13 +830,6 @@ function socialBox() {
 
 // ---- Apple Notes and Reminders (from Owen's Mac, every 15 minutes) ----
 function macSynced() { return S.data.macLast && S.data.macLast.at ? 'From your Mac, synced ' + ago(S.data.macLast.at) + ' ago.' : 'From your Mac.'; }
-function remBox() {
-  var r = S.data.reminders || []; if (!r.length && !S.data.macLast) return '';
-  return '<div class="box"><h3>' + I.check + 'Reminders<span class="n">' + (r.length || '') + '</span></h3><div class="bsub">' + macSynced() + ' Tick one here or on your phone and it goes from both.</div>'
-    + '<form class="taskadd" onsubmit="event.preventDefault();addRem(this.t.value);this.reset()"><input name="t" placeholder="Add a reminder… (lands on your phone too)"><button class="btn sm">Add</button></form>'
-    + (r.slice(0, S.allRem ? 99 : 10).map(function (x) { var late = x.due && new Date(x.due) < new Date(); return '<div class="task"><span class="ck" onclick="doneRem(\'' + esc(x.id) + '\')"></span><span class="tt">' + esc(x.title) + ' <span class="l3">· ' + esc(x.list) + '</span></span>' + (x.due ? '<span class="due' + (late ? ' late' : '') + '">' + new Date(x.due).toLocaleDateString('en-GB', { day:'numeric', month:'short' }) + '</span>' : '') + '</div>'; }).join('') || '<div class="empty" style="padding:16px">No open reminders.</div>')
-    + (r.length > 10 ? '<button class="btn sm ghost" style="margin-top:6px" onclick="S.allRem=!S.allRem;render()">' + (S.allRem ? 'Show fewer' : 'Show all ' + r.length) + '</button>' : '') + '</div>';
-}
 function notesBox() {
   var n = S.data.notes || []; if (!n.length) return '';
   return '<div class="box"><h3>' + I.note + 'Notes<span style="flex:1"></span><button class="btn sm ghost" onclick="go(\'notes\')">All notes</button></h3><div class="bsub">' + macSynced() + '</div>'
@@ -806,38 +844,35 @@ function noteLines(x) {
 function openNote(id) { S.view = 'notes'; S.noteId = id; S.phoneOpen = true; render(); }
 function notesView() {
   var n = S.data.notes || [], cur = n.filter(function (x) { return x.id === S.noteId; })[0] || (window.innerWidth > 800 ? n[0] : null);
-  S.noteDone = S.noteDone || load_('inbox-note-done') || {};
-  var list = '<section class="list">' + tabs() + '<div class="listhead"><div style="flex:1;min-width:0"><h1>Notes</h1><div class="sub">Your ' + n.length + ' latest Apple Notes. ' + esc(macSynced()) + '</div></div></div><div class="rows">'
-    + n.map(function (x) { return '<div class="row nrow' + (cur && cur.id === x.id ? ' on' : '') + '" onclick="openNote(\'' + esc(x.id) + '\')"><div style="min-width:0;flex:1"><div class="t">' + esc(x.title) + '</div><div class="l3">' + esc(x.list || '') + (x.modified_at ? ' · ' + ago(x.modified_at) + ' ago' : '') + ' · ' + noteLines(x).length + ' lines</div></div></div>'; }).join('') + '</div></section>';
-  var det = '<section class="detail' + (S.phoneOpen && cur ? ' open' : '') + '">';
-  if (!cur) det += '<div class="empty">Pick a note.</div>';
+  var list = '<section class="list">' + tabs() + '<div class="listhead"><div style="flex:1;min-width:0"><h1>Notes</h1><div class="sub">Your ' + n.length + ' latest Apple Notes. Edits save back to Notes.</div></div><button class="btn sm" onclick="newNote()">New note</button></div><div class="rows">'
+    + n.map(function (x) { return '<div class="row nrow' + (cur && cur.id === x.id ? ' on' : '') + '" onclick="openNote(\'' + esc(x.id) + '\')"><div style="min-width:0;flex:1"><div class="t">' + esc(x.title) + '</div><div class="l3">' + esc(x.list || '') + (x.modified_at ? ' · ' + ago(x.modified_at) + ' ago' : '') + '</div><div class="l3">' + esc(noteLines(x).slice(0, 2).join(' · ').slice(0, 90)) + '</div></div></div>'; }).join('') + '</div></section>';
+  var det = '<section class="detail' + (S.phoneOpen && (cur || S.noteNew) ? ' open' : '') + '">';
+  if (S.noteNew) {
+    det += '<div class="dhead"><div style="display:flex;gap:10px;align-items:center"><button class="iconbtn back" onclick="S.noteNew=false;S.phoneOpen=false;render()">' + I.back + '</button><h2 style="margin:0;flex:1">New note</h2></div></div>'
+      + '<div class="dbody"><textarea id="noteed" class="noteed" placeholder="First line is the title"></textarea><div style="display:flex;gap:8px;margin-top:10px"><button class="btn pri" onclick="saveNewNote()">Save to Notes</button><button class="btn ghost" onclick="S.noteNew=false;render()">Cancel</button></div></div>';
+  } else if (!cur) det += '<div class="empty">Pick a note.</div>';
   else {
-    var ls = noteLines(cur), dn = S.noteDone[cur.id] || {};
-    det += '<div class="dhead"><div style="display:flex;gap:10px;align-items:center"><button class="iconbtn back" onclick="S.phoneOpen=false;S.noteId=null;render()">' + I.back + '</button><h2 style="margin:0;flex:1">' + esc(cur.title) + '</h2></div><div class="l3">' + esc(cur.list || '') + (cur.modified_at ? ' · edited ' + ago(cur.modified_at) + ' ago' : '') + '</div>'
-      + '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn sm" onclick="openOnMac(\'' + esc(cur.id) + '\')">Open in Notes</button><button class="btn sm ghost" onclick="copyText(' + esc(JSON.stringify(cur.body || '')) + ')">Copy</button></div></div>'
-      + '<div class="dbody"><div class="bsub" style="margin:0 0 10px">Each line on its own. Tick it once it\'s handled, or turn it into a task or reminder.</div>'
-      + ls.map(function (l, i) { var d = dn[l]; return '<div class="nline' + (d ? ' done' : '') + '"><span class="ck" onclick="noteTick(\'' + esc(cur.id) + '\',' + i + ')">' + (d ? '✓' : '') + '</span><span class="tt">' + linkify(esc(l)) + '</span>' + (d ? '<span class="l3">' + esc(d) + '</span>' : '<button class="btn sm ghost" onclick="noteTo(\'' + esc(cur.id) + '\',' + i + ',\'task\')">Task</button><button class="btn sm ghost" onclick="noteTo(\'' + esc(cur.id) + '\',' + i + ',\'rem\')">Reminder</button>') + '</div>'; }).join('')
-      + (ls.length ? '' : '<div class="empty">Empty note.</div>') + '</div>';
+    var editing = S.noteEdit === cur.id, ro = cur.attach > 0;
+    det += '<div class="dhead"><div style="display:flex;gap:10px;align-items:center"><button class="iconbtn back" onclick="S.phoneOpen=false;S.noteId=null;S.noteEdit=null;render()">' + I.back + '</button><h2 style="margin:0;flex:1">' + esc(cur.title) + '</h2></div><div class="l3">' + esc(cur.list || '') + (cur.modified_at ? ' · edited ' + ago(cur.modified_at) + ' ago' : '') + ' · ' + macStatus() + '</div>'
+      + '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">' + (editing ? '<button class="btn pri" onclick="saveNote(\'' + esc(cur.id) + '\')">Save to Notes</button><button class="btn ghost" onclick="S.noteEdit=null;render()">Cancel</button>'
+        : (ro ? '' : '<button class="btn" onclick="S.noteEdit=\'' + esc(cur.id) + '\';render();setTimeout(function(){var t=document.getElementById(\'noteed\');if(t)t.focus()},30)">Edit</button>') + '<button class="btn ghost" onclick="copyText(' + esc(JSON.stringify(cur.body || '')) + ',\'Note copied\')">Copy</button><button class="btn ghost" onclick="openOnMac(\'' + esc(cur.id) + '\')">Open in Notes</button>')
+      + '</div>' + (ro && !editing ? '<div class="l3" style="margin-top:6px">Has pictures or files, so edit this one in Notes.</div>' : '') + '</div>'
+      + '<div class="dbody">' + (editing ? '<textarea id="noteed" class="noteed">' + esc(cur.body || '') + '</textarea>' : '<div class="notebody">' + linkify(esc(cur.body || '')) + '</div>') + '</div>';
   }
   return list + det + '</section>';
 }
+function newNote() { S.noteNew = true; S.noteEdit = null; S.phoneOpen = true; render(); setTimeout(function () { var t = document.getElementById('noteed'); if (t) t.focus(); }, 30); }
+function saveNewNote() { var t = (document.getElementById('noteed') || {}).value || ''; if (!t.trim()) return; S.noteNew = false; render(); toast('Saved. It appears in Notes within a minute.'); api('macAddNote', { text:t }).catch(fail); }
+function saveNote(id) {
+  var x = (S.data.notes || []).filter(function (n) { return n.id === id; })[0], t = (document.getElementById('noteed') || {}).value || ''; if (!x || !t.trim()) return;
+  var base = x.modified_at; x.body = t; x.title = t.split('\n')[0]; S.noteEdit = null; render(); toast('Saved. Notes updates within a minute.');
+  api('macEditNote', { id:id, text:t, base:base }).catch(fail);
+}
 function linkify(h) { return h.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" onclick="event.stopPropagation()">$1</a>'); }
 function load_(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
-function noteMark(id, i, label) {
-  var x = (S.data.notes || []).filter(function (n) { return n.id === id; })[0]; if (!x) return; var l = noteLines(x)[i];
-  var m = S.noteDone[id] = S.noteDone[id] || {}; if (m[l] && !label) delete m[l]; else m[l] = label || 'Done';
-  try { localStorage.setItem('inbox-note-done', JSON.stringify(S.noteDone)); } catch (e) {}
-  render(); return l;
-}
-function noteTick(id, i) { noteMark(id, i, null); }
-function noteTo(id, i, kind) {
-  var l = noteMark(id, i, kind === 'task' ? 'Made a task' : 'Made a reminder'); if (!l) return;
-  if (kind === 'task') { api('taskAdd', { text:l }).then(function () { toast('Added to Tasks'); load('load'); }).catch(fail); }
-  else addRem(l);
-}
 function openOnMac(id) { toast('Opening on your Mac in about a minute'); api('macOpenNote', { id:id }).catch(fail); }
 function doneRem(id) { S.data.reminders = (S.data.reminders || []).filter(function (x) { return x.id !== id; }); render(); toast('Ticked. Gone from Reminders on your Mac and phone within a minute.'); api('macComplete', { id:id }).catch(fail); }
-function addRem(t) { t = String(t || '').trim(); if (!t) return; toast('Added. It lands in Reminders within a minute.'); api('macAddReminder', { text:t }).catch(fail); }
+function addRem(t, d) { t = String(t || '').trim(); if (!t) return; S.data.reminders = [{ id:'new' + Date.now(), title:t, list:'', due:d || null }].concat(S.data.reminders || []); render(); toast('Added. It lands in Reminders within a minute.'); api('macAddReminder', { text:t, due:d || '' }).catch(fail); }
 
 function timeline() {
   var c = S.data.calendar; if (!c) return '<div class="empty" style="padding:20px">Calendar not available.</div>';
@@ -931,7 +966,7 @@ function mailDetail(g) {
   var slack = e.account === 'slack';
   h += (e.gmail_url ? '<a class="btn ghost" target="_blank" href="' + esc(e.gmail_url) + '">' + I.gmail + (slack ? 'Open in Slack' : 'Open in Gmail') + '</a>' : '')
     + '<span style="flex:1"></span><select class="sel" onchange="snooze(this.value)" title="Snooze"><option value="">Snooze…</option><option value="later">Later today</option><option value="tomorrow">Tomorrow 9am</option><option value="weekend">This weekend</option><option value="nextweek">Next week</option></select>'
-    + '<button class="iconbtn" title="Add as a task" onclick="taskFromEmail()">' + PILE_ICON.learn + '</button>'
+    + '<button class="iconbtn" title="Add to Reminders" onclick="taskFromEmail()">' + PILE_ICON.learn + '</button>'
     + '<select class="sel" onchange="movePile(this.value)" title="Move to another pile"><option value="">Move…</option>' + PILES.filter(function (x) { return x.key !== 'new' && x.key !== g.pile; }).map(function (x) { return '<option value="' + x.key + '">' + x.title + '</option>'; }).join('') + '</select>'
     + (read ? '<button class="btn" onclick="markUnread()">' + I.dotc + 'Mark unread<kbd>U</kbd></button>' : '<button class="btn" onclick="markRead()">' + I.check + (chase ? 'Dismiss' : 'Mark read') + '<kbd>E</kbd></button>')
     + (slack ? '' : '<button class="iconbtn" title="Bin" onclick="binOne()">' + I.bin + '</button>') + '</div><div class="dbody">';
