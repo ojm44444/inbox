@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1793915502">
+<html lang="en" data-build="b1793917779">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -431,6 +431,13 @@ a.iconbtn { display:inline-grid; place-items:center; color:inherit; }
 .sumline { display:inline-flex; gap:6px; align-items:flex-start; color:var(--text); }
 .sumline svg { width:13px; height:13px; color:var(--acc2); flex:none; margin-top:3px; }
 @media (max-width:1000px) { .sumgrid { grid-template-columns:minmax(0,1fr); } .sumcard { margin:4px 8px 12px; } }
+/* Ideas */
+.idea { display:flex; gap:10px; align-items:flex-start; padding:8px 0; border-top:1px solid var(--line); }
+.idea .ii { width:22px; flex:none; text-align:center; }
+.idea .tt { flex:1; min-width:0; cursor:pointer; line-height:1.45; }
+.idea .tt:hover { color:var(--acc2); }
+.idea .iconbtn { width:24px; height:24px; font-size:11px; opacity:.5; }
+.idea .iconbtn:hover { opacity:1; }
 /* People */
 .phead { display:flex; gap:14px; align-items:center; margin-bottom:16px; }
 .pav { width:52px; height:52px; border-radius:50%; display:grid; place-items:center; color:#fff; font-size:18px; font-weight:700; flex:none; }
@@ -695,7 +702,7 @@ function home() {
     });
     h += '</div>';
   }
-  h += socialBox() + '</div><div class="hcol">';
+  h += ideasBox() + socialBox() + '</div><div class="hcol">';
   h += '<div class="box"><h3>' + I.cal + 'Next few days</h3>' + timeline() + '</div>';
   h += notesBox() + shopBox();
   var lb = (S.data.emails || []).filter(function (e) { return /littlebird\.ai$/i.test(e.from_email || ''); }).slice(0, 3);
@@ -776,6 +783,18 @@ function copySummary(key, name) {
   copyText('What ' + name + "'s emails teach (" + r.n + ' emails)\n\n' + b('The lessons', r.teaches) + b('How they write and sell', r.how) + b('Use it for songdrafts or TEZ', r.use)
     + 'One line per email\n' + Object.keys(r.lines || {}).map(function (id) { var e = (S.data.emails || []).filter(function (x) { return x.id === id; })[0]; return '- ' + (e ? e.subject + ': ' : '') + r.lines[id]; }).join('\n'), 'Summary copied');
 }
+// Ideas: emails going cold that are worth acting on, found once a day.
+var IDEA_ICON = { nudge:'👋', answer:'💬', opportunity:'✨', money:'💷' };
+function ideasBox() {
+  var d = S.data.ideas || {}, gone = d.dismissed || [];
+  var list = (d.ideas || []).filter(function (x) { if (gone.indexOf(x.id) >= 0) return false; var e = (S.data.emails || []).filter(function (y) { return y.id === x.id; })[0]; return !e || e.status !== 'binned' && !(d.at && new Date(e.received_at) > new Date(d.at)); });
+  if (!d.ideas && !S.ideasBusy) return '<div class="box"><h3>' + I.spark + 'Ideas<span style="flex:1"></span><button class="btn sm ghost" onclick="newIdeas()">Find some</button></h3><div class="l3">Emails going cold that are worth a nudge, an answer or a follow-up.</div></div>';
+  return '<div class="box"><h3>' + I.spark + 'Ideas<span class="badge">' + list.length + '</span><span style="flex:1"></span><button class="btn sm ghost" onclick="newIdeas()"' + (S.ideasBusy ? ' disabled' : '') + '>' + (S.ideasBusy ? 'Looking…' : 'Refresh') + '</button></h3>'
+    + '<div class="bsub">Going cold and worth acting on. ' + (d.at ? 'Found ' + ago(d.at) + ' ago.' : '') + '</div>'
+    + (list.length ? list.map(function (x) { return '<div class="idea"><span class="ii">' + (IDEA_ICON[x.kind] || '👋') + '</span><div class="tt" onclick="openEmail(\'' + esc(x.id) + '\')">' + esc(x.text) + ' ' + acctTag(x.acct) + '</div><button class="iconbtn" title="Not useful" onclick="ideaDone(\'' + esc(x.id) + '\')">✕</button></div>'; }).join('') : '<div class="empty" style="padding:14px">Nothing going cold.</div>') + '</div>';
+}
+function newIdeas() { S.ideasBusy = true; render(); api('ideas', { force:true }).then(function (r) { S.data.ideas = r; S.ideasBusy = false; render(); }).catch(function (e) { S.ideasBusy = false; render(); fail(e); }); }
+function ideaDone(id) { var d = S.data.ideas; d.dismissed = (d.dismissed || []).concat([id]); render(); api('ideaDone', { id:id }).catch(fail); }
 function readSeries(key) {
   var ids = (S.data.emails || []).filter(function (e) { return e.category === 'learn' && !isRead(e) && String(e.from_email || e.from_name || '?').toLowerCase() === key; }).map(function (e) { return e.id; });
   if (!ids.length) return; setStatus(ids, 'done'); render(); toast(ids.length + ' marked read'); api('markRead', { ids:ids }).catch(fail);
