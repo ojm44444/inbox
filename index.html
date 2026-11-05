@@ -672,14 +672,16 @@ function briefCard() {
     + (top3Left(b).length ? '<div class="top3">' + top3Left(b).map(function (t, i) { return '<button class="t3" onclick="' + (t.id ? 'openEmail(\'' + esc(t.id) + '\')' : '') + '"><span class="t3n">' + (i + 1) + '</span>' + esc(t.text) + '</button>'; }).join('') + '</div>' : '') + '</div>';
 }
 // A line goes once Owen has dealt with its emails (read, replied, binned) or ticks it off.
-function top3Left(b) { return (b.top3 || []).filter(function (t) { return (b.dismissed || []).indexOf(t.text) < 0 && (!t.id || briefLive(t.id)); }); }
-function briefLive(id) { var e = (S.data.emails || []).filter(function (x) { return x.id === id; })[0]; return e && !isRead(e); }
+function top3Left(b) { return (b.top3 || []).filter(function (t) { return (b.dismissed || []).indexOf(t.text) < 0 && (!t.id || briefLive(t.id, t.at)); }); }
+// Still waiting, and the same message the brief was about (nothing newer in the thread since).
+function briefLive(id, at) { var e = (S.data.emails || []).filter(function (x) { return x.id === id; })[0]; return e && !isRead(e) && (!at || !e.received_at || new Date(e.received_at) <= new Date(at)); }
+function itemLive(it) { return (it.ids || []).filter(function (id, i) { return briefLive(id, (it.at || [])[i]); }); }
 function briefLines(b) {
   var gone = b.dismissed || [], items = (b.items || (b.lines || []).map(function (t) { return { text:t, ids:[] }; }));
-  var left = items.filter(function (it) { return gone.indexOf(it.text) < 0 && (!it.ids || !it.ids.length || it.ids.some(briefLive)); });
+  var left = items.filter(function (it) { return gone.indexOf(it.text) < 0 && (!it.ids || !it.ids.length || itemLive(it).length); });
   if (!left.length) return '<div class="l3" style="margin:6px 0 10px">All done from this brief. Refresh for a new one.</div>';
   return '<div class="blines">' + left.map(function (it) {
-    var live = (it.ids || []).filter(briefLive), k = items.indexOf(it);
+    var live = itemLive(it), k = items.indexOf(it);
     return '<div class="bl"><span class="ck" title="Done" onclick="briefDone(' + k + ')"></span><span class="bt"' + (live.length ? ' onclick="openEmail(\'' + esc(live[0]) + '\')"' : '') + '>' + esc(it.text) + '</span>'
       + (live.length ? '<button class="btn sm ghost" onclick="openEmail(\'' + esc(live[0]) + '\')">Open' + (live.length > 1 ? ' ' + live.length : '') + '</button>' : '') + '</div>';
   }).join('') + '</div>';
@@ -687,7 +689,7 @@ function briefLines(b) {
 function briefDone(k) {
   var b = S.data.brief, it = (b.items || [])[k] || { text:(b.lines || [])[k], ids:[] }; if (!it.text) return;
   b.dismissed = (b.dismissed || []).concat([it.text]);
-  var ids = (it.ids || []).filter(briefLive);
+  var ids = itemLive(it);
   if (ids.length) { setStatus(ids, 'done'); api('markRead', { ids:ids }).catch(function (e) { setStatus(ids, 'open'); fail(e); }); }
   render(); toast(ids.length ? 'Done, and its email' + (ids.length > 1 ? 's' : '') + ' marked read' : 'Done');
   api('briefDone', { text:it.text }).catch(fail);
