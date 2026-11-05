@@ -258,7 +258,11 @@ body { background:radial-gradient(1200px 600px at 80% -10%, color-mix(in srgb, v
 .anst { line-height:1.6; }
 .elink { display:inline-block; background:var(--accbg); color:var(--acc2); border-radius:6px; padding:0 6px; margin:0 2px; cursor:pointer; font-size:12px; }
 .blines { margin:4px 0 10px; padding-left:18px; line-height:1.6; color:var(--dim); }
-.blines li { margin:2px 0; }
+.blines { padding-left:0; }
+.bl { display:flex; align-items:center; gap:10px; padding:6px 0; border-top:1px solid var(--line); color:var(--text); }
+.bl:first-child { border-top:0; }
+.bl .bt { flex:1; min-width:0; cursor:pointer; }
+.bl .btn { flex:none; }
 .top3 { display:flex; gap:8px; flex-wrap:wrap; }
 .t3 { flex:1 1 220px; display:flex; gap:10px; align-items:center; text-align:left; border:1px solid var(--line2); background:var(--bg); color:var(--text); border-radius:10px; padding:9px 12px; cursor:pointer; }
 .t3:hover { border-color:var(--acc); }
@@ -327,6 +331,11 @@ a.mini { color:var(--text); }
 .seg button.on { background:var(--raise); color:var(--text); }
 .note { padding:8px 0; border-top:1px solid var(--line); cursor:pointer; }
 .note .t { font-weight:550; }
+.row.nrow { grid-template-columns:1fr; }
+.nline { display:flex; align-items:center; gap:10px; padding:8px 0; border-top:1px solid var(--line); }
+.nline .tt { flex:1; min-width:0; overflow-wrap:anywhere; }
+.nline.done .tt { color:var(--dim); text-decoration:line-through; }
+.nline .ck { font-size:11px; color:var(--acc); }
 .note pre { white-space:pre-wrap; font:13px/1.5 Inter,sans-serif; margin:6px 0 0; color:var(--dim); }
 .gate { display:grid; place-items:center; height:100vh; }
 .gate .box2 { width:min(360px,90vw); text-align:center; }
@@ -475,7 +484,7 @@ function render() {
   if (!S.token && !S.key) return renderGate();
   var sc = document.querySelector('.rows, .home'), keep = sc ? sc.scrollTop : 0;
   var mail = S.view !== 'home' && S.view !== 'reading' && S.view !== 'trello';
-  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + '">' + side() + (mail ? list() + detail() : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : home()) + '</div>';
+  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : list() + detail()) : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : home()) + '</div>';
   var ns = document.querySelector('.rows, .home'); if (ns) ns.scrollTop = keep;
   bulkBar(); wire(); phoneBar(); swipes();
 }
@@ -523,6 +532,7 @@ function side() {
     + '<button class="nav' + (S.view === 'all' ? ' on' : '') + '" onclick="go(\'all\')">' + I.inbox + 'All mail<span class="n">' + (unreadCount('all') || '') + '</span></button>'
     + '<button class="nav' + (S.view === 'reading' ? ' on' : '') + '" onclick="go(\'reading\')">' + I.book + 'Reading list<span class="n">' + (unreadCount('learn') || '') + '</span></button>'
     + '<button class="nav' + (S.view === 'trello' ? ' on' : '') + '" onclick="go(\'trello\')">' + I.board + 'Trello</button>'
+    + '<button class="nav' + (S.view === 'notes' ? ' on' : '') + '" onclick="go(\'notes\')">' + I.note + 'Notes</button>'
     + '<div class="navlabel">Piles</div>';
   PILES.forEach(function (p) {
     var n = unreadCount(p.key); if (p.key === 'new' && !n) return;
@@ -552,7 +562,7 @@ function home() {
   PILES.filter(function (p) { return p.key !== 'new'; }).forEach(function (p) {
     h += '<div class="tile" style="--c:' + p.color + '" onclick="go(\'' + (p.key === 'learn' ? 'reading' : p.key) + '\')"><div class="lab"><span class="pico">' + PILE_ICON[p.key] + '</span>' + p.title + '</div><div class="num">' + unreadCount(p.key) + '</div><div class="hint">' + p.help + '</div></div>';
   });
-  h += '</div><div class="grid2"><div>' + tasksBox() + macBox();
+  h += '</div><div class="grid2"><div>' + tasksBox() + remBox() + notesBox();
   var chats = groups().filter(function (g) { return g.isChat && g.unread.length; });
   h += '<div class="box"><h3>' + I.spark + 'Send to your chats</h3><div class="bsub">Every broken-tool email, grouped. Send to chat: you pick the Claude chat and it all lands there.</div>';
   if (!chats.length) h += '<div class="empty" style="padding:20px">Nothing broken.</div>';
@@ -658,8 +668,29 @@ function briefCard() {
   var b = S.data.brief || {}; if (!b.lines || !b.lines.length) return '<div class="brief"><div class="ansh">' + I.sun + '<b>Morning brief</b><span style="flex:1"></span><button class="btn sm ghost" onclick="newBrief()">' + (S.briefBusy ? 'Writing…' : 'Write it now') + '</button></div></div>';
   var stale = b.date !== new Date().toLocaleDateString('en-CA', { timeZone:'Europe/London' });
   return '<div class="brief"><div class="ansh">' + I.sun + '<b>' + (stale ? 'Last brief' : 'Today\'s brief') + '</b><span class="l3">' + ago(b.at) + ' ago</span><span style="flex:1"></span><button class="btn sm ghost" onclick="newBrief()">' + (S.briefBusy ? 'Writing…' : 'Refresh') + '</button></div>'
-    + '<ul class="blines">' + b.lines.map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul>'
-    + (b.top3 && b.top3.length ? '<div class="top3">' + b.top3.map(function (t, i) { return '<button class="t3" onclick="' + (t.id ? 'openEmail(\'' + esc(t.id) + '\')' : '') + '"><span class="t3n">' + (i + 1) + '</span>' + esc(t.text) + '</button>'; }).join('') + '</div>' : '') + '</div>';
+    + briefLines(b)
+    + (top3Left(b).length ? '<div class="top3">' + top3Left(b).map(function (t, i) { return '<button class="t3" onclick="' + (t.id ? 'openEmail(\'' + esc(t.id) + '\')' : '') + '"><span class="t3n">' + (i + 1) + '</span>' + esc(t.text) + '</button>'; }).join('') + '</div>' : '') + '</div>';
+}
+// A line goes once Owen has dealt with its emails (read, replied, binned) or ticks it off.
+function top3Left(b) { return (b.top3 || []).filter(function (t) { return (b.dismissed || []).indexOf(t.text) < 0 && (!t.id || briefLive(t.id)); }); }
+function briefLive(id) { var e = (S.data.emails || []).filter(function (x) { return x.id === id; })[0]; return e && !isRead(e); }
+function briefLines(b) {
+  var gone = b.dismissed || [], items = (b.items || (b.lines || []).map(function (t) { return { text:t, ids:[] }; }));
+  var left = items.filter(function (it) { return gone.indexOf(it.text) < 0 && (!it.ids || !it.ids.length || it.ids.some(briefLive)); });
+  if (!left.length) return '<div class="l3" style="margin:6px 0 10px">All done from this brief. Refresh for a new one.</div>';
+  return '<div class="blines">' + left.map(function (it) {
+    var live = (it.ids || []).filter(briefLive), k = items.indexOf(it);
+    return '<div class="bl"><span class="ck" title="Done" onclick="briefDone(' + k + ')"></span><span class="bt"' + (live.length ? ' onclick="openEmail(\'' + esc(live[0]) + '\')"' : '') + '>' + esc(it.text) + '</span>'
+      + (live.length ? '<button class="btn sm ghost" onclick="openEmail(\'' + esc(live[0]) + '\')">Open' + (live.length > 1 ? ' ' + live.length : '') + '</button>' : '') + '</div>';
+  }).join('') + '</div>';
+}
+function briefDone(k) {
+  var b = S.data.brief, it = (b.items || [])[k] || { text:(b.lines || [])[k], ids:[] }; if (!it.text) return;
+  b.dismissed = (b.dismissed || []).concat([it.text]);
+  var ids = (it.ids || []).filter(briefLive);
+  if (ids.length) { setStatus(ids, 'done'); api('markRead', { ids:ids }).catch(function (e) { setStatus(ids, 'open'); fail(e); }); }
+  render(); toast(ids.length ? 'Done, and its email' + (ids.length > 1 ? 's' : '') + ' marked read' : 'Done');
+  api('briefDone', { text:it.text }).catch(fail);
 }
 function newBrief() { S.briefBusy = true; render(); api('brief').then(function (b) { S.data.brief = b; S.briefBusy = false; load('load'); }).catch(function (e) { S.briefBusy = false; render(); toast(e.message, true); }); }
 
@@ -751,22 +782,60 @@ function socialBox() {
 }
 
 // ---- Apple Notes and Reminders (from Owen's Mac, every 15 minutes) ----
-function macBox() {
-  var r = S.data.reminders || [], n = S.data.notes || []; if (!r.length && !n.length && !S.data.macLast) return '';
-  var tab = S.macTab || (r.length ? 'rem' : 'notes');
-  var h = '<div class="box"><h3>' + I.note + 'Notes and Reminders<span style="flex:1"></span><span class="seg"><button class="' + (tab === 'rem' ? 'on' : '') + '" onclick="S.macTab=\'rem\';render()">Reminders ' + r.length + '</button><button class="' + (tab === 'notes' ? 'on' : '') + '" onclick="S.macTab=\'notes\';render()">Notes</button></span></h3>'
-    + '<div class="bsub">From your Mac' + (S.data.macLast && S.data.macLast.at ? ', synced ' + ago(S.data.macLast.at) + ' ago' : '') + '.</div>';
-  if (tab === 'rem') {
-    h += '<form class="taskadd" onsubmit="event.preventDefault();addRem(this.t.value);this.reset()"><input name="t" placeholder="Add a reminder… (lands on your phone too)"><button class="btn sm">Add</button></form>';
-    h += r.map(function (x) { var late = x.due && new Date(x.due) < new Date(); return '<div class="task"><span class="ck" onclick="doneRem(\'' + esc(x.id) + '\')"></span><span class="tt">' + esc(x.title) + ' <span class="l3">· ' + esc(x.list) + '</span></span>' + (x.due ? '<span class="due' + (late ? ' late' : '') + '">' + new Date(x.due).toLocaleDateString('en-GB', { day:'numeric', month:'short' }) + '</span>' : '') + '</div>'; }).join('') || '<div class="empty" style="padding:16px">No open reminders.</div>';
-  } else {
-    S.openNote = S.openNote || {};
-    h += n.slice(0, S.allNotes ? 25 : 8).map(function (x) { var o = S.openNote[x.id]; return '<div class="note" onclick="S.openNote[\'' + esc(x.id) + '\']=!S.openNote[\'' + esc(x.id) + '\'];render()"><div class="t">' + esc(x.title) + '<span class="l3"> · ' + (x.modified_at ? ago(x.modified_at) + ' ago' : '') + '</span></div>' + (o ? '<pre>' + esc(x.body) + '</pre>' : '<div class="l3">' + esc(String(x.body || '').replace(/\s+/g, ' ').slice(0, 110)) + '</div>') + '</div>'; }).join('') + (n.length > 8 ? '<button class="btn sm ghost" style="margin-top:6px" onclick="S.allNotes=!S.allNotes;render()">' + (S.allNotes ? 'Show fewer' : 'Show all ' + n.length) + '</button>' : '');
-  }
-  return h + '</div>';
+function macSynced() { return S.data.macLast && S.data.macLast.at ? 'From your Mac, synced ' + ago(S.data.macLast.at) + ' ago.' : 'From your Mac.'; }
+function remBox() {
+  var r = S.data.reminders || []; if (!r.length && !S.data.macLast) return '';
+  return '<div class="box"><h3>' + I.check + 'Reminders<span class="n">' + (r.length || '') + '</span></h3><div class="bsub">' + macSynced() + ' Tick one here or on your phone and it goes from both.</div>'
+    + '<form class="taskadd" onsubmit="event.preventDefault();addRem(this.t.value);this.reset()"><input name="t" placeholder="Add a reminder… (lands on your phone too)"><button class="btn sm">Add</button></form>'
+    + (r.slice(0, S.allRem ? 99 : 10).map(function (x) { var late = x.due && new Date(x.due) < new Date(); return '<div class="task"><span class="ck" onclick="doneRem(\'' + esc(x.id) + '\')"></span><span class="tt">' + esc(x.title) + ' <span class="l3">· ' + esc(x.list) + '</span></span>' + (x.due ? '<span class="due' + (late ? ' late' : '') + '">' + new Date(x.due).toLocaleDateString('en-GB', { day:'numeric', month:'short' }) + '</span>' : '') + '</div>'; }).join('') || '<div class="empty" style="padding:16px">No open reminders.</div>')
+    + (r.length > 10 ? '<button class="btn sm ghost" style="margin-top:6px" onclick="S.allRem=!S.allRem;render()">' + (S.allRem ? 'Show fewer' : 'Show all ' + r.length) + '</button>' : '') + '</div>';
 }
-function doneRem(id) { S.data.reminders = (S.data.reminders || []).filter(function (x) { return x.id !== id; }); render(); toast('Ticked. Your Mac updates Reminders within 15 minutes.'); api('macComplete', { id:id }).catch(fail); }
-function addRem(t) { t = String(t || '').trim(); if (!t) return; toast('Added. It appears in Reminders within 15 minutes.'); api('macAddReminder', { text:t }).catch(fail); }
+function notesBox() {
+  var n = S.data.notes || []; if (!n.length) return '';
+  return '<div class="box"><h3>' + I.note + 'Notes<span style="flex:1"></span><button class="btn sm ghost" onclick="go(\'notes\')">All notes</button></h3><div class="bsub">' + macSynced() + '</div>'
+    + n.slice(0, 6).map(function (x) { return '<div class="note" onclick="openNote(\'' + esc(x.id) + '\')"><div class="t">' + esc(x.title) + '<span class="l3"> · ' + (x.modified_at ? ago(x.modified_at) + ' ago' : '') + '</span></div><div class="l3">' + esc(noteLines(x).slice(0, 3).join(' · ').slice(0, 120)) + '</div></div>'; }).join('') + '</div>';
+}
+// A note split into its lines, first line (the title) left out.
+function noteLines(x) {
+  var ls = String(x.body || '').split(/\n+/).map(function (l) { return l.replace(/^\s*([-*•◦▪]|\d+[.)]|\[[ x]\])\s*/, '').trim(); }).filter(Boolean);
+  if (ls.length && ls[0] === String(x.title || '').trim()) ls.shift();
+  return ls;
+}
+function openNote(id) { S.view = 'notes'; S.noteId = id; S.phoneOpen = true; render(); }
+function notesView() {
+  var n = S.data.notes || [], cur = n.filter(function (x) { return x.id === S.noteId; })[0] || (window.innerWidth > 800 ? n[0] : null);
+  S.noteDone = S.noteDone || load_('inbox-note-done') || {};
+  var list = '<section class="list">' + tabs() + '<div class="listhead"><div style="flex:1;min-width:0"><h1>Notes</h1><div class="sub">Your ' + n.length + ' latest Apple Notes. ' + esc(macSynced()) + '</div></div></div><div class="rows">'
+    + n.map(function (x) { return '<div class="row nrow' + (cur && cur.id === x.id ? ' on' : '') + '" onclick="openNote(\'' + esc(x.id) + '\')"><div style="min-width:0;flex:1"><div class="t">' + esc(x.title) + '</div><div class="l3">' + esc(x.list || '') + (x.modified_at ? ' · ' + ago(x.modified_at) + ' ago' : '') + ' · ' + noteLines(x).length + ' lines</div></div></div>'; }).join('') + '</div></section>';
+  var det = '<section class="detail' + (S.phoneOpen && cur ? ' open' : '') + '">';
+  if (!cur) det += '<div class="empty">Pick a note.</div>';
+  else {
+    var ls = noteLines(cur), dn = S.noteDone[cur.id] || {};
+    det += '<div class="dhead"><div style="display:flex;gap:10px;align-items:center"><button class="iconbtn back" onclick="S.phoneOpen=false;S.noteId=null;render()">' + I.back + '</button><h2 style="margin:0;flex:1">' + esc(cur.title) + '</h2></div><div class="l3">' + esc(cur.list || '') + (cur.modified_at ? ' · edited ' + ago(cur.modified_at) + ' ago' : '') + '</div>'
+      + '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn sm" onclick="openOnMac(\'' + esc(cur.id) + '\')">Open in Notes</button><button class="btn sm ghost" onclick="copyText(' + esc(JSON.stringify(cur.body || '')) + ')">Copy</button></div></div>'
+      + '<div class="dbody"><div class="bsub" style="margin:0 0 10px">Each line on its own. Tick it once it\'s handled, or turn it into a task or reminder.</div>'
+      + ls.map(function (l, i) { var d = dn[l]; return '<div class="nline' + (d ? ' done' : '') + '"><span class="ck" onclick="noteTick(\'' + esc(cur.id) + '\',' + i + ')">' + (d ? '✓' : '') + '</span><span class="tt">' + linkify(esc(l)) + '</span>' + (d ? '<span class="l3">' + esc(d) + '</span>' : '<button class="btn sm ghost" onclick="noteTo(\'' + esc(cur.id) + '\',' + i + ',\'task\')">Task</button><button class="btn sm ghost" onclick="noteTo(\'' + esc(cur.id) + '\',' + i + ',\'rem\')">Reminder</button>') + '</div>'; }).join('')
+      + (ls.length ? '' : '<div class="empty">Empty note.</div>') + '</div>';
+  }
+  return list + det + '</section>';
+}
+function linkify(h) { return h.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" onclick="event.stopPropagation()">$1</a>'); }
+function load_(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
+function noteMark(id, i, label) {
+  var x = (S.data.notes || []).filter(function (n) { return n.id === id; })[0]; if (!x) return; var l = noteLines(x)[i];
+  var m = S.noteDone[id] = S.noteDone[id] || {}; if (m[l] && !label) delete m[l]; else m[l] = label || 'Done';
+  try { localStorage.setItem('inbox-note-done', JSON.stringify(S.noteDone)); } catch (e) {}
+  render(); return l;
+}
+function noteTick(id, i) { noteMark(id, i, null); }
+function noteTo(id, i, kind) {
+  var l = noteMark(id, i, kind === 'task' ? 'Made a task' : 'Made a reminder'); if (!l) return;
+  if (kind === 'task') { api('taskAdd', { text:l }).then(function () { toast('Added to Tasks'); load('load'); }).catch(fail); }
+  else addRem(l);
+}
+function openOnMac(id) { toast('Opening on your Mac in about a minute'); api('macOpenNote', { id:id }).catch(fail); }
+function doneRem(id) { S.data.reminders = (S.data.reminders || []).filter(function (x) { return x.id !== id; }); render(); toast('Ticked. Gone from Reminders on your Mac and phone within a minute.'); api('macComplete', { id:id }).catch(fail); }
+function addRem(t) { t = String(t || '').trim(); if (!t) return; toast('Added. It lands in Reminders within a minute.'); api('macAddReminder', { text:t }).catch(fail); }
 
 function timeline() {
   var c = S.data.calendar; if (!c) return '<div class="empty" style="padding:20px">Calendar not available.</div>';
