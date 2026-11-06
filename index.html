@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1793971041">
+<html lang="en" data-build="b1793980197">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1629,6 +1629,17 @@ document.addEventListener('keydown', function (ev) {
   else if (k === '/') { var q = document.getElementById('q'); if (q) { q.focus(); ev.preventDefault(); } }
   else if (ev.key === 'Escape') { S.open = null; S.sel = {}; render(); }
 });
+
+// Done, read or binned in Gmail or Slack itself: gone from here within a couple of minutes.
+function quickSync() {
+  if (document.hidden || !S.data || S.refreshing || quickSync.busy) return;
+  var a = document.activeElement; if (a && /^(INPUT|TEXTAREA)$/.test(a.tagName)) return;
+  quickSync.busy = true;
+  api('sync').then(function (d) { quickSync.busy = false; if (!d || d.same || !d.emails) return; S.data = d; slackNames(); saveCache(d); render(); })
+    .catch(function () { quickSync.busy = false; });
+}
+setInterval(quickSync, 120000);
+document.addEventListener('visibilitychange', function () { if (!document.hidden) quickSync(); });
 
 // A newer version of this page went live: offer it (Owen keeps the tab open for days).
 var BUILD = document.documentElement.dataset.build || '';
