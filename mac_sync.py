@@ -3,7 +3,7 @@
 Run by launchd every minute with Moon's snippets venv Python (~/Library/LaunchAgents/com.owen.inbox-macsync.plist).
 Every minute: carries out what Owen did on the page (inbox_mac_actions: tick a reminder,
 add one, open a note) and re-reads open reminders, so one ticked on his phone leaves the
-page within a minute. Every 15 minutes: the 40 most recent notes. Writes only on change. Uses Moon's database helper, so no keys live here.
+page within a minute. Every 5 minutes: every note (only changed ones are written). Writes only on change. Uses Moon's database helper, so no keys live here.
 """
 import datetime, hashlib, json, os, subprocess, sys, time
 sys.path.insert(0, os.path.expanduser('~/moon-dashboard/tools/snippets'))
@@ -30,13 +30,13 @@ def osa(script, timeout=600):
         raise RuntimeError(r.stderr.strip()[:300])
     return json.loads(r.stdout or 'null')
 
+# All notes in one go (Notes answers a whole column at once: 800 notes in under a second), so
+# the page can search every note, not just the latest. Folders come per folder, the same way.
 NOTES_JS = '''
-var Notes = Application('Notes'); var out = [];
-var ns = Notes.notes; var n = Math.min(40, ns.length);
-for (var i = 0; i < n; i++) { var x = ns[i];
-  var folder = ''; try { folder = x.container().name(); } catch (e) {}
-  var att = 0; try { att = x.attachments().length; } catch (e) {}
-  out.push({ id: x.id(), title: x.name(), body: String(x.plaintext()).slice(0, 8000), folder: folder, modified: x.modificationDate().toISOString(), attach: att }); }
+var N = Application('Notes'), f = {};
+N.folders().forEach(function (d) { var nm = d.name(); d.notes.id().forEach(function (i) { f[i] = nm; }); });
+var ids = N.notes.id(), t = N.notes.name(), b = N.notes.plaintext(), m = N.notes.modificationDate(), a = N.notes.attachments.name(), out = [];
+for (var i = 0; i < ids.length; i++) out.push({ id: ids[i], title: t[i], body: String(b[i] || '').slice(0, 8000), folder: f[ids[i]] || '', modified: m[i].toISOString(), attach: (a[i] || []).length });
 JSON.stringify(out);
 '''
 # Reminders through Apple's EventKit (instant), not AppleScript, which times out on a big
@@ -134,13 +134,27 @@ def do_actions():
 
 def sync(kind, rows, folder_key):
     """One upsert for all rows, one delete for anything gone from the Mac (deleted, or ticked there)."""
+    sync_rows(kind, rows, folder_key)
+    ids = [r['id'] for r in rows]
+    x("DELETE FROM inbox_mac WHERE kind = '%s'%s" % (kind, (" AND id NOT IN (%s)" % ','.join("'%s'" % esc(i) for i in ids)) if ids else ''))
+
+def sync_rows(kind, rows, folder_key):
     def lit(v): return ("'%s'" % esc(v)) if v else 'NULL'
     if rows:
         x("INSERT INTO inbox_mac (id, kind, title, body, list, due, modified_at, attach, done, synced_at) VALUES "
           + ','.join("('%s', '%s', '%s', '%s', '%s', %s, %s, %d, false, now())" % (esc(r['id']), kind, esc(r.get('title')), esc(r.get('body')), esc(r.get(folder_key)), lit(r.get('due')), lit(r.get('modified')), int(r.get('attach') or 0)) for r in rows)
           + " ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, body = EXCLUDED.body, list = EXCLUDED.list, due = EXCLUDED.due, modified_at = EXCLUDED.modified_at, attach = EXCLUDED.attach, done = false, synced_at = now()")
-    ids = [r['id'] for r in rows]
-    x("DELETE FROM inbox_mac WHERE kind = '%s'%s" % (kind, (" AND id NOT IN (%s)" % ','.join("'%s'" % esc(i) for i in ids)) if ids else ''))
+
+def sync_notes(state, notes):
+    """Only notes that changed are written, 50 at a time; deleted ones are removed."""
+    old, new = state.get('note_h') or {}, {}
+    for n in notes: new[n['id']] = hashlib.md5(json.dumps(n, sort_keys=True).encode()).hexdigest()
+    todo = [n for n in notes if old.get(n['id']) != new[n['id']]]
+    for k in range(0, len(todo), 50): sync_rows('note', todo[k:k + 50], 'folder')
+    if not old or set(old) != set(new):
+        ids = list(new)
+        x("DELETE FROM inbox_mac WHERE kind = 'note'%s" % ((" AND id NOT IN (%s)" % ','.join("'%s'" % esc(i) for i in ids)) if ids else ''))
+    state['note_h'] = new
 
 def changed(state, kind, rows):
     """Only write when something changed, so the minute runs cost nothing most of the time."""
@@ -159,12 +173,12 @@ if __name__ == '__main__':
         rems = read_reminders(); status['reminders'] = len(rems)
         if changed(state, 'reminder', rems): sync('reminder', rems, 'list')
     except Exception as e: status['reminders_error'] = str(e)[:200]; state.pop('reminder', None)
-    if '--notes' in sys.argv or state_force_notes[0] or time.time() - state.get('notes_at', 0) > 14 * 60:
+    if '--notes' in sys.argv or state_force_notes[0] or time.time() - state.get('notes_at', 0) > 4 * 60:
         try:
             notes = [n for n in osa(NOTES_JS, 300) if n.get('folder') != 'Recently Deleted']; status['notes'] = len(notes)
-            if changed(state, 'note', notes): sync('note', notes, 'folder')
+            sync_notes(state, notes)
             state['notes_at'] = time.time()
-        except Exception as e: status['notes_error'] = str(e)[:200]; state.pop('note', None)
+        except Exception as e: status['notes_error'] = str(e)[:200]; state.pop('note_h', None)
     # "Synced X ago" on the page: refreshed every 15 minutes, or at once when something failed.
     if 'notes' in status or time.time() - state.get('status_at', 0) > 14 * 60 or any(k.endswith('error') for k in status):
         try:

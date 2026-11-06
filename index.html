@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1793980197">
+<html lang="en" data-build="b1793980533">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -648,6 +648,8 @@ function wire() {
   if (ta) ta.addEventListener('input', function () { S.drafts[S.open] = ta.value; var sv = document.getElementById('savedflag'); if (sv) sv.style.display = 'none'; });
   var q = document.getElementById('q');
   if (q) q.addEventListener('input', function () { S.f.q = q.value; var pos = q.selectionStart; render(); var n = document.getElementById('q'); n.focus(); n.setSelectionRange(pos, pos); });
+  var nq = document.getElementById('nq');
+  if (nq) nq.addEventListener('input', function () { var pos = nq.selectionStart; noteSearch(nq.value); var n = document.getElementById('nq'); n.focus(); n.setSelectionRange(pos, pos); });
   document.querySelectorAll('iframe[data-mid]').forEach(fitFrame);
 }
 // Emails grow as their images load, so keep fitting the frame to its content for a few seconds.
@@ -1248,10 +1250,25 @@ function noteLines(x) {
   if (ls.length && ls[0] === String(x.title || '').trim()) ls.shift();
   return ls;
 }
+// Search covers every note on the Mac (all of them are synced), not only the latest 40 shown.
+function noteHits() {
+  var q = String(S.noteQ || '').toLowerCase();
+  if (S.noteHitsFor === S.noteQ && S.noteHits) return S.noteHits;
+  return (S.data.notes || []).filter(function (x) { return (String(x.title) + ' ' + String(x.body)).toLowerCase().indexOf(q) >= 0; });
+}
+function noteSearch(v) {
+  S.noteQ = v; clearTimeout(noteSearch.t); if (!v.trim()) { S.noteHits = null; render(); return; }
+  S.noteBusy = true;
+  noteSearch.t = setTimeout(function () { api('notesSearch', { q:v }).then(function (r) { if (S.noteQ !== v) return; S.noteHits = r; S.noteHitsFor = v; S.noteBusy = false; render(); }).catch(function () { S.noteBusy = false; }); }, 300);
+  render();
+}
 function openNote(id) { S.view = 'notes'; S.noteId = id; S.phoneOpen = true; render(); }
 function notesView() {
-  var n = S.data.notes || [], cur = n.filter(function (x) { return x.id === S.noteId; })[0] || (window.innerWidth > 800 ? n[0] : null);
-  var list = '<section class="list">' + tabs() + '<div class="listhead"><div style="flex:1;min-width:0"><h1>Notes</h1><div class="sub">Your ' + n.length + ' latest Apple Notes. Edits save back to Notes.</div></div><button class="btn sm" onclick="newNote()">New note</button></div><div class="rows">'
+  var all = S.data.notes || [], n = S.noteQ ? noteHits() : all;
+  var cur = n.concat(all, S.noteHits || []).filter(function (x) { return x.id === S.noteId; })[0] || (window.innerWidth > 800 ? n[0] : null);
+  var list = '<section class="list">' + tabs() + '<div class="listhead"><div style="flex:1;min-width:0"><h1>Notes</h1><div class="sub">' + (S.noteQ ? n.length + ' found in all your Apple Notes' : 'Your latest Apple Notes. Search finds any of them.') + '</div></div><button class="btn sm" onclick="newNote()">New note</button></div>'
+    + '<div class="filters"><div class="search">' + I.search + '<input id="nq" placeholder="Search all your notes" value="' + esc(S.noteQ || '') + '"></div></div><div class="rows">'
+    + (S.noteQ && !n.length ? '<div class="empty">' + (S.noteBusy ? 'Searching…' : 'No note has that.') + '</div>' : '')
     + n.map(function (x) { return '<div class="row nrow' + (cur && cur.id === x.id ? ' on' : '') + '" onclick="openNote(\'' + esc(x.id) + '\')"><div style="min-width:0;flex:1"><div class="t">' + esc(x.title) + '</div><div class="l3">' + esc(x.list || '') + (x.modified_at ? ' · ' + ago(x.modified_at) + ' ago' : '') + '</div><div class="l3">' + esc(noteLines(x).slice(0, 2).join(' · ').slice(0, 90)) + '</div></div></div>'; }).join('') + '</div></section>';
   var det = '<section class="detail' + (S.phoneOpen && (cur || S.noteNew) ? ' open' : '') + '">';
   if (S.noteNew) {
@@ -1271,7 +1288,7 @@ function notesView() {
 function newNote() { S.noteNew = true; S.noteEdit = null; S.phoneOpen = true; render(); setTimeout(function () { var t = document.getElementById('noteed'); if (t) t.focus(); }, 30); }
 function saveNewNote() { var t = (document.getElementById('noteed') || {}).value || ''; if (!t.trim()) return; S.noteNew = false; render(); toast('Saved. It appears in Notes within a minute.'); api('macAddNote', { text:t }).catch(fail); }
 function saveNote(id) {
-  var x = (S.data.notes || []).filter(function (n) { return n.id === id; })[0], t = (document.getElementById('noteed') || {}).value || ''; if (!x || !t.trim()) return;
+  var x = (S.data.notes || []).concat(S.noteHits || []).filter(function (n) { return n.id === id; })[0], t = (document.getElementById('noteed') || {}).value || ''; if (!x || !t.trim()) return;
   var base = x.modified_at; x.body = t; x.title = t.split('\n')[0]; S.noteEdit = null; render(); toast('Saved. Notes updates within a minute.');
   api('macEditNote', { id:id, text:t, base:base }).catch(fail);
 }
@@ -1298,6 +1315,7 @@ function list() {
   var title = S.view === 'all' ? 'All mail' : pileOf(S.view).title, sub = S.view === 'all' ? 'Every email, sorted.' : pileOf(S.view).help;
   var chats = Object.keys(CHAT_COLOURS);
   var h = '<section class="list">' + tabs() + '<div class="listhead"><div style="flex:1;min-width:0"><h1>' + title + '</h1><div class="sub">' + sub + '</div></div>'
+    + (S.view === 'noise' && pileList('noise').length ? '<button class="btn sm" onclick="binNoise()">' + I.bin + 'Bin all</button>' : '')
     + '<button class="iconbtn' + (S.refreshing ? ' spin' : '') + '" onclick="refresh()" title="Check Gmail now">' + I.refresh + '</button></div>'
     + '<div class="filters"><div class="search">' + I.search + '<input id="q" placeholder="Search sender, subject, words" value="' + esc(S.f.q) + '"></div>'
     + '<div class="chips"><button class="fchip' + (S.f.unread ? ' on' : '') + '" onclick="setF(\'unread\',true)">Unread</button><button class="fchip' + (!S.f.unread ? ' on' : '') + '" onclick="setF(\'unread\',false)">All</button>'
@@ -1316,8 +1334,8 @@ function list() {
     var l2 = g.isChat ? issues({ items:S.f.unread && g.unread.length ? g.unread : g.items }).map(function (x) { return x.title; }).slice(0, 3).join(' · ') : e.subject;
     var when = chase ? '<span class="wait">' + Math.floor((Date.now() - Date.parse(e.received_at)) / 86400000) + 'd waiting</span>' : ago(e.received_at);
     var n = S.f.unread ? g.unread.length : g.items.length;
-    h += '<div class="row' + (S.open === g.id ? ' on' : '') + (read ? ' read' : '') + '" onclick="openG(\'' + g.id + '\')">'
-      + '<div class="ck' + (S.sel[g.id] ? ' show' : '') + '" onclick="event.stopPropagation();pick(\'' + g.id + '\')"></div>'
+    h += '<div class="row' + (S.open === g.id ? ' on' : '') + (read ? ' read' : '') + '" onclick="if(event.shiftKey||event.metaKey){event.preventDefault();pick(\'' + g.id + '\',event)}else openG(\'' + g.id + '\')">'
+      + '<div class="ck' + (S.sel[g.id] ? ' show' : '') + '" onclick="event.stopPropagation();pick(\'' + g.id + '\',event)"></div>'
       + '<div class="rowav" style="background:' + (g.isChat ? (CHAT_COLOURS[g.chat] || '#6c6d79') : hue(e.from_email)) + '">' + esc(initials(g.isChat ? chatShort(g.chat) : (e.from_name || e.from_email))) + '</div>'
       + '<div style="min-width:0"><div class="who">' + (read ? '' : '<span class="unreaddot"></span>') + esc(who) + (n > 1 ? '<span class="badge">' + n + '</span>' : '') + '</div>'
       + '<div class="l2">' + esc(l2) + '</div><div class="l3">' + (g.isChat ? '' : acctTag(e.account)) + esc(e.why || e.snippet) + '</div></div>'
@@ -1372,7 +1390,7 @@ function mailDetail(g) {
   if (replyable && !composing) h += '<button class="btn' + (g.pile === 'reply' || g.pile === 'chase' ? ' pri' : '') + '" onclick="startReply()">' + I.reply + 'Reply<kbd>R</kbd></button>'
     + '<button class="btn ghost" onclick="writeD()" ' + (S.busy ? 'disabled' : '') + '>' + I.spark + (S.busy === 'write' ? 'Writing…' : chase ? 'Write a nudge' : 'Write it for me') + '</button>';
   var slack = e.account === 'slack', toChat = !(g.pile === 'reply' || g.pile === 'chase');
-  h += (read ? '<button class="btn" onclick="markUnread()">' + I.dotc + 'Mark unread<kbd>U</kbd></button>' : '<button class="btn' + (replyable ? '' : ' pri') + '" title="E" onclick="markRead()">' + I.check + (chase ? 'Dismiss' : 'Mark read') + '</button>')
+  h += (read ? '<button class="btn" onclick="markUnread()">' + I.dotc + 'Mark unread<kbd>U</kbd></button>' : '<button class="btn' + (replyable ? '' : ' pri') + '" title="E" onclick="markRead()">' + I.check + (chase ? 'Dismiss' : 'Mark read') + '</button>') + '<button class="btn ghost" title="Gone from here for good, even from All (D)" onclick="doneWith()">' + I.check + 'Done with</button>'
     + (toChat ? '<button class="btn ghost" onclick="sendToChat(\'' + g.id + '\')">' + I.send + 'Send to chat</button>' : '')
     + (slack ? '' : '<button class="btn ghost" title="Copy the whole email, pictures and formatting, to paste into Claude" onclick="copyEmail(\'' + e.id + '\')">' + I.copy + 'Copy</button>')
     + '<span style="flex:1"></span>'
@@ -1454,7 +1472,7 @@ loadThread.p = {};
 function bulkBar() {
   var ids = selIds(), b = document.getElementById('bulk');
   b.className = 'bulk' + (ids.length ? ' show' : '');
-  b.innerHTML = '<b>' + ids.length + ' selected</b><button class="btn" onclick="bulk(\'markRead\')">' + I.check + 'Mark read</button><button class="btn" onclick="bulk(\'markUnread\')">' + I.dotc + 'Unread</button>'
+  b.innerHTML = '<b>' + ids.length + ' selected</b><button class="btn" onclick="bulk(\'markRead\')">' + I.check + 'Mark read</button><button class="btn" onclick="bulk(\'markUnread\')">' + I.dotc + 'Unread</button>' + '<button class="btn" onclick="doneWith(selIds())">' + I.check + 'Done with</button>'
     + '<select class="sel" onchange="bulkPile(this.value)"><option value="">Move to…</option>' + PILES.filter(function (x) { return x.key !== 'new'; }).map(function (x) { return '<option value="' + x.key + '">' + x.title + '</option>'; }).join('') + '</select>'
     + '<button class="btn danger" onclick="bulkBin()">' + I.bin + 'Bin</button><button class="btn ghost" onclick="S.sel={};render()">Cancel</button>';
 }
@@ -1464,7 +1482,14 @@ function go(v) { if (S.view !== 'person') S.prevView = S.view; S.view = v; S.ope
 function openFrom(v, id) { S.view = v; S.open = id; S.phoneOpen = true; render(); }
 function openG(id) { S.open = id; S.phoneOpen = true; render(); }
 function closeG() { S.phoneOpen = false; render(); }
-function pick(id) { if (S.sel[id]) delete S.sel[id]; else S.sel[id] = true; render(); }
+// Shift-click picks everything between the last one picked and this one, like Gmail.
+function pick(id, ev) {
+  var l = pileList(S.view).map(function (g) { return g.id; }), a = l.indexOf(S.lastPick), b = l.indexOf(id);
+  if (ev && ev.shiftKey && a >= 0 && b >= 0) { l.slice(Math.min(a, b), Math.max(a, b) + 1).forEach(function (x) { S.sel[x] = true; }); }
+  else if (S.sel[id]) delete S.sel[id]; else S.sel[id] = true;
+  S.lastPick = id; if (ev && ev.shiftKey) try { getSelection().removeAllRanges(); } catch (e) {}
+  render();
+}
 function setF(k, v) { S.f[k] = v; render(); }
 function toggleIssue(k) { S.openIssue[k] = !S.openIssue[k]; render(); }
 function idsOf(g) { return (g.unread.length ? g.unread : g.items).map(function (e) { return e.id; }); }
@@ -1475,6 +1500,9 @@ function afterChange(msg) {
 }
 function fail(e) { S.busy = ''; render(); toast(e.message, true); }
 function markRead() { var g = current(); if (!g) return; var x = idsOf(g); setStatus(x, 'done'); afterChange(x.length > 1 ? x.length + ' marked read' : 'Marked read'); api('markRead', { ids:x }).catch(function (e) { setStatus(x, 'open'); fail(e); }); }
+function doneWith(ids) { var g = current(); var x = ids || (g ? g.items.map(function (e) { return e.id; }) : []); if (!x.length) return; S.data.emails = S.data.emails.filter(function (e) { return x.indexOf(e.id) < 0; }); S.sel = {}; afterChange(x.length > 1 ? x.length + ' done with' : 'Done with'); api('doneWith', { ids:x }).catch(fail); }
+// Noise is marketing with nothing in it: one press bins the lot (Gmail's bin, back for 30 days).
+function binNoise() { var x = []; pileList('noise').forEach(function (g) { g.items.forEach(function (e) { if (e.account !== 'slack') x.push(e.id); }); }); if (!x.length) return; if (!confirm('Bin all ' + x.length + ' marketing emails in Noise? They go to Gmail\'s bin and can be got back for 30 days.')) return; S.data.emails = S.data.emails.filter(function (e) { return x.indexOf(e.id) < 0; }); afterChange(x.length + ' binned'); for (var i = 0; i < x.length; i += 100) api('bin', { ids:x.slice(i, i + 100) }).catch(fail); }
 function markUnread() { var g = current(); if (!g) return; var x = g.items.map(function (e) { return e.id; }); setStatus(x, 'open'); S.busy = ''; render(); toast('Marked unread'); api('markUnread', { ids:x }).catch(fail); }
 function binOne() { var g = current(); if (!g) return; var x = g.items.map(function (e) { return e.id; }); if (!confirm('Bin this? It goes to Gmail\'s bin and can be got back for 30 days.')) return; S.data.emails = S.data.emails.filter(function (e) { return x.indexOf(e.id) < 0; }); afterChange('Binned'); api('bin', { ids:x }).catch(fail); }
 // Slack can't take a draft from here, so the reply goes on the clipboard and Slack opens on the conversation.
@@ -1623,10 +1651,11 @@ document.addEventListener('keydown', function (ev) {
   else if (k === 'k' || ev.key === 'ArrowUp') { if (l.length) { S.open = l[Math.max(i - 1, 0)].id; render(); } ev.preventDefault(); }
   else if (k === 'e' && S.open) markRead();
   else if (k === 'u' && S.open) markUnread();
+  else if (k === 'd' && S.open && S.view !== 'notes') doneWith();
   else if (k === 'w' && S.open) writeD();
   else if (k === 'x' && S.open) pick(S.open);
   else if (k === 'r') { if (S.open && current() && !current().isChat) startReply(); else refresh(); }
-  else if (k === '/') { var q = document.getElementById('q'); if (q) { q.focus(); ev.preventDefault(); } }
+  else if (k === '/') { var q = document.getElementById('q') || document.getElementById('nq'); if (q) { q.focus(); ev.preventDefault(); } }
   else if (ev.key === 'Escape') { S.open = null; S.sel = {}; render(); }
 });
 
