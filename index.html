@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1793917779">
+<html lang="en" data-build="b1793957593">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -431,6 +431,10 @@ a.iconbtn { display:inline-grid; place-items:center; color:inherit; }
 .sumline { display:inline-flex; gap:6px; align-items:flex-start; color:var(--text); }
 .sumline svg { width:13px; height:13px; color:var(--acc2); flex:none; margin-top:3px; }
 @media (max-width:1000px) { .sumgrid { grid-template-columns:minmax(0,1fr); } .sumcard { margin:4px 8px 12px; } }
+/* Brief top 3: tick to clear */
+.t3done { width:24px; height:24px; border-radius:50%; border:1.5px solid var(--line2); display:grid; place-items:center; flex:none; color:transparent; cursor:pointer; }
+.t3done svg { width:13px; height:13px; }
+.t3done:hover { border-color:var(--reply); color:var(--reply); }
 /* Ideas */
 .idea { display:flex; gap:10px; align-items:flex-start; padding:8px 0; border-top:1px solid var(--line); }
 .idea .ii { width:22px; flex:none; text-align:center; }
@@ -855,7 +859,7 @@ function briefCard() {
   var stale = b.date !== new Date().toLocaleDateString('en-CA', { timeZone:'Europe/London' });
   return '<div class="brief"><div class="ansh">' + I.sun + '<b>' + (stale ? 'Last brief' : 'Today\'s brief') + '</b><span class="l3">' + ago(b.at) + ' ago</span><span style="flex:1"></span><button class="btn sm ghost" onclick="newBrief()">' + (S.briefBusy ? 'Writing…' : 'Refresh') + '</button></div>'
     + briefLines(b)
-    + (top3Left(b).length ? '<div class="top3">' + top3Left(b).map(function (t, i) { return '<button class="t3" onclick="' + (t.id ? 'openEmail(\'' + esc(t.id) + '\')' : '') + '"><span class="t3n">' + (i + 1) + '</span>' + esc(t.text) + '</button>'; }).join('') + '</div>' : '') + '</div>';
+    + (top3Left(b).length ? '<div class="top3">' + top3Left(b).map(function (t, i) { return '<div class="t3" onclick="' + (t.id ? 'openEmail(\'' + esc(t.id) + '\')' : '') + '"><span class="t3n">' + (i + 1) + '</span><span style="flex:1">' + esc(t.text) + '</span><span class="t3done" title="Done" onclick="event.stopPropagation();top3Done(' + esc(JSON.stringify(t.text)) + ')">' + I.check + '</span></div>'; }).join('') + '</div>' : '') + '</div>';
 }
 // A line goes once Owen has dealt with its emails (read, replied, binned) or ticks it off.
 function top3Left(b) { return (b.top3 || []).filter(function (t) { return (b.dismissed || []).indexOf(t.text) < 0 && (!t.id || briefLive(t.id, t.at)); }); }
@@ -871,6 +875,9 @@ function briefLines(b) {
     return '<div class="bl"><span class="ck" title="Done" onclick="briefDone(' + k + ')"></span><span class="bt"' + (live.length ? ' onclick="openEmail(\'' + esc(live[0]) + '\')"' : '') + '>' + esc(it.text) + '</span>'
       + (live.length ? '<button class="btn sm ghost" onclick="openEmail(\'' + esc(live[0]) + '\')">Open' + (live.length > 1 ? ' ' + live.length : '') + '</button>' : '') + '</div>';
   }).join('') + '</div>';
+}
+function top3Done(text) {
+  var b = S.data.brief; b.dismissed = (b.dismissed || []).concat([text]); render(); toast('Done'); api('briefDone', { text:text }).catch(fail);
 }
 function briefDone(k) {
   var b = S.data.brief, it = (b.items || [])[k] || { text:(b.lines || [])[k], ids:[] }; if (!it.text) return;
