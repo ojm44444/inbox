@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1793968858">
+<html lang="en" data-build="b1793970732">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -192,6 +192,8 @@ kbd { font:11px Inter,sans-serif; color:var(--faint); border:1px solid var(--lin
 .art .msg { border:0; border-radius:0; margin:0; }
 .art .msg .mh { display:none; }
 .acct { display:inline-block; font-size:10.5px; font-weight:600; letter-spacing:.02em; color:var(--c); background:color-mix(in srgb, var(--c) 14%, transparent); border-radius:5px; padding:0 5px; margin-right:6px; line-height:16px; vertical-align:1px; }
+.lbline { display:flex; gap:6px; align-items:flex-start; margin-top:6px; font-size:12.5px; color:var(--dim); line-height:1.45; }
+.lbline svg { flex:none; width:13px; height:13px; margin-top:2px; color:var(--accent, #8b7cf6); }
 .strip { display:flex; gap:8px; flex-wrap:wrap; margin:-8px 0 20px; }
 .ichip { display:inline-flex; align-items:center; gap:7px; border:1px solid var(--line2); background:var(--panel); border-radius:20px; padding:5px 12px; color:var(--dim); cursor:pointer; font-size:12.5px; }
 .ichip b { color:var(--text); font-weight:650; }
@@ -876,6 +878,12 @@ function gmailHref(u) {
   if (u.indexOf('mail.google.com') < 0) return u;
   return u.replace('/mail/u/0/#', '/mail/?authuser=ojm221100%40gmail.com#').replace('#inbox/', '#all/');
 }
+// What Littlebird saw about a person outside email (daily "Inbox context" routine).
+function lbNote(email, name) {
+  var lb = (S.data && S.data.lb) || {}, l = lb.people || [], em = String(email || '').toLowerCase(), nm = String(name || '').toLowerCase().trim();
+  var h = l.filter(function (x) { return em && x.email === em; })[0] || l.filter(function (x) { return nm.length > 3 && x.name.toLowerCase() === nm; })[0];
+  return h ? { note:h.note, at:lb.at } : null;
+}
 function inboxStrip() {
   var by = {}; ((S.data && S.data.emails) || []).forEach(function (e) { if (!isRead(e)) by[e.account || 'personal'] = (by[e.account || 'personal'] || 0) + 1; });
   return '<div class="strip"><button class="ichip' + (!S.f.acct ? ' on' : '') + '" onclick="setF(\'acct\',\'\')">All inboxes</button>' + Object.keys(ACCOUNTS).map(function (a) {
@@ -1144,6 +1152,8 @@ function personView() {
   var accts = {}; p.history.forEach(function (x) { accts[x.acct] = 1; });
   h += '<div class="phead"><span class="pav" style="background:' + hue(em) + '">' + esc(initials(p.name)) + '</span><div style="flex:1;min-width:0"><h1 class="hello" style="font-size:26px">' + esc(p.name) + '</h1><div class="l3">' + esc(em) + ' · ' + Object.keys(accts).map(function (a) { return acctTag(a); }).join(' ') + (p.slack ? ' ' + '<span class="acct" style="--c:#a35bd6">on lazygecko Slack</span>' : '') + '</div></div>'
     + '<button class="btn sm ghost" onclick="personLoad(\'' + esc(em) + '\',true)"' + (busy ? ' disabled' : '') + '>' + (busy ? 'Updating…' : 'Refresh') + '</button></div>';
+  var lbn = p.lb || lbNote(p.email, p.name);
+  if (lbn) h += '<div class="sumcard" style="margin:0 0 16px"><div class="sumtop">' + I.spark + '<b style="flex:1">From Littlebird (calls, messages, outside email)</b><span class="l3">' + ago(lbn.at) + ' ago</span></div><div style="line-height:1.5">' + esc(lbn.note) + '</div></div>';
   if (p.note) h += '<div class="sumcard" style="margin:0 0 16px"><div class="sumtop">' + I.spark + '<b style="flex:1">' + esc(p.note.who) + '</b></div>'
     + (p.note.open && p.note.open.length ? '<div class="sumsec"><div class="sumh">Open between you</div><ul>' + p.note.open.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>' : '')
     + (p.note.tone ? '<div class="l3" style="margin-top:6px">How you write to them: ' + esc(p.note.tone) + '</div>' : '') + '</div>';
@@ -1401,7 +1411,7 @@ function aboutSender(g) {
     if (!rule && hb.read >= 3 && !hb.reply) hint = 'You always just mark these read. Put them straight in Noise from now on?';
   }
   var piles = ['noise', 'learn', 'reply', 'fix'];
-  return '<div class="about2"><span class="av" style="background:' + hue(k) + ';cursor:pointer" onclick="openPerson(\'' + esc(k) + '\')">' + esc(initials(e.from_name || k)) + '</span><div style="min-width:0;flex:1"><b class="plink" title="Everything with them" onclick="openPerson(\'' + esc(k) + '\')">' + esc(e.from_name || k) + '</b> <span class="l3">' + esc(k) + '</span><div class="l3">' + esc(facts.join(' · ')) + '</div></div>'
+  return '<div class="about2"><span class="av" style="background:' + hue(k) + ';cursor:pointer" onclick="openPerson(\'' + esc(k) + '\')">' + esc(initials(e.from_name || k)) + '</span><div style="min-width:0;flex:1"><b class="plink" title="Everything with them" onclick="openPerson(\'' + esc(k) + '\')">' + esc(e.from_name || k) + '</b> <span class="l3">' + esc(k) + '</span><div class="l3">' + esc(facts.join(' · ')) + '</div>' + (lbNote(k, e.from_name) ? '<div class="lbline" title="What Littlebird saw outside email">' + I.spark + esc(lbNote(k, e.from_name).note) + '</div>' : '') + '</div>'
     + (rule ? '<span class="l3">Always <b>' + pileOf(rule).title + '</b></span><button class="btn sm ghost" onclick="setRule(\'' + esc(k) + '\',\'\')">Undo</button>'
       : '<select class="sel sm" title="From now on, put everything from this sender in" onchange="if(this.value)setRule(\'' + esc(k) + '\',this.value)"><option value="">Always put in…</option>' + piles.map(function (x) { return '<option value="' + x + '">' + pileOf(x).title + '</option>'; }).join('') + '</select>')
     + '</div>' + (hint ? '<div class="abh">' + I.spark + esc(hint) + ' <button class="btn sm pri" onclick="setRule(\'' + esc(k) + '\',\'noise\')">Yes, always Noise</button></div>' : '');
