@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1793990942">
+<html lang="en" data-build="b1793994708">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -59,6 +59,19 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .spin svg { animation:spin 1s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
 .home { overflow-y:auto; padding:28px 32px 60px; }
+.rv { max-width:860px; }
+.rv h2 { font-size:15px; margin:26px 0 10px; display:flex; align-items:center; gap:8px; }
+.rv h2 .badge { margin-left:4px; }
+.rvc { background:var(--panel); border:1px solid var(--line); border-radius:var(--r); padding:16px 18px; margin-bottom:12px; }
+.rvc.done { opacity:.7; }
+.rvc h3 { margin:0 0 6px; font-size:15px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.rvc .where { font-size:11px; font-weight:600; padding:2px 8px; border-radius:99px; background:color-mix(in srgb, var(--acc) 14%, transparent); color:var(--acc2); }
+.rvc p { margin:0 0 10px; color:var(--dim); line-height:1.55; font-size:13.5px; }
+.rvc .said { color:var(--chase); font-size:12.5px; }
+.rvc .acts { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.rvc textarea, .rv .note textarea { width:100%; box-sizing:border-box; margin:10px 0 8px; min-height:70px; background:var(--bg); color:var(--fg); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font:inherit; }
+.rvhome { display:flex; align-items:center; gap:12px; cursor:pointer; border-color:color-mix(in srgb, var(--acc) 35%, var(--line)); }
+.rvhome b { font-size:15px; }
 .hello { font-size:24px; font-weight:700; letter-spacing:-.02em; margin:0; }
 .hellosub { color:var(--dim); margin:4px 0 22px; }
 .tiles { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; margin-bottom:22px; }
@@ -545,7 +558,7 @@ function toast(msg, bad) { var t = document.getElementById('toast'); t.textConte
 
 // Changes (read, unread, move, bin) go one at a time, in the order Owen made them,
 // so a quick read-then-unread can never finish the wrong way round.
-var WRITES = { markRead:1, markUnread:1, setPile:1, setChat:1, bin:1, saveDraft:1, doneWith:1, binNoise:1 }, queue = Promise.resolve();
+var WRITES = { reviewDecide:1, reviewNote:1, markRead:1, markUnread:1, setPile:1, setChat:1, bin:1, saveDraft:1, doneWith:1, binNoise:1 }, queue = Promise.resolve();
 function api(op, args) {
   if (WRITES[op]) { var p = queue.then(function () { return send(op, args); }); queue = p.catch(function () {}); return p; }
   return send(op, args);
@@ -614,8 +627,8 @@ function pileOf(k) { return PILES.filter(function (p) { return p.key === k; })[0
 function render() {
   if (!S.token && !S.key) return renderGate();
   var sc = document.querySelector('.rows, .home'), keep = sc ? sc.scrollTop : 0;
-  var mail = S.view !== 'home' && S.view !== 'reading' && S.view !== 'trello' && S.view !== 'person';
-  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : home()) + '</div>';
+  var mail = S.view !== 'home' && S.view !== 'reading' && S.view !== 'trello' && S.view !== 'person' && S.view !== 'review';
+  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : S.view === 'review' ? reviewView() : home()) + '</div>';
   var ns = document.querySelector('.rows, .home'); if (ns) ns.scrollTop = keep;
   bulkBar(); wire(); phoneBar(); swipes();
 }
@@ -662,7 +675,7 @@ function fitFrame(f) {
 function side() {
   var nv = function (v, icon, label, n, extra) { return '<button class="nav' + (S.view === v && !(v === 'all' && S.f.acct) ? ' on' : '') + '" onclick="' + (extra || '') + 'go(\'' + v + '\')">' + icon + label + '<span class="n">' + (n || '') + '</span></button>'; };
   var h = '<aside class="side"><div class="brand"><div class="logo">' + I.inbox + '</div>Inbox</div>'
-    + nv('home', I.home, 'Home') + nv('all', I.inbox, 'All mail', unreadCount('all'), 'S.f.acct=\'\';') + nv('reading', I.book, 'Reading list', unreadCount('learn'))
+    + nv('home', I.home, 'Home') + nv('all', I.inbox, 'All mail', unreadCount('all'), 'S.f.acct=\'\';') + nv('reading', I.book, 'Reading list', unreadCount('learn')) + nv('review', I.check, 'Review', reviewNeeds().length)
     + '<div class="navlabel">Inboxes</div>' + inboxNav() + '<div class="navlabel">Piles</div>';
   PILES.forEach(function (p) {
     var n = unreadCount(p.key); if (p.key === 'new' && !n) return;
@@ -694,7 +707,7 @@ function home() {
   var h = '<main class="home">' + tabs() + '<div class="hero2"><div style="min-width:0"><div class="day">' + day + '</div><h1 class="hello">' + hi + ', Owen</h1><div class="hellosub">' + (bits.length ? bits.join(' · ') + '.' : 'Inbox clear. Nice.') + '</div></div>'
     + '</div>'
     + '<div class="tiles">' + PILES.filter(function (p) { return p.key !== 'new'; }).map(function (p) { return '<div class="tile" style="--c:' + p.color + '" onclick="go(\'' + (p.key === 'learn' ? 'reading' : p.key) + '\')"><div class="lab"><span class="pico">' + PILE_ICON[p.key] + '</span>' + p.title + '</div><div class="num">' + unreadCount(p.key) + '</div><div class="hint">' + p.help + '</div></div>'; }).join('') + '</div>' + inboxStrip()
-    + askBar() + briefCard() + '<div class="hgrid"><div class="hcol">' + tasksBox() + '</div><div class="hcol">';
+    + askBar() + briefCard() + reviewHomeCard() + '<div class="hgrid"><div class="hcol">' + tasksBox() + '</div><div class="hcol">';
   var people2 = pileList('reply').slice(0, 7);
   h += '<div class="box"><h3>' + I.pen + 'People waiting on you<span class="badge">' + pileList('reply').length + '</span><span style="flex:1"></span><button class="btn sm ghost" onclick="go(\'reply\')">All</button></h3>'
     + (people2.length ? people2.map(function (g) { var e = g.items[0]; return '<div class="mini" onclick="openFrom(\'reply\',\'' + g.id + '\')"><div class="av" title="Everything with them" style="background:' + hue(e.from_email) + '" onclick="event.stopPropagation();openPerson(\'' + esc(e.from_email || '') + '\')">' + esc(initials(e.from_name || e.from_email)) + '</div><div style="min-width:0"><div class="t">' + esc(e.from_name || e.from_email) + ' ' + acctTag(e.account) + '</div><div class="l3">' + esc(e.subject) + '</div></div><div class="s">' + ago(e.received_at) + '</div></div>'; }).join('') : '<div class="empty" style="padding:20px">No one waiting.</div>') + '</div>';
@@ -895,6 +908,50 @@ function inboxNav() {
     return '<button class="nav' + (S.view === 'all' && S.f.acct === a ? ' on' : '') + '" onclick="openInbox(\'' + a + '\')"><span class="dot" style="background:' + ACCOUNTS[a].color + '"></span>' + ACCOUNTS[a].label + '<span class="n">' + (by[a] || '') + '</span></button>';
   }).join('');
 }
+// ---- Review page (6 Nov 2026, Owen: like songdrafts.com/review: what is built, what is not, approve or change) ----
+// Claude writes the cards (app_settings inbox_review_items); Owen's taps land in inbox_review and Claude acts on them.
+function reviewData() { return (S.data && S.data.review) || { items:[], decisions:{} }; }
+function reviewNeeds() { var r = reviewData(); return r.items.filter(function (i) { var d = r.decisions[i.id]; return i.status === 'needs' && !d; }); }
+function reviewHomeCard() {
+  var n = reviewNeeds().length; if (!n) return '';
+  return '<div class="box rvhome" onclick="go(\'review\')">' + I.check + '<div style="flex:1"><b>' + n + ' thing' + (n === 1 ? '' : 's') + ' to review</b><div class="l3">What was built for you. Approve it, or say what to change.</div></div><button class="btn sm pri">Review</button></div>';
+}
+function reviewTry(t) { if (!t) return; if (/^all:/.test(t)) openInbox(t.slice(4)); else if (t === 'notes') { S.view = 'notes'; render(); } else go(t); }
+function reviewCard(i, d) {
+  var said = d ? (d.decision === 'approved' ? 'You approved this ' + ago(d.at) + ' ago.' : d.decision === 'pick' ? 'You picked: ' + esc(d.note) : d.decision === 'change' ? 'You asked ' + ago(d.at) + ' ago: ' + esc(d.note) : '') : '';
+  var h = '<div class="rvc' + (d && d.decision === 'approved' ? ' done' : '') + '"><h3>' + esc(i.title) + '<span class="where">' + esc(i.where || '') + '</span></h3><p>' + esc(i.check || '') + '</p>' + (said ? '<p class="said">' + said + '</p>' : '');
+  if (i.status === 'needs') {
+    h += '<div class="acts">' + (i.options ? i.options.map(function (o) { return '<button class="btn' + (d && d.note === o ? ' pri' : '') + '" onclick="reviewPick(\'' + i.id + '\',' + esc(JSON.stringify(o)) + ')">' + esc(o) + '</button>'; }).join('')
+      : '<button class="btn pri" onclick="reviewDecide(\'' + i.id + '\',\'approved\')">Approve</button><button class="btn" onclick="S.rvNote=S.rvNote===\'' + i.id + '\'?null:\'' + i.id + '\';render()">Change</button>')
+      + (i.try ? '<button class="btn ghost" onclick="reviewTry(\'' + i.try + '\')">Try it</button>' : '') + '</div>';
+    if (S.rvNote === i.id) h += '<textarea id="rvtext" placeholder="What should change?"></textarea><button class="btn pri" onclick="reviewDecide(\'' + i.id + '\',\'change\')">Send</button>';
+  }
+  return h + '</div>';
+}
+function reviewView() {
+  var r = reviewData(), D = r.decisions, by = function (f) { return r.items.filter(f); };
+  var needs = by(function (i) { return i.status === 'needs' && !D[i.id]; });
+  var changing = by(function (i) { return D[i.id] && D[i.id].decision === 'change'; });
+  var working = by(function (i) { return i.status === 'working' && !(D[i.id] && D[i.id].decision === 'change'); });
+  var approved = by(function (i) { return D[i.id] && (D[i.id].decision === 'approved' || D[i.id].decision === 'pick'); });
+  var next = by(function (i) { return i.status === 'next'; });
+  var sec = function (t, l, extra) { return l.length ? '<h2>' + t + '<span class="badge">' + l.length + '</span></h2>' + (extra || '') + l.map(function (i) { return reviewCard(i, D[i.id]); }).join('') : ''; };
+  var notes = Object.keys(D).filter(function (k) { return /^note-/.test(k); }).sort().reverse().slice(0, 5);
+  return '<main class="home">' + tabs() + '<div class="rv"><div class="day">Your review page</div><h1 class="hello">What I built, and what is next</h1><div class="hellosub">Approve it, or say what to change. Nothing changes from a tap on its own: I read your answers and act.</div>'
+    + (needs.length ? sec('Needs you', needs) : '<h2>Needs you</h2><div class="rvc"><p>Nothing waiting for you. Nice.</p></div>')
+    + sec('Changes being worked on', changing) + sec('Being built now', working) + sec('Coming next', next) + sec('Approved', approved)
+    + '<h2>Something else on your mind?</h2><div class="rvc note"><textarea id="rvgeneral" placeholder="Any note, about anything. I read it and act."></textarea><button class="btn pri" onclick="reviewNote()">Send</button>'
+    + (notes.length ? '<p style="margin-top:12px">' + notes.map(function (k) { return 'You said ' + ago(D[k].at) + ' ago: ' + esc(D[k].note); }).join('<br>') + '</p>' : '') + '</div></div></main>';
+}
+function reviewSave(id, decision, note) {
+  var r = reviewData(); r.decisions[id] = { decision:decision, note:note || '', at:new Date().toISOString() }; S.rvNote = null; render();
+  toast(decision === 'approved' ? 'Approved' : decision === 'note' ? 'Sent' : 'Saved');
+  return api(decision === 'note' ? 'reviewNote' : 'reviewDecide', decision === 'note' ? { text:note } : { id:id, decision:decision, note:note || '' }).catch(function (e) { delete r.decisions[id]; fail(e); });
+}
+function reviewDecide(id, decision) { var t = decision === 'change' ? ((document.getElementById('rvtext') || {}).value || '').trim() : ''; if (decision === 'change' && !t) { toast('Say what to change first', true); return; } reviewSave(id, decision, t); }
+function reviewPick(id, o) { reviewSave(id, 'pick', o); }
+function reviewNote() { var t = ((document.getElementById('rvgeneral') || {}).value || '').trim(); if (!t) return; reviewSave('note-' + Date.now(), 'note', t); }
+
 function inboxStrip() {
   var by = {}; ((S.data && S.data.emails) || []).forEach(function (e) { if (!isRead(e)) by[e.account || 'personal'] = (by[e.account || 'personal'] || 0) + 1; });
   return '<div class="strip"><button class="ichip' + (!S.f.acct ? ' on' : '') + '" onclick="openInbox(\'\')">All inboxes</button>' + Object.keys(ACCOUNTS).map(function (a) {
