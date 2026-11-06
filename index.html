@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1793997047">
+<html lang="en" data-build="b1793997286">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1627,7 +1627,7 @@ function afterChange(msg) {
   S.busy = ''; render(); if (msg) toast(msg);
 }
 function fail(e) { S.busy = ''; render(); toast(e.message, true); }
-function markRead() { var g = current(); if (!g) return; var x = widen(idsOf(g)); setStatus(x, 'done'); afterChange(x.length > 1 ? x.length + ' marked read' : 'Marked read'); api('markRead', { ids:x }).catch(function (e) { setStatus(x, 'open'); fail(e); }); }
+function markRead() { var g = current(); if (!g) return; var x = widen(idsOf(g)); S.lastDone = x.slice(); setStatus(x, 'done'); afterChange(x.length > 1 ? x.length + ' marked read' : 'Marked read'); api('markRead', { ids:x }).catch(function (e) { setStatus(x, 'open'); fail(e); }); }
 function doneWith(ids) { var g = current(); var x = widen(ids || (g ? g.items.map(function (e) { return e.id; }) : [])); if (!x.length) return; remember(x, 'gone'); S.data.emails = S.data.emails.filter(function (e) { return x.indexOf(e.id) < 0; }); S.sel = {}; afterChange(x.length > 1 ? x.length + ' done with' : 'Done with'); api('doneWith', { ids:x }).catch(fail); }
 // Noise is marketing with nothing in it: one press bins the lot (Gmail's bin, back for 30 days).
 function binNoise() {
@@ -1640,7 +1640,8 @@ function binNoise() {
     remember(gone, 'gone'); S.data.emails = S.data.emails.filter(function (e) { return gone.indexOf(e.id) < 0; }); afterChange(gone.length + ' binned' + (kept ? ', ' + kept + ' from people kept' : ''));
   }).catch(fail);
 }
-function markUnread() { var g = current(); if (!g) return; var x = g.items.map(function (e) { return e.id; }); setStatus(x, 'open'); S.busy = ''; render(); toast('Marked unread'); api('markUnread', { ids:x }).catch(fail); }
+// U straight after a mark undoes that mark, not the next email the list moved on to.
+function markUnread() { var g = current(); var x = g && !g.unread.length ? g.items.map(function (e) { return e.id; }) : (S.lastDone || []); if (!x.length) return; S.lastDone = null; setStatus(x, 'open'); S.busy = ''; render(); toast('Marked unread'); api('markUnread', { ids:x }).catch(fail); }
 function binOne() { var g = current(); if (!g) return; var x = g.items.map(function (e) { return e.id; }); if (!confirm('Bin this? It goes to Gmail\'s bin and can be got back for 30 days.')) return; remember(x, 'gone'); S.data.emails = S.data.emails.filter(function (e) { return x.indexOf(e.id) < 0; }); afterChange('Binned'); api('bin', { ids:x }).catch(fail); }
 // Slack can't take a draft from here, so the reply goes on the clipboard and Slack opens on the conversation.
 // Send waits 5 seconds with Undo, like Gmail, then goes from the account the email came to.
