@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1793962521">
+<html lang="en" data-build="b1793964132">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -830,6 +830,12 @@ function copyRich(p) {
 }
 function sendOne(id) { var g = groups().filter(function (x) { return x.items.some(function (e) { return e.id === id; }); })[0]; if (g) sendToChat(g.id); }
 // One chip per inbox with its unread count; tap to see only that inbox everywhere.
+// Opens the exact thread in the right Gmail account, even after it leaves the inbox.
+function gmailHref(u) {
+  u = String(u || '');
+  if (u.indexOf('mail.google.com') < 0) return u;
+  return u.replace('/mail/u/0/#', '/mail/?authuser=ojm221100%40gmail.com#').replace('#inbox/', '#all/');
+}
 function inboxStrip() {
   var by = {}; ((S.data && S.data.emails) || []).forEach(function (e) { if (!isRead(e)) by[e.account || 'personal'] = (by[e.account || 'personal'] || 0) + 1; });
   return '<div class="strip"><button class="ichip' + (!S.f.acct ? ' on' : '') + '" onclick="setF(\'acct\',\'\')">All inboxes</button>' + Object.keys(ACCOUNTS).map(function (a) {
@@ -1072,7 +1078,7 @@ function folderView() {
   if (!x) det += '<div class="placeholder"><div>Pick an email</div></div>';
   else {
     det += '<div class="dhead"><div style="display:flex;gap:10px;align-items:center"><button class="iconbtn back" onclick="S.phoneOpen=false;FD.open=null;render()">' + I.back + '</button><h2 style="margin:0;flex:1">' + esc(x.subject) + '</h2></div><div style="margin-top:6px">' + acctTag(acct) + '</div>'
-      + '<div class="bar" style="padding-left:0;padding-right:0">' + (box === 'trash' ? '<button class="btn pri" onclick="restoreMail(\'' + esc(x.id) + '\')">Restore</button>' : '') + '<a class="btn ghost" target="_blank" href="' + esc(x.url) + '">' + I.inbox + 'Open in Gmail</a></div></div>'
+      + '<div class="bar" style="padding-left:0;padding-right:0">' + (box === 'trash' ? '<button class="btn pri" onclick="restoreMail(\'' + esc(x.id) + '\')">Restore</button>' : '') + '<a class="btn ghost" target="_blank" href="' + esc(gmailHref(x.url)) + '">' + I.inbox + 'Open in Gmail</a></div></div>'
       + '<div class="dbody">' + messages(x.id, { snippet:x.snippet }) + '</div>';
   }
   return list + det + '</section>';
@@ -1109,7 +1115,7 @@ function personView() {
   h += '<div class="box"><h3>' + I.check + 'What you do with their emails</h3><div class="l3" style="line-height:1.7">' + (hb ? [hb.reply ? 'replied ' + hb.reply + '×' : '', hb.read ? 'marked ' + hb.read + ' read' : '', hb.bin ? 'binned ' + hb.bin : '', Object.keys(hb.chat || {}).length ? 'sent to ' + Object.keys(hb.chat).join(', ') : ''].filter(Boolean).join(' · ') || 'Nothing yet.' : 'Nothing yet.') + '</div>'
     + '<div style="margin-top:8px">' + (rule ? 'Always <b>' + pileOf(rule).title + '</b> <button class="btn sm ghost" onclick="setRule(\'' + esc(em) + '\',\'\');PP.data[\'' + esc(em) + '\'].rule=\'\';render()">Undo</button>' : '<select class="sel sm" onchange="if(this.value){setRule(\'' + esc(em) + '\',this.value);PP.data[\'' + esc(em) + '\'].rule=this.value;render()}"><option value="">Always put their emails in…</option>' + ['reply', 'learn', 'noise', 'fix'].map(function (x) { return '<option value="' + x + '">' + pileOf(x).title + '</option>'; }).join('') + '</select>') + '</div></div>';
   h += '</div><div class="hcol"><div class="box" style="max-height:none"><h3>' + I.cal + 'History<span class="badge">' + p.history.length + '</span><span class="l3" style="font-weight:400;margin-left:6px">every inbox, newest first</span></h3>'
-    + (p.history.length ? p.history.map(function (x) { return '<div class="hist" onclick="personThread(\'' + esc(x.id) + '\')"><div class="hd">' + new Date(x.at).toLocaleDateString('en-GB', { day:'numeric', month:'short', year: new Date(x.at).getFullYear() === new Date().getFullYear() ? undefined : '2-digit' }) + '</div><div style="min-width:0;flex:1"><div class="t">' + esc(x.subject) + (x.n > 1 ? ' <span class="l3">(' + x.n + ')</span>' : '') + '</div><div class="l3">' + acctTag(x.acct) + ' ' + (x.mineLast ? '<b>You:</b> ' : '') + esc(x.snippet) + '</div></div><a class="iconbtn" title="Open in Gmail" target="_blank" href="' + esc(x.url) + '" onclick="event.stopPropagation()">' + I.gmail + '</a></div>'
+    + (p.history.length ? p.history.map(function (x) { return '<div class="hist" onclick="personThread(\'' + esc(x.id) + '\')"><div class="hd">' + new Date(x.at).toLocaleDateString('en-GB', { day:'numeric', month:'short', year: new Date(x.at).getFullYear() === new Date().getFullYear() ? undefined : '2-digit' }) + '</div><div style="min-width:0;flex:1"><div class="t">' + esc(x.subject) + (x.n > 1 ? ' <span class="l3">(' + x.n + ')</span>' : '') + '</div><div class="l3">' + acctTag(x.acct) + ' ' + (x.mineLast ? '<b>You:</b> ' : '') + esc(x.snippet) + '</div></div><a class="iconbtn" title="Open in Gmail" target="_blank" href="' + esc(gmailHref(x.url)) + '" onclick="event.stopPropagation()">' + I.gmail + '</a></div>'
       + (S.personOpen === x.id ? '<div class="histbody">' + messages(x.id, { snippet:x.snippet }) + '</div>' : ''); }).join('') : '<div class="empty" style="padding:16px">No emails with them.</div>') + '</div></div></div></main>';
   return h;
 }
@@ -1315,7 +1321,7 @@ function mailDetail(g) {
     + (toChat ? '<button class="btn ghost" onclick="sendToChat(\'' + g.id + '\')">' + I.send + 'Send to chat</button>' : '')
     + '<span style="flex:1"></span>'
     + (toChat ? '' : '<button class="iconbtn" title="Send to a Claude chat" onclick="sendToChat(\'' + g.id + '\')">' + I.send + '</button>')
-    + (e.gmail_url ? '<a class="iconbtn" target="_blank" title="' + (slack ? 'Open in Slack' : 'Open in Gmail') + '" href="' + esc(e.gmail_url) + '">' + I.gmail + '</a>' : '')
+    + (e.gmail_url ? '<a class="btn ghost sm" target="_blank" href="' + esc(gmailHref(e.gmail_url)) + '">' + I.gmail + (slack ? 'Open in Slack' : 'Open in Gmail') + '</a>' : '')
     + '<select class="sel" onchange="snooze(this.value)" title="Hide it and bring it back to the top later"><option value="">⏰ Later…</option><option value="later">In 3 hours</option><option value="tomorrow">Tomorrow 9am</option><option value="days3">In 3 days</option><option value="weekend">This weekend</option><option value="nextweek">Next week</option></select>'
     + '<button class="iconbtn" title="Add to Reminders" onclick="taskFromEmail()">' + PILE_ICON.learn + '</button>'
     + '<select class="sel" onchange="movePile(this.value)" title="Move to another pile"><option value="">Move</option>' + PILES.filter(function (x) { return x.key !== 'new' && x.key !== g.pile; }).map(function (x) { return '<option value="' + x.key + '">' + x.title + '</option>'; }).join('') + '</select>'
