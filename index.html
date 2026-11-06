@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1793988487">
+<html lang="en" data-build="b1793990942">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -593,7 +593,7 @@ function groups() {
   });
   return out;
 }
-function visible(g) { return S.f.unread ? g.unread.length > 0 : true; }
+function visible(g) { return S.f.unread ? g.unread.length > 0 || g.id === S.keepOpen : true; }
 function matches(g) {
   if (S.f.chat && g.chat !== S.f.chat) return false;
   if (S.f.acct && !g.items.some(function (e) { return (e.account || 'personal') === S.f.acct; })) return false;
@@ -1487,8 +1487,19 @@ function bulkBar() {
 function selIds() { var out = []; groups().forEach(function (g) { if (S.sel[g.id]) out = out.concat((S.f.unread && g.unread.length ? g.unread : g.items).map(function (e) { return e.id; })); }); return out; }
 
 function go(v) { if (S.view !== 'person') S.prevView = S.view; S.view = v; S.open = null; S.phoneOpen = false; S.sel = {}; render(); }
-function openFrom(v, id) { S.view = v; S.open = id; S.phoneOpen = true; render(); }
-function openG(id) { S.open = id; S.phoneOpen = true; render(); }
+function openFrom(v, id) { S.view = v; S.open = id; S.phoneOpen = true; S.keepOpen = null; render(); autoRead(id); }
+function openG(id) { S.open = id; S.phoneOpen = true; S.keepOpen = null; render(); autoRead(id); }
+// Opening an email reads it, like Gmail (6 Nov 2026, Owen: "I have to do it all twice"). It stays on
+// screen until he moves on. Not for Reply, Chase and Fix: those wait for an answer or a fix.
+function autoRead(id) {
+  setTimeout(function () {
+    if (S.open !== id) return;
+    var g = current(); if (!g || g.isChat || /^(reply|chase|fix)$/.test(g.pile)) return;
+    var x = g.unread.filter(function (e) { return e.account !== 'slack' && e.kind === 'in'; }).map(function (e) { return e.id; }); if (!x.length) return;
+    S.keepOpen = id; setStatus(x, 'done'); render();
+    api('markRead', { ids:x }).catch(function (e) { setStatus(x, 'open'); fail(e); });
+  }, 1500);
+}
 function closeG() { S.phoneOpen = false; render(); }
 // Shift-click picks everything between the last one picked and this one, like Gmail.
 function pick(id, ev) {
@@ -1512,7 +1523,9 @@ function remember(ids, st) {
 }
 function applyLocal(d) {
   var L = S.local || {}, t = Date.now(); if (!d || !d.emails) return d;
-  Object.keys(L).forEach(function (id) { if (t - L[id].at > 1800000) delete L[id]; });
+  // A mark only needs holding until the server agrees; "unread" ones only briefly, so reading it in Gmail still wins.
+  var srv = {}; d.emails.forEach(function (e) { srv[e.id] = e.status; });
+  Object.keys(L).forEach(function (id) { if (t - L[id].at > (L[id].st === 'open' ? 180000 : 1800000) || (srv[id] && srv[id] === L[id].st)) delete L[id]; });
   d.emails = d.emails.filter(function (e) { var l = L[e.id]; return !(l && l.st === 'gone'); });
   d.emails.forEach(function (e) { var l = L[e.id]; if (l && l.st !== 'gone') e.status = l.st; });
   return d;
