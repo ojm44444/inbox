@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1793980533">
+<html lang="en" data-build="b1793980642">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1259,7 +1259,7 @@ function noteHits() {
 function noteSearch(v) {
   S.noteQ = v; clearTimeout(noteSearch.t); if (!v.trim()) { S.noteHits = null; render(); return; }
   S.noteBusy = true;
-  noteSearch.t = setTimeout(function () { api('notesSearch', { q:v }).then(function (r) { if (S.noteQ !== v) return; S.noteHits = r; S.noteHitsFor = v; S.noteBusy = false; render(); }).catch(function () { S.noteBusy = false; }); }, 300);
+  noteSearch.t = setTimeout(function () { api('notesSearch', { q:v }).then(function (r) { if (S.noteQ !== v) return; S.noteHits = r; S.noteHitsFor = v; S.noteBusy = false; var f = document.activeElement && document.activeElement.id === 'nq', pos = f && document.activeElement.selectionStart; render(); var n = document.getElementById('nq'); if (f && n) { n.focus(); n.setSelectionRange(pos, pos); } }).catch(function () { S.noteBusy = false; }); }, 300);
   render();
 }
 function openNote(id) { S.view = 'notes'; S.noteId = id; S.phoneOpen = true; render(); }
