@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1793970732">
+<html lang="en" data-build="b1793971041">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -390,6 +390,7 @@ a.mini { color:var(--text); }
 .sldetail { display:flex; flex-direction:column; }
 .slmsgs { flex:1; overflow-y:auto; padding:8px 0 12px; min-height:0; }
 .slmsg { display:flex; gap:10px; padding:6px 24px; }
+.slmsg.hl { background:color-mix(in srgb, #8b7cf6 14%, transparent); box-shadow:inset 3px 0 0 #8b7cf6; }
 .slmsg.cont { padding-top:1px; padding-bottom:1px; }
 .slmsg:hover { background:var(--hover, rgba(255,255,255,.03)); }
 .sltime { width:36px; flex:none; font-size:10px; color:var(--dim); opacity:0; padding-top:4px; text-align:right; }
@@ -1026,7 +1027,7 @@ function slackLoad(ch, thread) {
     .catch(function (e) { SL.hist[k] = { error:e.message }; slackLoad.p[k] = false; render(); });
 }
 slackLoad.p = {};
-function slackScroll() { setTimeout(function () { var b = document.querySelector('.slmsgs'); if (b && !SL.keepScroll) b.scrollTop = b.scrollHeight; SL.keepScroll = false; }, 20); }
+function slackScroll() { setTimeout(function () { var b = document.querySelector('.slmsgs'), m = b && b.querySelector('.slmsg.hl'); if (b && !SL.keepScroll) { if (m) m.scrollIntoView({ block:'center' }); else b.scrollTop = b.scrollHeight; } SL.keepScroll = false; }, 20); }
 function slackOpen(ch) { SL.ch = ch; SL.thread = null; S.phoneOpen = true; render(); slackScroll(); }
 function slackView() {
   if (!SL.list && !SL.busy && !SL.err) slackChannels();
@@ -1046,11 +1047,15 @@ function slackView() {
 function mrkdwnPlain(t, people) { return String(t).replace(/<@([A-Z0-9]+)[^>]*>/g, function (m, id) { return '@' + ((people && people[id] && people[id].name) || 'someone'); }).replace(/<([^|>]+)\|([^>]+)>/g, '$2').replace(/<([^>]+)>/g, '$1').replace(/:([a-z0-9_+\-]+):/g, function (m, n) { return EMO[n] || ''; }); }
 // One conversation (or thread), Slack style, with the message box at the bottom.
 function slackPane(ch, thread, g, c) {
-  var k = ch + (thread ? ':' + thread : ''), h = SL.hist[k];
+  var k = ch + (thread ? ':' + thread : ''), h = SL.hist[k], hl = '';
   if (!h) slackLoad(ch, thread);
+  // A mention that never became a thread means nothing on its own ("and this too"):
+  // show the conversation around it instead, with that message lit up.
+  if (thread && h && h.messages && h.messages.length <= 1) { var hc = SL.hist[ch]; if (!hc) slackLoad(ch, ''); else if (hc.messages) { h = hc; hl = thread; } }
+  var lc = !c && SL.list && SL.list.channels.filter(function (x) { return x.id === ch; })[0]; if (lc) c = lc;
   var title = c ? (c.kind === 'channel' ? '#' + c.name : c.name) : g ? (g.items[0].from_name || 'Slack') : 'Slack';
   var out = '<section class="detail sldetail' + (S.phoneOpen ? ' open' : '') + '"><div class="dhead slhead"><div style="display:flex;gap:10px;align-items:center"><button class="iconbtn back" onclick="' + (S.view === 'slack' ? 'S.phoneOpen=false;render()' : 'closeG()') + '">' + I.back + '</button>'
-    + (thread ? '<button class="btn sm ghost" onclick="SL.thread=null;render();slackScroll()">' + I.back + ' ' + esc(title) + '</button><h2 style="margin:0;flex:1">Thread</h2>' : '<h2 style="margin:0;flex:1">' + esc(title) + '</h2>')
+    + (hl ? '<h2 style="margin:0;flex:1">' + esc(title) + '</h2><span class="l3">Your reply goes in a thread on the lit-up message</span>' : thread ? '<button class="btn sm ghost" onclick="SL.thread=null;render();slackScroll()">' + I.back + ' ' + esc(title) + '</button><h2 style="margin:0;flex:1">Thread</h2>' : '<h2 style="margin:0;flex:1">' + esc(title) + '</h2>')
     + '<span class="acct" style="--c:#a35bd6">lazygecko Slack</span>'
     + (g ? '<button class="btn sm" onclick="markRead()">' + I.check + 'Done<kbd>E</kbd></button>' : '') + '</div></div>';
   out += '<div class="slmsgs">';
@@ -1063,7 +1068,7 @@ function slackPane(ch, thread, g, c) {
       if (dk !== day) { day = dk; prev = null; out += '<div class="slday"><span>' + d.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' }) + '</span></div>'; }
       var same = prev && prev.user === m.user && Number(m.ts) - Number(prev.ts) < 300;
       var av = m.img ? '<img class="slav" src="' + esc(m.img) + '">' : '<span class="slav" style="background:' + hue(m.name) + '">' + esc(initials(m.name)) + '</span>';
-      out += '<div class="slmsg' + (same ? ' cont' : '') + (m.user === h.me ? ' mine' : '') + '">' + (same ? '<span class="sltime">' + d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' }) + '</span>' : av)
+      out += '<div class="slmsg' + (same ? ' cont' : '') + (m.user === h.me ? ' mine' : '') + (hl && m.ts === hl ? ' hl' : '') + '">' + (same ? '<span class="sltime">' + d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' }) + '</span>' : av)
         + '<div class="slbody">' + (same ? '' : '<div class="slwho"><b>' + esc(m.name) + '</b><span class="l3">' + d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' }) + '</span></div>')
         + '<div class="sltext">' + mrkdwn(m.text, h.names) + (m.edited ? ' <span class="l3">(edited)</span>' : '') + '</div>'
         + (m.files.length ? '<div class="slfiles">' + m.files.map(function (f) { return '<a class="slfile" target="_blank" href="' + esc(f.url) + '">📎 ' + esc(f.name) + '</a>'; }).join('') + '</div>' : '')
@@ -1566,6 +1571,11 @@ function copyText(text, okMsg) {
   var p = navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(text) : Promise.reject();
   p.then(function () { toast(okMsg); }, function () { if (old()) toast(okMsg); else manual(); });
 }
+function slackNames() {
+  if (!S.data || !S.data.emails) return;
+  var who = { U0BAUDURN20:'Owen' }; S.data.emails.forEach(function (e) { var m = /^slack:(U[A-Z0-9]+)$/.exec(e.from_email || ''); if (m && e.from_name) who[m[1]] = e.from_name; });
+  S.data.emails.forEach(function (e) { if (e.account !== 'slack') return; ['subject', 'snippet'].forEach(function (f) { if (e[f]) e[f] = String(e[f]).replace(/<@(U[A-Z0-9]+)(\|[^>]*)?>/g, function (_, id) { return '@' + (who[id] || 'someone'); }).replace(/<(https?:[^|>]+)\|([^>]+)>/g, '$2').replace(/<(https?:[^>]+)>/g, '$1'); }); });
+}
 function reGroup() { S.data.emails.forEach(function (e) { e.group = e.category === 'fix' ? 'fix|' + (e.project || 'General TO DOs') : /comments-noreply@docs\.google\.com/i.test(e.from_email || '') ? (e.category || 'new') + '|docs|' + (e.from_name || '') : (e.category || 'new') + '|' + (e.from_email || '') + '|' + String(e.subject || '').toLowerCase().replace(/^(re|fwd?):\s*/g, '').replace(/[^a-z ]+/g, ' ').replace(/\s+/g, ' ').trim(); }); }
 function movePile(p) { if (!p) return; var g = current(); var x = g.items.map(function (e) { return e.id; }); api('setPile', { ids:x, pile:p }).catch(fail); S.data.emails.forEach(function (e) { if (x.indexOf(e.id) >= 0) e.category = p; }); reGroup(); afterChange('Moved to ' + pileOf(p).title); }
 function moveChat(c) { if (!c) return; var g = current(); var x = g.items.map(function (e) { return e.id; }); api('setChat', { ids:x, chat:c }).catch(fail); S.data.emails.forEach(function (e) { if (x.indexOf(e.id) >= 0) e.project = c; }); reGroup(); afterChange('Moved to the ' + chatShort(c) + ' chat'); }
@@ -1576,7 +1586,7 @@ function theme() { var r = document.documentElement, now = r.dataset.theme || (m
 
 function load(op) {
   if (op === 'refresh') S.refreshing = true; render();
-  return api(op || 'load').then(function (d) { S.data = d; S.loading = false; S.refreshing = false; S.stale = false; saveCache(d); render(); })
+  return api(op || 'load').then(function (d) { S.data = d; slackNames(); S.loading = false; S.refreshing = false; S.stale = false; saveCache(d); render(); })
     .catch(function (e) {
       S.loading = false; S.refreshing = false;
       if (/sign in again/i.test(e.message)) { S.token = ''; S.key = ''; try { localStorage.removeItem('inbox-id'); } catch (x) {} }
@@ -1634,7 +1644,7 @@ setInterval(function () {
   var q = new URLSearchParams(location.search).get('k');
   if (q) { S.key = q; history.replaceState(null, '', location.pathname); }
   try { var tok = localStorage.getItem('inbox-id') || ''; if (tok && tokenExp(tok) > Date.now() + 60000) S.token = tok; } catch (e) {}
-  if (S.token || S.key) { var c = readCache(); if (c) { S.data = c; S.loading = false; S.stale = true; S.refreshing = true; render(); } load('load'); } else render();
+  if (S.token || S.key) { var c = readCache(); if (c) { S.data = c; slackNames(); S.loading = false; S.stale = true; S.refreshing = true; render(); } load('load'); } else render();
 })();
 </script>
 </body>
