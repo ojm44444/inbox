@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1793957593">
+<html lang="en" data-build="b1793962521">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -687,7 +687,8 @@ function home() {
   var day = new Date().toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', timeZone:'Europe/London' });
   // Calm Home (5 Nov 2026 overhaul): one line of counts, the brief, then three short columns.
   var h = '<main class="home">' + tabs() + '<div class="hero2"><div style="min-width:0"><div class="day">' + day + '</div><h1 class="hello">' + hi + ', Owen</h1><div class="hellosub">' + (bits.length ? bits.join(' · ') + '.' : 'Inbox clear. Nice.') + '</div></div>'
-    + '<div class="pills">' + PILES.filter(function (p) { return p.key !== 'new'; }).map(function (p) { var n = unreadCount(p.key); return '<button class="pill' + (n ? '' : ' zero') + '" style="--c:' + p.color + '" onclick="go(\'' + (p.key === 'learn' ? 'reading' : p.key) + '\')" title="' + esc(p.help) + '"><span class="dot"></span>' + p.title + '<b>' + n + '</b></button>'; }).join('') + '</div></div>'
+    + '</div>'
+    + '<div class="tiles">' + PILES.filter(function (p) { return p.key !== 'new'; }).map(function (p) { return '<div class="tile" style="--c:' + p.color + '" onclick="go(\'' + (p.key === 'learn' ? 'reading' : p.key) + '\')"><div class="lab"><span class="pico">' + PILE_ICON[p.key] + '</span>' + p.title + '</div><div class="num">' + unreadCount(p.key) + '</div><div class="hint">' + p.help + '</div></div>'; }).join('') + '</div>' + inboxStrip()
     + askBar() + briefCard() + '<div class="hgrid"><div class="hcol">' + tasksBox() + '</div><div class="hcol">';
   var people2 = pileList('reply').slice(0, 7);
   h += '<div class="box"><h3>' + I.pen + 'People waiting on you<span class="badge">' + pileList('reply').length + '</span><span style="flex:1"></span><button class="btn sm ghost" onclick="go(\'reply\')">All</button></h3>'
