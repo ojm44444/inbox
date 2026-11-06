@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1793964887">
+<html lang="en" data-build="b1793965565">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1350,6 +1350,7 @@ function mailDetail(g) {
   var slack = e.account === 'slack', toChat = !(g.pile === 'reply' || g.pile === 'chase');
   h += (read ? '<button class="btn" onclick="markUnread()">' + I.dotc + 'Mark unread<kbd>U</kbd></button>' : '<button class="btn' + (replyable ? '' : ' pri') + '" title="E" onclick="markRead()">' + I.check + (chase ? 'Dismiss' : 'Mark read') + '</button>')
     + (toChat ? '<button class="btn ghost" onclick="sendToChat(\'' + g.id + '\')">' + I.send + 'Send to chat</button>' : '')
+    + (slack ? '' : '<button class="btn ghost" title="Copy the whole email, pictures and formatting, to paste into Claude" onclick="copyEmail(\'' + e.id + '\')">' + I.copy + 'Copy</button>')
     + '<span style="flex:1"></span>'
     + (toChat ? '' : '<button class="iconbtn" title="Send to a Claude chat" onclick="sendToChat(\'' + g.id + '\')">' + I.send + '</button>')
     + (e.gmail_url ? '<a class="btn ghost sm" target="_blank" href="' + esc(gmailHref(e.gmail_url)) + '">' + I.gmail + (slack ? 'Open in Slack' : 'Open in Gmail') + '</a>' : '')
