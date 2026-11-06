@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1793982486">
+<html lang="en" data-build="b1793985329">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -545,7 +545,7 @@ function toast(msg, bad) { var t = document.getElementById('toast'); t.textConte
 
 // Changes (read, unread, move, bin) go one at a time, in the order Owen made them,
 // so a quick read-then-unread can never finish the wrong way round.
-var WRITES = { markRead:1, markUnread:1, setPile:1, setChat:1, bin:1, saveDraft:1 }, queue = Promise.resolve();
+var WRITES = { markRead:1, markUnread:1, setPile:1, setChat:1, bin:1, saveDraft:1, doneWith:1, binNoise:1 }, queue = Promise.resolve();
 function api(op, args) {
   if (WRITES[op]) { var p = queue.then(function () { return send(op, args); }); queue = p.catch(function () {}); return p; }
   return send(op, args);
@@ -1493,14 +1493,31 @@ function pick(id, ev) {
 function setF(k, v) { S.f[k] = v; render(); }
 function toggleIssue(k) { S.openIssue[k] = !S.openIssue[k]; render(); }
 function idsOf(g) { return (g.unread.length ? g.unread : g.items).map(function (e) { return e.id; }); }
-function setStatus(ids, st) { S.data.emails.forEach(function (e) { if (ids.indexOf(e.id) >= 0) e.status = st; }); }
+function setStatus(ids, st) { S.data.emails.forEach(function (e) { if (ids.indexOf(e.id) >= 0) e.status = st; }); remember(ids, st); }
+// What Owen just did wins over a reload that started before the server caught up (6 Nov 2026:
+// "I keep marking stuff as read and it keeps coming back"). Kept 10 minutes, this browser only.
+function remember(ids, st) { S.local = S.local || {}; var t = Date.now(); ids.forEach(function (id) { S.local[id] = { st:st, at:t }; }); }
+function applyLocal(d) {
+  var L = S.local || {}, t = Date.now(); if (!d || !d.emails) return d;
+  Object.keys(L).forEach(function (id) { if (t - L[id].at > 600000) delete L[id]; });
+  d.emails = d.emails.filter(function (e) { var l = L[e.id]; return !(l && l.st === 'gone'); });
+  d.emails.forEach(function (e) { var l = L[e.id]; if (l && l.st !== 'gone') e.status = l.st; });
+  return d;
+}
+// Marketing (Learn, Noise): marking one read marks every open email from that sender, in every inbox,
+// so the next one in a series does not look like the same email coming back.
+function widen(x) {
+  var froms = {}; S.data.emails.forEach(function (e) { if (x.indexOf(e.id) >= 0 && (e.category === 'learn' || e.category === 'noise') && e.account !== 'slack' && e.from_email) froms[String(e.from_email).toLowerCase()] = true; });
+  S.data.emails.forEach(function (e) { if (e.status === 'open' && (e.category === 'learn' || e.category === 'noise') && froms[String(e.from_email || '').toLowerCase()] && x.indexOf(e.id) < 0) x.push(e.id); });
+  return x;
+}
 function afterChange(msg) {
   var l = pileList(S.view); if (!l.some(function (g) { return g.id === S.open; })) { S.open = l.length ? l[0].id : null; if (!S.open) S.phoneOpen = false; }
   S.busy = ''; render(); if (msg) toast(msg);
 }
 function fail(e) { S.busy = ''; render(); toast(e.message, true); }
-function markRead() { var g = current(); if (!g) return; var x = idsOf(g); setStatus(x, 'done'); afterChange(x.length > 1 ? x.length + ' marked read' : 'Marked read'); api('markRead', { ids:x }).catch(function (e) { setStatus(x, 'open'); fail(e); }); }
-function doneWith(ids) { var g = current(); var x = ids || (g ? g.items.map(function (e) { return e.id; }) : []); if (!x.length) return; S.data.emails = S.data.emails.filter(function (e) { return x.indexOf(e.id) < 0; }); S.sel = {}; afterChange(x.length > 1 ? x.length + ' done with' : 'Done with'); api('doneWith', { ids:x }).catch(fail); }
+function markRead() { var g = current(); if (!g) return; var x = widen(idsOf(g)); setStatus(x, 'done'); afterChange(x.length > 1 ? x.length + ' marked read' : 'Marked read'); api('markRead', { ids:x }).catch(function (e) { setStatus(x, 'open'); fail(e); }); }
+function doneWith(ids) { var g = current(); var x = widen(ids || (g ? g.items.map(function (e) { return e.id; }) : [])); if (!x.length) return; remember(x, 'gone'); S.data.emails = S.data.emails.filter(function (e) { return x.indexOf(e.id) < 0; }); S.sel = {}; afterChange(x.length > 1 ? x.length + ' done with' : 'Done with'); api('doneWith', { ids:x }).catch(fail); }
 // Noise is marketing with nothing in it: one press bins the lot (Gmail's bin, back for 30 days).
 function binNoise() {
   var x = []; pileList('noise').forEach(function (g) { g.items.forEach(function (e) { if (e.account !== 'slack') x.push(e.id); }); }); if (!x.length) return;
@@ -1509,11 +1526,11 @@ function binNoise() {
   var chunks = []; for (var i = 0; i < x.length; i += 100) chunks.push(x.slice(i, i + 100));
   Promise.all(chunks.map(function (c) { return api('binNoise', { ids:c }); })).then(function (rs) {
     var gone = [], kept = 0; rs.forEach(function (r) { gone = gone.concat(r.binned || []); kept += r.kept || 0; });
-    S.data.emails = S.data.emails.filter(function (e) { return gone.indexOf(e.id) < 0; }); afterChange(gone.length + ' binned' + (kept ? ', ' + kept + ' from people kept' : ''));
+    remember(gone, 'gone'); S.data.emails = S.data.emails.filter(function (e) { return gone.indexOf(e.id) < 0; }); afterChange(gone.length + ' binned' + (kept ? ', ' + kept + ' from people kept' : ''));
   }).catch(fail);
 }
 function markUnread() { var g = current(); if (!g) return; var x = g.items.map(function (e) { return e.id; }); setStatus(x, 'open'); S.busy = ''; render(); toast('Marked unread'); api('markUnread', { ids:x }).catch(fail); }
-function binOne() { var g = current(); if (!g) return; var x = g.items.map(function (e) { return e.id; }); if (!confirm('Bin this? It goes to Gmail\'s bin and can be got back for 30 days.')) return; S.data.emails = S.data.emails.filter(function (e) { return x.indexOf(e.id) < 0; }); afterChange('Binned'); api('bin', { ids:x }).catch(fail); }
+function binOne() { var g = current(); if (!g) return; var x = g.items.map(function (e) { return e.id; }); if (!confirm('Bin this? It goes to Gmail\'s bin and can be got back for 30 days.')) return; remember(x, 'gone'); S.data.emails = S.data.emails.filter(function (e) { return x.indexOf(e.id) < 0; }); afterChange('Binned'); api('bin', { ids:x }).catch(fail); }
 // Slack can't take a draft from here, so the reply goes on the clipboard and Slack opens on the conversation.
 // Send waits 5 seconds with Undo, like Gmail, then goes from the account the email came to.
 function sendD() {
@@ -1616,14 +1633,14 @@ function slackNames() {
 function reGroup() { S.data.emails.forEach(function (e) { e.group = e.category === 'fix' ? 'fix|' + (e.project || 'General TO DOs') : /comments-noreply@docs\.google\.com/i.test(e.from_email || '') ? (e.category || 'new') + '|docs|' + (e.from_name || '') : (e.category || 'new') + '|' + (e.from_email || '') + '|' + String(e.subject || '').toLowerCase().replace(/^(re|fwd?):\s*/g, '').replace(/[^a-z ]+/g, ' ').replace(/\s+/g, ' ').trim(); }); }
 function movePile(p) { if (!p) return; var g = current(); var x = g.items.map(function (e) { return e.id; }); api('setPile', { ids:x, pile:p }).catch(fail); S.data.emails.forEach(function (e) { if (x.indexOf(e.id) >= 0) e.category = p; }); reGroup(); afterChange('Moved to ' + pileOf(p).title); }
 function moveChat(c) { if (!c) return; var g = current(); var x = g.items.map(function (e) { return e.id; }); api('setChat', { ids:x, chat:c }).catch(fail); S.data.emails.forEach(function (e) { if (x.indexOf(e.id) >= 0) e.project = c; }); reGroup(); afterChange('Moved to the ' + chatShort(c) + ' chat'); }
-function bulk(op) { var x = selIds(); setStatus(x, op === 'markRead' ? 'done' : 'open'); S.sel = {}; afterChange(x.length + (op === 'markRead' ? ' marked read' : ' marked unread')); api(op, { ids:x }).catch(fail); }
+function bulk(op) { var x = op === 'markRead' ? widen(selIds()) : selIds(); setStatus(x, op === 'markRead' ? 'done' : 'open'); S.sel = {}; afterChange(x.length + (op === 'markRead' ? ' marked read' : ' marked unread')); api(op, { ids:x }).catch(fail); }
 function bulkPile(p) { if (!p) return; var x = selIds(); api('setPile', { ids:x, pile:p }).catch(fail); S.data.emails.forEach(function (e) { if (x.indexOf(e.id) >= 0) e.category = p; }); reGroup(); S.sel = {}; afterChange('Moved to ' + pileOf(p).title); }
-function bulkBin() { var x = selIds(); if (!confirm('Bin ' + x.length + ' emails? They go to Gmail\'s bin and can be got back for 30 days.')) return; S.data.emails = S.data.emails.filter(function (e) { return x.indexOf(e.id) < 0; }); S.sel = {}; afterChange(x.length + ' binned'); api('bin', { ids:x }).catch(fail); }
+function bulkBin() { var x = selIds(); if (!confirm('Bin ' + x.length + ' emails? They go to Gmail\'s bin and can be got back for 30 days.')) return; remember(x, 'gone'); S.data.emails = S.data.emails.filter(function (e) { return x.indexOf(e.id) < 0; }); S.sel = {}; afterChange(x.length + ' binned'); api('bin', { ids:x }).catch(fail); }
 function theme() { var r = document.documentElement, now = r.dataset.theme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'); r.dataset.theme = now === 'light' ? 'dark' : 'light'; try { localStorage.setItem('inbox-theme', r.dataset.theme); } catch (e) {} }
 
 function load(op) {
   if (op === 'refresh') S.refreshing = true; render();
-  return api(op || 'load').then(function (d) { S.data = d; slackNames(); S.loading = false; S.refreshing = false; S.stale = false; saveCache(d); render(); })
+  return api(op || 'load').then(function (d) { S.data = applyLocal(d); slackNames(); S.loading = false; S.refreshing = false; S.stale = false; saveCache(d); render(); })
     .catch(function (e) {
       S.loading = false; S.refreshing = false;
       if (/sign in again/i.test(e.message)) { S.token = ''; S.key = ''; try { localStorage.removeItem('inbox-id'); } catch (x) {} }
@@ -1673,7 +1690,7 @@ function quickSync() {
   if (document.hidden || !S.data || S.refreshing || quickSync.busy) return;
   var a = document.activeElement; if (a && /^(INPUT|TEXTAREA)$/.test(a.tagName)) return;
   quickSync.busy = true;
-  api('sync', { fp:S.data.fp || '' }).then(function (d) { quickSync.busy = false; if (!d || d.same || !d.emails) return; S.data = d; slackNames(); saveCache(d); render(); })
+  api('sync', { fp:S.data.fp || '' }).then(function (d) { quickSync.busy = false; if (!d || d.same || !d.emails) return; S.data = applyLocal(d); slackNames(); saveCache(d); render(); })
     .catch(function () { quickSync.busy = false; });
 }
 setInterval(quickSync, 120000);

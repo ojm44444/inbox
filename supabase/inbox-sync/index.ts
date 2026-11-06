@@ -103,7 +103,7 @@ async function pullInbox(a: string) {
       added++;
     }
     // Marked unread again in Gmail: back on the list ('gone' ones too would be wrong: Done with stays done).
-    await x("UPDATE inbox_emails SET status = 'open', gmail_done = false, done_at = NULL WHERE status IN ('done', 'to_claude') AND gmail_done AND id IN (" + ids.map(lit).join(',') + ')');
+    await x("UPDATE inbox_emails SET status = 'open', gmail_done = false, done_at = NULL WHERE status IN ('done', 'to_claude') AND gmail_done AND done_at < now() - interval '10 minutes' AND id IN (" + ids.map(lit).join(',') + ')');
     await x('UPDATE inbox_emails SET seen_at = now() WHERE id IN (' + ids.map(lit).join(',') + ')');
   }
   await x("UPDATE inbox_emails SET status = 'done', gmail_done = true, done_at = now() WHERE kind = 'in' AND status = 'open' AND account = " + lit(a) + (ids.length ? ' AND id NOT IN (' + ids.map(lit).join(',') + ')' : ''));
@@ -209,8 +209,9 @@ Deno.serve(async (req) => {
   // Chases every half hour, Slack every 6 minutes: they change slowly and cost the most calls.
   if (Date.now() - (st.chasesAt || 0) > 30 * 60e3) {
     st.seen = st.seen || {};
+    const before = errors.length;
     await Promise.all(Object.keys(ACCOUNTS).map(async (a) => { try { out.chases[a] = await pullChases(a, st.seen); } catch (e) { errors.push(a + ' chases: ' + e); } }));
-    st.chasesAt = Date.now();
+    if (errors.length === before) st.chasesAt = Date.now();
   }
   if (Date.now() - (st.slackAt || 0) > 5.5 * 60e3) {
     try { out.slack = await pullSlack(st); st.slackAt = Date.now(); } catch (e) { errors.push('slack: ' + e); }
