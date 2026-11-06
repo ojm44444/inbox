@@ -160,13 +160,13 @@ async function pullSlack(state: any) {
   const known: Record<string, number> = {};
   for (const r of await q("SELECT id, extract(epoch FROM received_at)::bigint AS ts FROM inbox_emails WHERE account = 'slack'")) known[r.id] = Number(r.ts);
   const names = (t: string) => String(t || '').replace(/<@(U[A-Z0-9]+)(\|[^>]*)?>/g, (_: string, u: string) => '@' + (u === meId ? 'Owen' : people[u] || 'someone'));
-  const put = async (id: string, ch: string, msgs: any[], last: any) => {
+  const put = async (id: string, ch: string, msgs: any[], last: any, url?: string) => {
     open.push(id);
     if (known[id] === Math.floor(Number(last.ts))) return;
     const text = msgs.slice(-8).map((m) => (people[m.user] || 'Someone') + ': ' + (m.text || '')).join('\n\n'), line = names(last.text);
     await x("INSERT INTO inbox_emails (id, account, kind, from_name, from_email, subject, snippet, thread_text, received_at, gmail_url) VALUES ("
       + [id, 'slack', 'in', people[last.user] || 'Someone', 'slack:' + last.user, line.replace(/\s+/g, ' ').slice(0, 120) || '(message)', line.slice(0, 300), text].map(lit).join(', ')
-      + ', to_timestamp(' + Math.floor(Number(last.ts)) + '), ' + lit(team + '/archives/' + ch + '/p' + String(last.ts).replace('.', '')) + ')'
+      + ', to_timestamp(' + Math.floor(Number(last.ts)) + '), ' + lit(url || team + '/archives/' + ch + '/p' + String(last.ts).replace('.', '')) + ')'
       + " ON CONFLICT (id) DO UPDATE SET subject = EXCLUDED.subject, snippet = EXCLUDED.snippet, thread_text = EXCLUDED.thread_text, received_at = EXCLUDED.received_at, gmail_url = EXCLUDED.gmail_url,"
       + " status = CASE WHEN inbox_emails.received_at < EXCLUDED.received_at THEN 'open' ELSE inbox_emails.status END, category = CASE WHEN inbox_emails.received_at < EXCLUDED.received_at THEN NULL ELSE inbox_emails.category END, seen_at = now()");
   };
@@ -180,7 +180,8 @@ async function pullSlack(state: any) {
   const day = new Date(since * 1000).toISOString().slice(0, 10);
   for (const m of ((await slack('search.messages?count=40&sort=timestamp&query=' + encodeURIComponent('<@' + meId + '> after:' + day))).messages || {}).matches || []) {
     if (!people[m.user] || m.user === meId || !m.channel || m.channel.is_im || m.channel.is_mpim) continue;
-    await put('slack:' + m.channel.id + ':' + m.ts, m.channel.id, [m], m);
+    // The permalink carries thread_ts when the mention is a reply in a thread; the page opens that thread.
+    await put('slack:' + m.channel.id + ':' + m.ts, m.channel.id, [m], m, m.permalink);
   }
   await x("UPDATE inbox_emails SET status = 'done', done_at = now() WHERE account = 'slack' AND status = 'open' AND id NOT LIKE 'slack:%:%'" + (open.length ? ' AND id NOT IN (' + open.map(lit).join(',') + ')' : ''));
   // Read in Slack since it came in.

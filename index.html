@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1793996905">
+<html lang="en" data-build="b1793997047">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1125,12 +1125,12 @@ function slackView() {
 }
 function mrkdwnPlain(t, people) { return String(t).replace(/<@([A-Z0-9]+)[^>]*>/g, function (m, id) { return '@' + ((people && people[id] && people[id].name) || 'someone'); }).replace(/<([^|>]+)\|([^>]+)>/g, '$2').replace(/<([^>]+)>/g, '$1').replace(/:([a-z0-9_+\-]+):/g, function (m, n) { return EMO[n] || ''; }); }
 // One conversation (or thread), Slack style, with the message box at the bottom.
-function slackPane(ch, thread, g, c) {
-  var k = ch + (thread ? ':' + thread : ''), h = SL.hist[k], hl = '';
+function slackPane(ch, thread, g, c, lit) {
+  var k = ch + (thread ? ':' + thread : ''), h = SL.hist[k], hl = lit || '';
   if (!h) slackLoad(ch, thread);
   // A mention that never became a thread means nothing on its own ("and this too"):
   // show the conversation around it instead, with that message lit up.
-  if (thread && h && h.messages && h.messages.length <= 1) { var hc = SL.hist[ch]; if (!hc) slackLoad(ch, ''); else if (hc.messages) { h = hc; hl = thread; } }
+  if (!lit && thread && h && h.messages && h.messages.length <= 1) { var hc = SL.hist[ch]; if (!hc) slackLoad(ch, ''); else if (hc.messages) { h = hc; hl = thread; } }
   var lc = !c && SL.list && SL.list.channels.filter(function (x) { return x.id === ch; })[0]; if (lc) c = lc;
   var title = c ? (c.kind === 'channel' ? '#' + c.name : c.name) : g ? (g.items[0].from_name || 'Slack') : 'Slack';
   var out = '<section class="detail sldetail' + (S.phoneOpen ? ' open' : '') + '"><div class="dhead slhead"><div style="display:flex;gap:10px;align-items:center"><button class="iconbtn back" onclick="' + (S.view === 'slack' ? 'S.phoneOpen=false;render()' : 'closeG()') + '">' + I.back + '</button>'
@@ -1176,7 +1176,7 @@ setInterval(function () {
   if (document.hidden || !S.data) return;
   var g = S.view !== 'slack' && current(), ch = null, th = '';
   if (S.view === 'slack' && SL.ch) { ch = SL.ch; th = SL.thread || ''; }
-  else if (g && !g.isChat && g.items[0].account === 'slack') { var sp = String(g.items[0].id).split(':'); ch = sp[1]; th = sp[2] || ''; }
+  else if (g && !g.isChat && g.items[0].account === 'slack') { var sp = String(g.items[0].id).split(':'); ch = sp[1]; th = (String(g.items[0].gmail_url || '').match(/[?&]thread_ts=([0-9.]+)/) || [])[1] || sp[2] || ''; }
   if (!ch || document.activeElement && document.activeElement.id === 'slbox' && document.activeElement.value) return;
   var b = document.querySelector('.slmsgs'); SL.keepScroll = b && b.scrollHeight - b.scrollTop - b.clientHeight > 80;
   slackLoad(ch, th);
@@ -1436,7 +1436,13 @@ function issues(g) {
 function detail() {
   var g = current();
   if (!g) return '<section class="detail"><div class="placeholder"><div>' + I.inbox.replace('<svg', '<svg style="width:34px;height:34px;opacity:.5"') + '<div style="margin-top:10px">Pick an email</div><div style="margin-top:6px;font-size:12px">J / K move · E read · U unread · W reply · / search</div></div></div></section>';
-  if (!g.isChat && g.items[0].account === 'slack') { var sp = String(g.items[0].id).split(':'); return slackPane(sp[1], sp[2] || '', g); }
+  if (!g.isChat && g.items[0].account === 'slack') {
+    var sp = String(g.items[0].id).split(':');
+    // A mention inside a thread: open that thread (its first message's ts is in the saved Slack link), the mention lit up.
+    var tt = (String(g.items[0].gmail_url || '').match(/[?&]thread_ts=([0-9.]+)/) || [])[1];
+    if (sp[2] && tt && tt !== sp[2]) return slackPane(sp[1], tt, g, null, sp[2]);
+    return slackPane(sp[1], sp[2] || '', g);
+  }
   return g.isChat ? chatDetail(g) : mailDetail(g);
 }
 function chatDetail(g) {
