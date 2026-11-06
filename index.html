@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1793965565">
+<html lang="en" data-build="b1793968858">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -778,8 +778,16 @@ function copySeries(key) {
   var items = seriesItems(key); if (!items.length) return;
   var name = items[0].from_name || items[0].from_email || key;
   S.copyBusy = key; render();
-  var job = api('seriesText', { ids: items.map(function (e) { return e.id; }) }).then(function (r) {
-    var t = r.texts || {}, got = items.filter(function (e) { return t[e.id] != null; });
+  var kept = {}; try { kept = JSON.parse(localStorage.getItem('inbox-series-text') || '{}'); } catch (e) {}
+  var need = items.filter(function (e) { return kept[e.id] == null; }).map(function (e) { return e.id; });
+  var local = function (e) { var m = (S.threads[e.id] && !S.threads[e.id].error && S.threads[e.id].slice(-1)[0]) || null;
+    return m ? (m.plain || new DOMParser().parseFromString(m.html || '', 'text/html').body.innerText || '') : (e.thread_text || e.snippet || ''); };
+  var job = (need.length ? Promise.race([api('seriesText', { ids: need }), new Promise(function (ok, no) { setTimeout(function () { no(new Error('slow')); }, 20000); })]) : Promise.resolve({ texts:{} })).catch(function () { return { texts:{}, offline:true }; }).then(function (r) {
+    Object.keys(r.texts || {}).forEach(function (id) { kept[id] = r.texts[id]; });
+    try { localStorage.setItem('inbox-series-text', JSON.stringify(kept)); } catch (e) { /* full: just not kept */ }
+    var tidy = function (x) { return String(x || '').replace(/[\u00ad\u034f\u200b-\u200f\u2060-\u2064\ufeff]/g, '').replace(/\r/g, '').replace(/[ \t\u00a0]+/g, ' ').replace(/ *\n */g, '\n').split('\n').filter(function (l) { return !l || /[\p{L}\p{N}]/u.test(l); }).join('\n').replace(/\n{3,}/g, '\n\n').trim(); };
+    var t = {}; items.forEach(function (e) { t[e.id] = tidy(kept[e.id] != null ? kept[e.id] : local(e)); });
+    var got = items.filter(function (e) { return t[e.id] != null; });
     var text = 'Every email from ' + name + ' (' + got.length + ' emails, oldest first)\n\n' + got.map(function (e, i) {
       return '===== ' + (i + 1) + '. ' + e.subject + ' (' + new Date(e.received_at).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }) + ') =====\n\n' + t[e.id];
     }).join('\n\n');
@@ -839,7 +847,8 @@ function readOne(id, read) { var ids = String(id).split(','); setStatus(ids, rea
 // The whole email with its formatting and pictures, ready to paste into Claude (text too, as a fallback).
 function copyEmail(id) {
   var e = (S.data.emails || []).filter(function (x) { return x.id === id; })[0] || {};
-  var got = S.threads[id] && !S.threads[id].error ? Promise.resolve(S.threads[id]) : api('thread', { id:id }).then(function (r) { S.threads[id] = r.messages; return r.messages; });
+  var got = S.threads[id] && !S.threads[id].error ? Promise.resolve(S.threads[id]) : api('thread', { id:id }).then(function (r) { S.threads[id] = r.messages; return r.messages; })
+    .catch(function () { return [{ from: e.from_name || e.from_email || '', date: e.received_at || '', plain: e.thread_text || e.snippet || '' }]; });
   var parts = got.then(function (ms) {
     var m = ms[ms.length - 1] || {}, head = 'From: ' + (m.from || e.from_name || '') + '\nSubject: ' + (e.subject || '') + '\nDate: ' + (m.date || '') + '\n\n';
     var html = '<p><b>From:</b> ' + esc(m.from || e.from_name || '') + '<br><b>Subject:</b> ' + esc(e.subject || '') + '<br><b>Date:</b> ' + esc(m.date || '') + '</p>' + (m.html || '<pre>' + esc(m.plain || '') + '</pre>');
@@ -1321,7 +1330,7 @@ function detail() {
   return g.isChat ? chatDetail(g) : mailDetail(g);
 }
 function chatDetail(g) {
-  var name = chatShort(g.chat), list = S.f.unread && g.unread.length ? g.unread : g.items, iss = issues({ items:list });
+  var name = chatShort(g.chat), list = g.unread.length ? g.unread : g.items, iss = issues({ items:list });
   var h = '<section class="detail' + (S.phoneOpen ? ' open' : '') + '"><div class="dhead"><div style="display:flex;gap:10px;align-items:center">'
     + '<button class="iconbtn back" onclick="closeG()">' + I.back + '</button><div class="chatico" style="background:' + (CHAT_COLOURS[g.chat] || '#6c6d79') + '">' + esc(initials(name)) + '</div><h2 style="margin:0;flex:1">For your ' + esc(name) + ' chat</h2></div>'
     + '<div class="meta" style="margin-top:8px"><span class="chip"><span class="dot" style="background:var(--fix)"></span>Fix</span><span class="chip">' + list.length + ' emails</span><span class="chip">' + iss.length + ' problem' + (iss.length === 1 ? '' : 's') + '</span></div></div>'
