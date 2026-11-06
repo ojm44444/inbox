@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1793985329">
+<html lang="en" data-build="b1793985487">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1505,10 +1505,12 @@ function applyLocal(d) {
   return d;
 }
 // Marketing (Learn, Noise): marking one read marks every open email from that sender, in every inbox,
-// so the next one in a series does not look like the same email coming back.
+// so the next one in a burst does not look like the same email coming back.
 function widen(x) {
   var froms = {}; S.data.emails.forEach(function (e) { if (x.indexOf(e.id) >= 0 && (e.category === 'learn' || e.category === 'noise') && e.account !== 'slack' && e.from_email) froms[String(e.from_email).toLowerCase()] = true; });
-  S.data.emails.forEach(function (e) { if (e.status === 'open' && (e.category === 'learn' || e.category === 'noise') && froms[String(e.from_email || '').toLowerCase()] && x.indexOf(e.id) < 0) x.push(e.id); });
+  // Learn keeps series (Sabri's) for the Reading list, so there only the last two days' burst goes with it.
+  var cut = Date.now() - 2 * 86400000;
+  S.data.emails.forEach(function (e) { if (e.status === 'open' && (e.category === 'noise' || (e.category === 'learn' && Date.parse(e.received_at) > cut)) && froms[String(e.from_email || '').toLowerCase()] && x.indexOf(e.id) < 0) x.push(e.id); });
   return x;
 }
 function afterChange(msg) {
