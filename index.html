@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1793985503">
+<html lang="en" data-build="b1793987852">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -660,10 +660,10 @@ function fitFrame(f) {
 }
 
 function side() {
-  var nv = function (v, icon, label, n, extra) { return '<button class="nav' + (S.view === v ? ' on' : '') + '" onclick="' + (extra || '') + 'go(\'' + v + '\')">' + icon + label + '<span class="n">' + (n || '') + '</span></button>'; };
+  var nv = function (v, icon, label, n, extra) { return '<button class="nav' + (S.view === v && !(v === 'all' && S.f.acct) ? ' on' : '') + '" onclick="' + (extra || '') + 'go(\'' + v + '\')">' + icon + label + '<span class="n">' + (n || '') + '</span></button>'; };
   var h = '<aside class="side"><div class="brand"><div class="logo">' + I.inbox + '</div>Inbox</div>'
-    + nv('home', I.home, 'Home') + nv('all', I.inbox, 'All mail', unreadCount('all')) + nv('reading', I.book, 'Reading list', unreadCount('learn'))
-    + '<div class="navlabel">Piles</div>';
+    + nv('home', I.home, 'Home') + nv('all', I.inbox, 'All mail', unreadCount('all'), 'S.f.acct=\'\';') + nv('reading', I.book, 'Reading list', unreadCount('learn'))
+    + '<div class="navlabel">Inboxes</div>' + inboxNav() + '<div class="navlabel">Piles</div>';
   PILES.forEach(function (p) {
     var n = unreadCount(p.key); if (p.key === 'new' && !n) return;
     h += '<button class="nav' + (S.view === p.key ? ' on' : '') + '" onclick="go(\'' + p.key + '\')"><span class="dot" style="background:' + p.color + '"></span>' + p.title + '<span class="n">' + (n || '') + '</span></button>';
@@ -887,10 +887,18 @@ function lbNote(email, name) {
   var h = l.filter(function (x) { return em && x.email === em; })[0] || l.filter(function (x) { return nm.length > 3 && x.name.toLowerCase() === nm; })[0];
   return h ? { note:h.note, at:lb.at } : null;
 }
+// Each inbox on its own, like Gmail: newest first, tap one to open it (Owen, 6 Nov 2026).
+function openInbox(a) { S.f.acct = a; S.f.plat = ''; if (a === 'slack') { go('slack'); return; } go('all'); }
+function inboxNav() {
+  var by = {}; ((S.data && S.data.emails) || []).forEach(function (e) { if (!isRead(e)) by[e.account || 'personal'] = (by[e.account || 'personal'] || 0) + 1; });
+  return Object.keys(ACCOUNTS).filter(function (a) { return a !== 'slack'; }).map(function (a) {
+    return '<button class="nav' + (S.view === 'all' && S.f.acct === a ? ' on' : '') + '" onclick="openInbox(\'' + a + '\')"><span class="dot" style="background:' + ACCOUNTS[a].color + '"></span>' + ACCOUNTS[a].label + '<span class="n">' + (by[a] || '') + '</span></button>';
+  }).join('');
+}
 function inboxStrip() {
   var by = {}; ((S.data && S.data.emails) || []).forEach(function (e) { if (!isRead(e)) by[e.account || 'personal'] = (by[e.account || 'personal'] || 0) + 1; });
-  return '<div class="strip"><button class="ichip' + (!S.f.acct ? ' on' : '') + '" onclick="setF(\'acct\',\'\')">All inboxes</button>' + Object.keys(ACCOUNTS).map(function (a) {
-    return '<button class="ichip' + (S.f.acct === a ? ' on' : '') + '" style="--c:' + ACCOUNTS[a].color + '" onclick="setF(\'acct\',\'' + a + '\')"><span class="dot" style="background:' + ACCOUNTS[a].color + '"></span>' + ACCOUNTS[a].label + '<b>' + (by[a] || 0) + '</b></button>';
+  return '<div class="strip"><button class="ichip' + (!S.f.acct ? ' on' : '') + '" onclick="openInbox(\'\')">All inboxes</button>' + Object.keys(ACCOUNTS).map(function (a) {
+    return '<button class="ichip' + (S.f.acct === a ? ' on' : '') + '" style="--c:' + ACCOUNTS[a].color + '" onclick="openInbox(\'' + a + '\')"><span class="dot" style="background:' + ACCOUNTS[a].color + '"></span>' + ACCOUNTS[a].label + '<b>' + (by[a] || 0) + '</b></button>';
   }).join('') + '</div>';
 }
 // ---- Ask your inbox ----
@@ -1312,7 +1320,7 @@ function timeline() {
 }
 
 function list() {
-  var title = S.view === 'all' ? 'All mail' : pileOf(S.view).title, sub = S.view === 'all' ? 'Every email, sorted.' : pileOf(S.view).help;
+  var title = S.view === 'all' ? (S.f.acct && ACCOUNTS[S.f.acct] ? ACCOUNTS[S.f.acct].label + ' inbox' : 'All mail') : pileOf(S.view).title, sub = S.view === 'all' ? (S.f.acct ? 'Newest first. Tap one to open it.' : 'Every email, sorted.') : pileOf(S.view).help;
   var chats = Object.keys(CHAT_COLOURS);
   var h = '<section class="list">' + tabs() + '<div class="listhead"><div style="flex:1;min-width:0"><h1>' + title + '</h1><div class="sub">' + sub + '</div></div>'
     + (S.view === 'noise' && pileList('noise').length ? '<button class="btn sm" onclick="binNoise()">' + I.bin + 'Bin all</button>' : '')
