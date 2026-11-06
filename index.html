@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1793987852">
+<html lang="en" data-build="b1793988487">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1503,11 +1503,16 @@ function toggleIssue(k) { S.openIssue[k] = !S.openIssue[k]; render(); }
 function idsOf(g) { return (g.unread.length ? g.unread : g.items).map(function (e) { return e.id; }); }
 function setStatus(ids, st) { S.data.emails.forEach(function (e) { if (ids.indexOf(e.id) >= 0) e.status = st; }); remember(ids, st); }
 // What Owen just did wins over a reload that started before the server caught up (6 Nov 2026:
-// "I keep marking stuff as read and it keeps coming back"). Kept 10 minutes, this browser only.
-function remember(ids, st) { S.local = S.local || {}; var t = Date.now(); ids.forEach(function (id) { S.local[id] = { st:st, at:t }; }); }
+// "I keep marking stuff as read and it keeps coming back"). Kept 30 minutes, this browser only.
+function remember(ids, st) {
+  S.local = S.local || {}; var t = Date.now(); ids.forEach(function (id) { S.local[id] = { st:st, at:t }; });
+  // Kept across closing the page too, and the saved copy updated, so reopening never shows what was just dealt with.
+  try { localStorage.setItem('inbox-local', JSON.stringify(S.local)); } catch (e) {}
+  setTimeout(function () { if (S.data) saveCache(applyLocal(S.data)); }, 0);
+}
 function applyLocal(d) {
   var L = S.local || {}, t = Date.now(); if (!d || !d.emails) return d;
-  Object.keys(L).forEach(function (id) { if (t - L[id].at > 600000) delete L[id]; });
+  Object.keys(L).forEach(function (id) { if (t - L[id].at > 1800000) delete L[id]; });
   d.emails = d.emails.filter(function (e) { var l = L[e.id]; return !(l && l.st === 'gone'); });
   d.emails.forEach(function (e) { var l = L[e.id]; if (l && l.st !== 'gone') e.status = l.st; });
   return d;
@@ -1722,7 +1727,8 @@ setInterval(function () {
   var q = new URLSearchParams(location.search).get('k');
   if (q) { S.key = q; history.replaceState(null, '', location.pathname); }
   try { var tok = localStorage.getItem('inbox-id') || ''; if (tok && tokenExp(tok) > Date.now() + 60000) S.token = tok; } catch (e) {}
-  if (S.token || S.key) { var c = readCache(); if (c) { S.data = c; slackNames(); S.loading = false; S.stale = true; S.refreshing = true; render(); } load('load'); } else render();
+  try { S.local = JSON.parse(localStorage.getItem('inbox-local') || '{}'); } catch (e) { S.local = {}; }
+  if (S.token || S.key) { var c = readCache(); if (c) { S.data = applyLocal(c); slackNames(); S.loading = false; S.stale = true; S.refreshing = true; render(); } load('load'); } else render();
 })();
 </script>
 </body>
