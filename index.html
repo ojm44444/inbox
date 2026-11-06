@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794000183">
+<html lang="en" data-build="b1794000612">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -2003,6 +2003,8 @@ setInterval(function () {
 (function init() {
   try { var t = localStorage.getItem('inbox-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
   // ?k= is Claude's test key from Owen's Mac: this tab only, never stored.
+  // ?view=review opens straight on the Review page (the one link for all reviews).
+  var vw = new URLSearchParams(location.search).get('view'); if (vw === 'review') S.view = 'review';
   var q = new URLSearchParams(location.search).get('k');
   if (q) { S.key = q; history.replaceState(null, '', location.pathname); }
   try { var tok = localStorage.getItem('inbox-id') || ''; if (tok && tokenExp(tok) > Date.now() + 60000) S.token = tok; } catch (e) {}
