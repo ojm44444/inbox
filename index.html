@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1793985487">
+<html lang="en" data-build="b1793985503">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1506,8 +1506,10 @@ function applyLocal(d) {
 }
 // Marketing (Learn, Noise): marking one read marks every open email from that sender, in every inbox,
 // so the next one in a burst does not look like the same email coming back.
+// Never sweeps Owen's own addresses (his notes to himself, the band's forwards).
+var OWN_RE = /@wearetez\.com$|^wearetezband@gmail\.com$|^ojm221100@gmail\.com$|^songdraftsapp@gmail\.com$|@songdrafts\.com$|^omellettemusic@gmail\.com$|^owen@ridetandem\.co$/i;
 function widen(x) {
-  var froms = {}; S.data.emails.forEach(function (e) { if (x.indexOf(e.id) >= 0 && (e.category === 'learn' || e.category === 'noise') && e.account !== 'slack' && e.from_email) froms[String(e.from_email).toLowerCase()] = true; });
+  var froms = {}; S.data.emails.forEach(function (e) { if (x.indexOf(e.id) >= 0 && (e.category === 'learn' || e.category === 'noise') && e.account !== 'slack' && e.from_email && !OWN_RE.test(e.from_email)) froms[String(e.from_email).toLowerCase()] = true; });
   // Learn keeps series (Sabri's) for the Reading list, so there only the last two days' burst goes with it.
   var cut = Date.now() - 2 * 86400000;
   S.data.emails.forEach(function (e) { if (e.status === 'open' && (e.category === 'noise' || (e.category === 'learn' && Date.parse(e.received_at) > cut)) && froms[String(e.from_email || '').toLowerCase()] && x.indexOf(e.id) < 0) x.push(e.id); });
