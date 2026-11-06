@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1793980642">
+<html lang="en" data-build="b1793981278">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1390,7 +1390,7 @@ function mailDetail(g) {
   if (replyable && !composing) h += '<button class="btn' + (g.pile === 'reply' || g.pile === 'chase' ? ' pri' : '') + '" onclick="startReply()">' + I.reply + 'Reply<kbd>R</kbd></button>'
     + '<button class="btn ghost" onclick="writeD()" ' + (S.busy ? 'disabled' : '') + '>' + I.spark + (S.busy === 'write' ? 'Writing…' : chase ? 'Write a nudge' : 'Write it for me') + '</button>';
   var slack = e.account === 'slack', toChat = !(g.pile === 'reply' || g.pile === 'chase');
-  h += (read ? '<button class="btn" onclick="markUnread()">' + I.dotc + 'Mark unread<kbd>U</kbd></button>' : '<button class="btn' + (replyable ? '' : ' pri') + '" title="E" onclick="markRead()">' + I.check + (chase ? 'Dismiss' : 'Mark read') + '</button>') + '<button class="btn ghost" title="Gone from here for good, even from All (D)" onclick="doneWith()">' + I.check + 'Done with</button>'
+  h += (read ? '<button class="btn" onclick="markUnread()">' + I.dotc + 'Mark unread<kbd>U</kbd></button>' : '<button class="btn' + (replyable ? '' : ' pri') + '" title="E" onclick="markRead()">' + I.check + (chase ? 'Dismiss' : 'Mark read') + '</button>') + '<button class="btn ghost" title="Gone from here for good, even from All (D)" onclick="doneWith()">' + I.check + 'Done with</button>' + (g.pile === 'noise' ? '<button class="btn" title="Moves it to Reply, and this sender never goes in Noise again" onclick="movePile(\'reply\')">Not noise</button>' : '')
     + (toChat ? '<button class="btn ghost" onclick="sendToChat(\'' + g.id + '\')">' + I.send + 'Send to chat</button>' : '')
     + (slack ? '' : '<button class="btn ghost" title="Copy the whole email, pictures and formatting, to paste into Claude" onclick="copyEmail(\'' + e.id + '\')">' + I.copy + 'Copy</button>')
     + '<span style="flex:1"></span>'
@@ -1502,7 +1502,16 @@ function fail(e) { S.busy = ''; render(); toast(e.message, true); }
 function markRead() { var g = current(); if (!g) return; var x = idsOf(g); setStatus(x, 'done'); afterChange(x.length > 1 ? x.length + ' marked read' : 'Marked read'); api('markRead', { ids:x }).catch(function (e) { setStatus(x, 'open'); fail(e); }); }
 function doneWith(ids) { var g = current(); var x = ids || (g ? g.items.map(function (e) { return e.id; }) : []); if (!x.length) return; S.data.emails = S.data.emails.filter(function (e) { return x.indexOf(e.id) < 0; }); S.sel = {}; afterChange(x.length > 1 ? x.length + ' done with' : 'Done with'); api('doneWith', { ids:x }).catch(fail); }
 // Noise is marketing with nothing in it: one press bins the lot (Gmail's bin, back for 30 days).
-function binNoise() { var x = []; pileList('noise').forEach(function (g) { g.items.forEach(function (e) { if (e.account !== 'slack') x.push(e.id); }); }); if (!x.length) return; if (!confirm('Bin all ' + x.length + ' marketing emails in Noise? They go to Gmail\'s bin and can be got back for 30 days.')) return; S.data.emails = S.data.emails.filter(function (e) { return x.indexOf(e.id) < 0; }); afterChange(x.length + ' binned'); for (var i = 0; i < x.length; i += 100) api('bin', { ids:x.slice(i, i + 100) }).catch(fail); }
+function binNoise() {
+  var x = []; pileList('noise').forEach(function (g) { g.items.forEach(function (e) { if (e.account !== 'slack') x.push(e.id); }); }); if (!x.length) return;
+  if (!confirm('Bin the marketing and robot emails in Noise? Anything from a person, from you or from work is kept. Binned ones can be got back from Gmail\'s bin for 30 days.')) return;
+  toast('Binning…');
+  var chunks = []; for (var i = 0; i < x.length; i += 100) chunks.push(x.slice(i, i + 100));
+  Promise.all(chunks.map(function (c) { return api('binNoise', { ids:c }); })).then(function (rs) {
+    var gone = [], kept = 0; rs.forEach(function (r) { gone = gone.concat(r.binned || []); kept += r.kept || 0; });
+    S.data.emails = S.data.emails.filter(function (e) { return gone.indexOf(e.id) < 0; }); afterChange(gone.length + ' binned' + (kept ? ', ' + kept + ' from people kept' : ''));
+  }).catch(fail);
+}
 function markUnread() { var g = current(); if (!g) return; var x = g.items.map(function (e) { return e.id; }); setStatus(x, 'open'); S.busy = ''; render(); toast('Marked unread'); api('markUnread', { ids:x }).catch(fail); }
 function binOne() { var g = current(); if (!g) return; var x = g.items.map(function (e) { return e.id; }); if (!confirm('Bin this? It goes to Gmail\'s bin and can be got back for 30 days.')) return; S.data.emails = S.data.emails.filter(function (e) { return x.indexOf(e.id) < 0; }); afterChange('Binned'); api('bin', { ids:x }).catch(fail); }
 // Slack can't take a draft from here, so the reply goes on the clipboard and Slack opens on the conversation.
