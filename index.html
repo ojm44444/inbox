@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1793997286">
+<html lang="en" data-build="b1794000183">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -14,7 +14,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%236d6af5'/%3E%3Cpath d='M16 34h8l4 6h8l4-6h8' stroke='white' stroke-width='4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M18 20h28l4 14v10a2 2 0 0 1-2 2H16a2 2 0 0 1-2-2V34z' stroke='white' stroke-width='4' fill='none' stroke-linejoin='round'/%3E%3C/svg%3E">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg:#0b0c0f; --side:#0e0f13; --panel:#131419; --raise:#1a1b21; --hover:#1c1d24; --sel:#22233a;
@@ -490,6 +490,75 @@ a.iconbtn { display:inline-grid; place-items:center; color:inherit; }
 .hgrid .mini .t .acct { margin-left:4px; vertical-align:1px; }
 @media (max-width:1250px) { .hgrid { grid-template-columns:repeat(2, minmax(0,1fr)); } .hgrid .hcol:last-child { grid-column:1 / -1; display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:16px; align-items:start; } }
 @media (max-width:800px) { .hgrid, .hgrid .hcol:last-child { grid-template-columns:minmax(0,1fr); } .hgrid .hcol:last-child { grid-column:auto; } .hgrid .box { max-height:none; } .pills { width:100%; } }
+/* One review home (7 Nov 2026): the songdrafts /review look, paper card and serif titles. */
+.hubpage { --hp:#f3efe6; --hcard:#fbf9f4; --hink:#1d2426; --hdim:#5d6662; --hline:#e2dccf; --hgreen:#2f7d5b; --hyes:#1d2426; --hyesfg:#fbf9f4; background:var(--hp); color:var(--hink); }
+:root:not([data-theme="light"]) .hubpage { --hp:#121a1c; --hcard:#18222a; --hink:#eef0ea; --hdim:#9aa6a1; --hline:#26323a; --hgreen:#7fd1a8; --hyes:#eef0ea; --hyesfg:#121a1c; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .hubpage { --hp:#f3efe6; --hcard:#fbf9f4; --hink:#1d2426; --hdim:#5d6662; --hline:#e2dccf; --hgreen:#2f7d5b; --hyes:#1d2426; --hyesfg:#fbf9f4; } }
+.hub { max-width:720px; margin:0 auto; padding-bottom:40px; }
+.hubkick, .hublab, .hubprog span, .hubtag { font:500 11px/1.4 "IBM Plex Mono",ui-monospace,Menlo,monospace; letter-spacing:.14em; text-transform:uppercase; }
+.hubkick { color:var(--hgreen); margin-top:6px; }
+.hubh1 { font:400 clamp(34px,6vw,48px)/1.05 "Instrument Serif",Georgia,serif; margin:8px 0 10px; letter-spacing:0; }
+.hublede { color:var(--hdim); font-size:15px; line-height:1.55; margin:0 0 18px; }
+.hublede b { color:var(--hink); font-weight:600; }
+.hubchips { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
+.hubchip { display:inline-flex; align-items:center; gap:7px; border:1px solid var(--hline); background:var(--hcard); color:var(--hink); border-radius:99px; padding:7px 13px; font:500 13px Inter,sans-serif; cursor:pointer; }
+.hubchip em { font-style:normal; color:var(--hdim); font-variant-numeric:tabular-nums; }
+.hubchip.on { background:var(--hyes); color:var(--hyesfg); border-color:var(--hyes); }
+.hubchip.on em { color:inherit; opacity:.7; }
+.hubdot { width:8px; height:8px; border-radius:50%; background:var(--c); display:inline-block; flex:none; }
+.hubsep { display:inline-block; width:12px; }
+.hubcard { background:var(--hcard); border:1px solid var(--hline); border-radius:18px; padding:20px 22px 22px; box-shadow:0 1px 0 rgba(0,0,0,.02), 0 12px 30px -18px rgba(0,0,0,.25); }
+.hubcard.empty p { color:var(--hdim); font-size:15px; margin:0; }
+.hubprog { display:flex; align-items:center; gap:12px; color:var(--hdim); margin-bottom:16px; }
+.hubprog i { flex:1; height:4px; border-radius:4px; background:var(--hline); overflow:hidden; }
+.hubprog b { display:block; height:100%; background:var(--hgreen); border-radius:4px; }
+.hubtag { display:flex; align-items:center; gap:7px; color:var(--hgreen); margin-bottom:6px; }
+.hubtitle { font:400 clamp(26px,4.4vw,36px)/1.1 "Instrument Serif",Georgia,serif; margin:0 0 14px; letter-spacing:0; }
+.hublab { color:var(--hgreen); margin:14px 0 4px; }
+.hubcard p { margin:0; font-size:15px; line-height:1.55; white-space:pre-line; }
+.hubpics { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; margin:18px 0 4px; }
+.hubpics.one { grid-template-columns:1fr; }
+.hubpic { margin:0; border-radius:14px; overflow:hidden; background:#121a1c; cursor:zoom-in; border:1px solid var(--hline); }
+.hubpic img { display:block; width:100%; height:auto; }
+.hubpic figcaption { font-size:12.5px; color:var(--hdim); padding:7px 10px; background:var(--hcard); }
+.hubbadge { display:flex; align-items:center; gap:8px; padding:8px; color:#eef0ea; font-size:13px; }
+.hubbadge b { background:#fbf9f4; color:#121a1c; border-radius:7px; padding:2px 8px; font:600 15px Inter,sans-serif; letter-spacing:.02em; }
+.hubmore { margin-top:14px; border-top:1px solid var(--hline); padding-top:10px; }
+.hubmore summary { cursor:pointer; color:var(--hdim); font-size:13px; }
+.hubmore p { margin-top:8px; color:var(--hdim); font-size:14px; }
+.hubown { margin-top:12px !important; font-size:13px !important; color:var(--hdim); }
+.hublinks, .hubacts { display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; }
+.hubacts { padding-top:16px; border-top:1px solid var(--hline); }
+.hubbtn { display:inline-flex; align-items:center; border:1px solid var(--hline); background:transparent; color:var(--hink); border-radius:99px; padding:9px 16px; font:600 14px Inter,sans-serif; cursor:pointer; text-decoration:none; }
+.hubbtn:hover { border-color:var(--hdim); }
+.hubbtn.yes { background:var(--hyes); color:var(--hyesfg); border-color:var(--hyes); }
+.hubbtn.ghost { font-weight:500; color:var(--hdim); }
+.hubnote { display:flex; flex-direction:column; gap:8px; margin-top:12px; align-items:flex-start; }
+.hubnote textarea { width:100%; box-sizing:border-box; min-height:80px; border:1px solid var(--hline); border-radius:12px; background:var(--hp); color:var(--hink); padding:10px 12px; font:14px/1.5 Inter,sans-serif; resize:vertical; }
+.hubsec { margin-top:26px; }
+.hubsec > summary { cursor:pointer; list-style:none; }
+.hubsec > summary::-webkit-details-marker { display:none; }
+.hubsec > summary::before { content:'▸ '; }
+.hubsec[open] > summary::before { content:'▾ '; }
+.hublab em { font-style:normal; color:var(--hdim); }
+.hubrow { display:flex; align-items:center; gap:10px; padding:10px 2px; border-bottom:1px solid var(--hline); color:var(--hink); text-decoration:none; cursor:pointer; font-size:14px; }
+.hubrow .t { flex:1; min-width:0; }
+.hubrow small { display:block; color:var(--hdim); font-size:12.5px; margin-top:2px; }
+.hubrow .m { color:var(--hdim); font-size:12.5px; white-space:nowrap; }
+.hubrow.dim { color:var(--hdim); cursor:default; }
+.hubnext { margin:10px 0 14px; }
+.hubnext ul { margin:6px 0 0; padding-left:18px; color:var(--hink); font-size:14px; line-height:1.55; }
+.hubnext small { color:var(--hdim); }
+.hubwarn { background:var(--hcard); border:1px dashed var(--hline); color:var(--hdim); border-radius:12px; padding:10px 14px; margin-bottom:12px; font-size:13.5px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.hubfoot { color:var(--hdim); font-size:13px; margin-top:28px; }
+.hubfoot a { color:var(--hgreen); }
+.hubzoom { position:fixed; inset:0; background:rgba(8,10,12,.88); z-index:60; display:flex; align-items:center; justify-content:center; gap:12px; padding:20px; cursor:zoom-out; }
+.hubzoom figure { margin:0; max-width:min(1100px,90vw); max-height:92vh; display:flex; flex-direction:column; gap:8px; }
+.hubzoom img { max-width:100%; max-height:84vh; object-fit:contain; border-radius:12px; }
+.hubzoom figcaption { color:#eef0ea; font-size:14px; }
+.hubzoom figcaption b { background:#fbf9f4; color:#121a1c; border-radius:6px; padding:1px 7px; margin-right:4px; }
+.hubzbtn { background:rgba(255,255,255,.12); color:#fff; border:0; border-radius:50%; width:44px; height:44px; font-size:26px; cursor:pointer; flex:none; }
+@media (max-width:700px) { .hubcard { padding:16px; border-radius:14px; } .hubpics { grid-template-columns:1fr 1fr; } .hubbtn { padding:9px 14px; } }
 </style>
 </head>
 <body>
@@ -708,7 +777,7 @@ function home() {
   var h = '<main class="home">' + tabs() + '<div class="hero2"><div style="min-width:0"><div class="day">' + day + '</div><h1 class="hello">' + hi + ', Owen</h1><div class="hellosub">' + (bits.length ? bits.join(' · ') + '.' : 'Inbox clear. Nice.') + '</div></div>'
     + '</div>'
     + '<div class="tiles">' + PILES.filter(function (p) { return p.key !== 'new'; }).map(function (p) { return '<div class="tile" style="--c:' + p.color + '" onclick="go(\'' + (p.key === 'learn' ? 'reading' : p.key) + '\')"><div class="lab"><span class="pico">' + PILE_ICON[p.key] + '</span>' + p.title + '</div><div class="num">' + unreadCount(p.key) + '</div><div class="hint">' + p.help + '</div></div>'; }).join('') + '</div>' + inboxStrip()
-    + askBar() + briefCard() + reviewHomeCard() + tezReviewCard() + '<div class="hgrid"><div class="hcol">' + tasksBox() + '</div><div class="hcol">';
+    + askBar() + briefCard() + reviewHomeCard() + '<div class="hgrid"><div class="hcol">' + tasksBox() + '</div><div class="hcol">';
   var people2 = pileList('reply').slice(0, 7);
   h += '<div class="box"><h3>' + I.pen + 'People waiting on you<span class="badge">' + pileList('reply').length + '</span><span style="flex:1"></span><button class="btn sm ghost" onclick="go(\'reply\')">All</button></h3>'
     + (people2.length ? people2.map(function (g) { var e = g.items[0]; return '<div class="mini" onclick="openFrom(\'reply\',\'' + g.id + '\')"><div class="av" title="Everything with them" style="background:' + hue(e.from_email) + '" onclick="event.stopPropagation();openPerson(\'' + esc(e.from_email || '') + '\')">' + esc(initials(e.from_name || e.from_email)) + '</div><div style="min-width:0"><div class="t">' + esc(e.from_name || e.from_email) + ' ' + acctTag(e.account) + '</div><div class="l3">' + esc(e.subject) + '</div></div><div class="s">' + ago(e.received_at) + '</div></div>'; }).join('') : '<div class="empty" style="padding:20px">No one waiting.</div>') + '</div>';
@@ -909,59 +978,174 @@ function inboxNav() {
     return '<button class="nav' + (S.view === 'all' && S.f.acct === a ? ' on' : '') + '" onclick="openInbox(\'' + a + '\')"><span class="dot" style="background:' + ACCOUNTS[a].color + '"></span>' + ACCOUNTS[a].label + '<span class="n">' + (by[a] || '') + '</span></button>';
   }).join('');
 }
-// ---- Review page (6 Nov 2026, Owen: like songdrafts.com/review: what is built, what is not, approve or change) ----
-// Claude writes the cards (app_settings inbox_review_items); Owen's taps land in inbox_review and Claude acts on them.
-function reviewData() { return (S.data && S.data.review) || { items:[], decisions:{} }; }
-function reviewNeeds() { var r = reviewData(); return r.items.filter(function (i) { var d = r.decisions[i.id]; return i.status === 'needs' && !d; }); }
-function reviewHomeCard() {
-  var n = reviewNeeds().length; if (!n) return '';
-  return '<div class="box rvhome" onclick="go(\'review\')">' + I.check + '<div style="flex:1"><b>' + n + ' thing' + (n === 1 ? '' : 's') + ' to review</b><div class="l3">What was built for you. Approve it, or say what to change.</div></div><button class="btn sm pri">Review</button></div>';
+// ---- One review home (7 Nov 2026, Owen: "why are they not in one place and pretty? songdrafts is the best example") ----
+// songdrafts, Moon and TEZ cards are pulled in live with his Google sign-in; each tap is saved back to that
+// project's own table (songdrafts review_decisions, Moon review_decisions, TEZ tez_review_decisions), so every
+// chat reads answers exactly as before. Inbox and Money cards stay in app_settings inbox_review_items.
+// RideTandem keeps its own page (company Google only).
+var HUB_SRC = {
+  songdrafts:{ name:'songdrafts', color:'#2fa36b', cards:'https://www.songdrafts.com/api/review-hub', saves:'https://ejwmspvewnkdcwtbofnc.supabase.co/functions/v1/review-hub' },
+  moon:{ name:'Moon', color:'#6d6af5', saves:'https://moon-dashboard-six.vercel.app/api/db' },
+  tez:{ name:'TEZ', color:'#e0533d', saves:'https://moon-dashboard-six.vercel.app/api/db' },
+  inbox:{ name:'Inbox and Money', color:'#c8902c' }
+};
+var HUB = { p:{}, at:0, busy:false };
+function hubPost(url, body) {
+  return freshToken().then(function () {
+    if (!S.token) throw new Error('Sign in with Google to see the other projects');
+    body.idToken = S.token;
+    return fetch(url, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body:JSON.stringify(body) });
+  }).then(function (r) { return r.json().then(function (j) { if (!r.ok || j.error) throw new Error(j.error || 'Could not reach it (' + r.status + ')'); return j; }); });
 }
-// TEZ review page lives in the Fan Hub (6 Nov 2026); here only the count and a link.
-var TEZRV = null;
-function tezReviewLoad() { fetch('https://fans.wearetez.com/api/review-count', { cache:'no-store' }).then(function (r) { return r.json(); }).then(function (j) { if (typeof j.waiting === 'number' && j.waiting !== TEZRV) { TEZRV = j.waiting; if (S.view === 'home') render(); } }).catch(function () {}); }
-function tezReviewCard() {
-  if (!TEZRV) return '';
-  return '<a class="box rvhome" style="text-decoration:none;color:inherit" target="_blank" rel="noopener" href="https://fans.wearetez.com/admin/review">' + I.check + '<div style="flex:1"><b>' + TEZRV + ' TEZ thing' + (TEZRV === 1 ? '' : 's') + ' to review</b><div class="l3">Fan Hub review page. Approve, or say what to change.</div></div><span class="btn sm pri">Open</span></a>';
+function hubLoad(force) {
+  if (HUB.busy || S.key || !S.token || (!force && Date.now() - HUB.at < 120000)) return;
+  HUB.busy = true;
+  var sd = Promise.all([hubPost(HUB_SRC.songdrafts.cards, {}), hubPost(HUB_SRC.songdrafts.saves, {})]).then(function (a) {
+    var D = {}; (a[1].decisions || []).forEach(function (d) { D[d.item_id] = { decision:d.decision, note:d.note || '', at:d.decided_at }; });
+    var titles = {}; a[0].cards.forEach(function (c) { titles[c.id] = c.title; });
+    HUB.p.songdrafts = { page:a[0].page, cards:a[0].cards, next:a[0].next || [], extra:[], decisions:D,
+      answered:(a[1].decisions || []).filter(function (d) { return titles[d.item_id]; }).slice(0, 30).map(function (d) { return { id:d.item_id, title:titles[d.item_id], decision:d.decision, note:d.note || '', at:d.decided_at }; }) };
+  }).catch(function (e) { HUB.p.songdrafts = { error:e.message }; });
+  var mt = hubPost(HUB_SRC.moon.saves, { kind:'reviewHub' }).then(function (j) {
+    (j.projects || []).forEach(function (p) {
+      if (p.error) { HUB.p[p.project] = { error:p.error }; return; }
+      var D = {}; Object.keys(p.decisions || {}).forEach(function (k) { var d = p.decisions[k]; D[k] = { decision:d.decision, note:d.choice || d.note || '', at:d.decided_at }; });
+      HUB.p[p.project] = { page:p.page, cards:p.waiting, next:p.next || [], extra:p.extra || [], answered:p.answered || [], decisions:D };
+    });
+  }).catch(function (e) { HUB.p.moon = { error:e.message }; HUB.p.tez = { error:e.message }; });
+  Promise.all([sd, mt]).then(function () { HUB.busy = false; HUB.at = Date.now(); if (S.view === 'review' || S.view === 'home') render(); });
+}
+// Every card, one shape: { pid, id, title, tag, day, what, why, ask, detail, pics, links, options, own, typed, try }
+function hubInbox() {
+  var r = reviewData();
+  return r.items.filter(function (i) { return i.status === 'needs' && !r.decisions[i.id]; }).map(function (i) {
+    return { pid:'inbox', id:i.id, title:i.title, tag:i.area === 'money' ? 'Money' : (i.where || 'Inbox'), what:i.check || '', ask:i.ask ? 'Type your answer.' : i.options ? 'Pick one.' : 'Try it, then Approve or say what to change.', options:i.options, typed:!!i.ask, try:i.try };
+  });
+}
+function hubWaiting(pid) {
+  if (pid === 'inbox') return hubInbox();
+  var p = HUB.p[pid]; if (!p || !p.cards) return [];
+  return p.cards.filter(function (c) { return !p.decisions[c.id]; }).map(function (c) { var o = Object.assign({}, c); o.pid = pid; return o; });
+}
+function hubPids() { return ['songdrafts', 'moon', 'tez', 'inbox']; }
+function hubAll() {
+  var skip = S.rvSkip || [], f = S.rvP || 'all', out = [];
+  if (f !== 'all') out = hubWaiting(f);
+  else {
+    // Round robin, so one big project never buries the others.
+    var lists = hubPids().map(hubWaiting), n = Math.max.apply(null, lists.map(function (l) { return l.length; }).concat([0]));
+    for (var k = 0; k < n; k++) lists.forEach(function (l) { if (l[k]) out.push(l[k]); });
+  }
+  return out.filter(function (c) { return skip.indexOf(c.pid + ':' + c.id) < 0; }).concat(out.filter(function (c) { return skip.indexOf(c.pid + ':' + c.id) >= 0; }));
+}
+function reviewData() { return (S.data && S.data.review) || { items:[], decisions:{} }; }
+function reviewNeeds() { return hubPids().reduce(function (a, p) { return a.concat(hubWaiting(p)); }, []); }
+function reviewHomeCard() {
+  hubLoad();
+  var n = reviewNeeds().length; if (!n) return '';
+  var per = hubPids().map(function (p) { var k = hubWaiting(p).length; return k ? '<span class="hubdot" style="--c:' + HUB_SRC[p].color + '"></span>' + esc(HUB_SRC[p].name) + ' ' + k : ''; }).filter(Boolean).join('<span class="hubsep"></span>');
+  return '<div class="box rvhome" onclick="go(\'review\')">' + I.check + '<div style="flex:1"><b>' + n + ' thing' + (n === 1 ? '' : 's') + ' to review</b><div class="l3">' + per + '</div></div><button class="btn sm pri">Review</button></div>';
 }
 function reviewTry(t) { if (!t) return; if (/^all:/.test(t)) openInbox(t.slice(4)); else if (t === 'notes') { S.view = 'notes'; render(); } else go(t); }
-function reviewCard(i, d) {
-  var said = d ? (d.decision === 'approved' ? 'You approved this ' + ago(d.at) + ' ago.' : d.decision === 'pick' ? 'You picked: ' + esc(d.note) : d.decision === 'change' ? (i.ask ? 'You answered ' : 'You asked ') + ago(d.at) + ' ago: ' + esc(d.note) : '') : '';
-  var h = '<div class="rvc' + (d && d.decision === 'approved' ? ' done' : '') + '"><h3>' + esc(i.title) + '<span class="where">' + esc(i.where || '') + '</span></h3><p>' + esc(i.check || '') + '</p>' + (said ? '<p class="said">' + said + '</p>' : '');
-  if (i.status === 'needs') {
-    // ask cards (money chat) want typed numbers, not Approve: one Answer button opens the box.
-    h += '<div class="acts">' + (i.ask ? '<button class="btn pri" onclick="S.rvNote=S.rvNote===\'' + i.id + '\'?null:\'' + i.id + '\';render()">Answer</button>' : i.options ? i.options.map(function (o) { return '<button class="btn' + (d && d.note === o ? ' pri' : '') + '" onclick="reviewPick(\'' + i.id + '\',' + esc(JSON.stringify(o)) + ')">' + esc(o) + '</button>'; }).join('')
-      : '<button class="btn pri" onclick="reviewDecide(\'' + i.id + '\',\'approved\')">Approve</button><button class="btn" onclick="S.rvNote=S.rvNote===\'' + i.id + '\'?null:\'' + i.id + '\';render()">Change</button>')
-      + (i.try ? '<button class="btn ghost" onclick="reviewTry(\'' + i.try + '\')">Try it</button>' : '') + '</div>';
-    if (S.rvNote === i.id) h += '<textarea id="rvtext" placeholder="' + (i.ask ? 'Your answer' : 'What should change?') + '"></textarea><button class="btn pri" onclick="reviewDecide(\'' + i.id + '\',\'change\')">Send</button>';
-  }
-  return h + '</div>';
+function hubPic(p, n, key) {
+  return '<figure class="hubpic" onclick="S.rvZoom=' + esc(JSON.stringify(key + ':' + n)) + ';render()">'
+    + (p.badge ? '<div class="hubbadge"><b>' + esc(p.badge) + '</b>' + (p.what ? '<span>' + esc(p.what) + '</span>' : '') + '</div>' : '')
+    + '<img loading="lazy" src="' + esc(p.src) + '" alt="">' + (!p.badge && p.what ? '<figcaption>' + esc(p.what) + '</figcaption>' : '') + '</figure>';
+}
+function hubCard(c, pos, total) {
+  var src = HUB_SRC[c.pid], key = c.pid + ':' + c.id, page = (HUB.p[c.pid] || {}).page, js = esc(JSON.stringify(key));
+  var h = '<article class="hubcard">'
+    + '<div class="hubprog"><span>Card ' + pos + ' of ' + total + '</span><i><b style="width:' + Math.max(2, Math.round(pos / total * 100)) + '%"></b></i></div>'
+    + '<div class="hubtag"><span class="hubdot" style="--c:' + src.color + '"></span>' + esc(src.name) + (c.tag ? ' · ' + esc(c.tag) : '') + (c.day ? ' · ' + esc(c.day) : '') + '</div>'
+    + '<h2 class="hubtitle">' + esc(c.title) + '</h2>'
+    + (c.what ? '<div class="hublab">What it is</div><p>' + esc(c.what) + '</p>' : '')
+    + (c.why ? '<div class="hublab">Why it matters</div><p>' + esc(c.why) + '</p>' : '')
+    + (c.ask ? '<div class="hublab">What I need from you</div><p>' + esc(c.ask) + '</p>' : '');
+  if (c.pics && c.pics.length) h += '<div class="hubpics' + (c.pics.length === 1 ? ' one' : '') + '">' + c.pics.map(function (p, n) { return hubPic(p, n, key); }).join('') + '</div>';
+  if (c.detail && c.detail !== c.what) h += '<details class="hubmore"><summary>More detail</summary><p>' + esc(c.detail) + '</p></details>';
+  if (c.own) h += '<p class="hubown">' + esc(c.own) + '</p>';
+  var links = (c.links || []).map(function (l) { return '<a class="hubbtn ghost" target="_blank" rel="noopener" href="' + esc(l.href) + '">' + esc(l.label) + ' ↗</a>'; }).join('');
+  if (c.try) links += '<button class="hubbtn ghost" onclick="reviewTry(\'' + esc(c.try) + '\')">Try it</button>';
+  if (links) h += '<div class="hublinks">' + links + '</div>';
+  var noting = S.rvNote === key;
+  h += '<div class="hubacts">'
+    + (c.typed ? '<button class="hubbtn yes" onclick="S.rvNote=' + js + ';render()">Answer</button>'
+      : c.options ? c.options.map(function (o) { return '<button class="hubbtn yes" onclick="hubDecide(' + js + ',\'pick\',' + esc(JSON.stringify(o)) + ')">' + esc(o) + '</button>'; }).join('')
+      : '<button class="hubbtn yes" onclick="hubDecide(' + js + ',\'approved\')">Approve</button>')
+    + (c.typed ? '' : '<button class="hubbtn" onclick="S.rvNote=S.rvNote===' + js + '?null:' + js + ';render()">' + (c.options ? 'Something else' : 'Change') + '</button>')
+    + '<button class="hubbtn ghost" onclick="hubSkip(' + js + ')">Ask me later</button>'
+    + (page ? '<a class="hubbtn ghost" target="_blank" rel="noopener" href="' + esc(page) + '">Open in ' + esc(src.name) + ' ↗</a>' : '')
+    + '</div>';
+  if (noting) h += '<div class="hubnote"><textarea id="rvtext" placeholder="' + (c.typed ? 'Your answer' : 'What should change?') + '"></textarea><button class="hubbtn yes" onclick="hubDecide(' + js + ',\'change\')">Send</button></div>';
+  return h + '</article>';
+}
+function hubZoom() {
+  if (!S.rvZoom) return '';
+  var m = /^(.*):(\d+)$/.exec(S.rvZoom), key = m[1], n = +m[2], pid = key.split(':')[0], id = key.slice(pid.length + 1);
+  var c = hubWaiting(pid).filter(function (x) { return x.id === id; })[0]; if (!c || !c.pics || !c.pics[n]) return '';
+  var p = c.pics[n], nav = function (d) { return '<button class="hubzbtn" onclick="event.stopPropagation();S.rvZoom=' + esc(JSON.stringify(key + ':' + ((n + d + c.pics.length) % c.pics.length))) + ';render()">' + (d < 0 ? '‹' : '›') + '</button>'; };
+  return '<div class="hubzoom" onclick="S.rvZoom=null;render()">' + (c.pics.length > 1 ? nav(-1) : '') + '<figure>' + (p.badge || p.what ? '<figcaption>' + (p.badge ? '<b>' + esc(p.badge) + '</b> ' : '') + esc(p.what || '') + '</figcaption>' : '') + '<img src="' + esc(p.src) + '" alt=""></figure>' + (c.pics.length > 1 ? nav(1) : '') + '</div>';
+}
+function hubSkip(key) { S.rvSkip = (S.rvSkip || []).filter(function (k) { return k !== key; }).concat([key]); S.rvNote = null; render(); }
+function hubDecide(key, decision, pick) {
+  var pid = key.split(':')[0], id = key.slice(pid.length + 1);
+  var note = decision === 'pick' ? pick : decision === 'change' ? ((document.getElementById('rvtext') || {}).value || '').trim() : '';
+  if (decision === 'change' && !note) { toast('Say what to change first', true); return; }
+  if (pid === 'inbox') { reviewSave(id, decision, note); return; }
+  var p = HUB.p[pid], prev = p.decisions[id];
+  p.decisions[id] = { decision:decision, note:note, at:new Date().toISOString() }; S.rvNote = null; render();
+  var body = pid === 'songdrafts' ? { op:'decide', item_id:id, decision:decision, note:note } : { kind:'reviewHub', op:'decide', project:pid, item_id:id, decision:decision, note:note };
+  hubPost(HUB_SRC[pid].saves, body).then(function () {
+    toast(decision === 'change' ? 'Saved. ' + HUB_SRC[pid].name + ' will act on it' : 'Saved to ' + HUB_SRC[pid].name);
+    var c = (p.cards || []).filter(function (x) { return x.id === id; })[0];
+    if (c) p.answered = [{ id:id, title:c.title, decision:decision === 'pick' ? 'approved' : decision, note:note, at:new Date().toISOString() }].concat(p.answered || []);
+    render();
+  }).catch(function (e) { if (prev) p.decisions[id] = prev; else delete p.decisions[id]; render(); toast('Not saved: ' + e.message, true); });
 }
 function reviewView() {
-  var r = reviewData(), D = r.decisions, area = S.rvArea || 'all';
-  // Money cards come from the money chat (area 'money'); the switch shows them alone or with the rest.
-  var by = function (f) { return r.items.filter(function (i) { return (area === 'all' || (area === 'money') === (i.area === 'money')) && f(i); }); };
-  var seg = '<div class="seg rvseg">' + [['all', 'Everything'], ['money', 'Money'], ['tools', 'Tools']].map(function (a) { return '<button class="' + (area === a[0] ? 'on' : '') + '" onclick="S.rvArea=\'' + a[0] + '\';render()">' + a[1] + '</button>'; }).join('') + '</div>';
-  var needs = by(function (i) { return i.status === 'needs' && !D[i.id]; });
-  var changing = by(function (i) { return D[i.id] && D[i.id].decision === 'change'; });
-  var working = by(function (i) { return i.status === 'working' && !(D[i.id] && D[i.id].decision === 'change'); });
-  var approved = by(function (i) { return D[i.id] && (D[i.id].decision === 'approved' || D[i.id].decision === 'pick'); });
-  var next = by(function (i) { return i.status === 'next'; });
-  var sec = function (t, l, extra) { return l.length ? '<h2>' + t + '<span class="badge">' + l.length + '</span></h2>' + (extra || '') + l.map(function (i) { return reviewCard(i, D[i.id]); }).join('') : ''; };
-  var notes = Object.keys(D).filter(function (k) { return /^note-/.test(k); }).sort().reverse().slice(0, 5);
-  return '<main class="home">' + tabs() + '<div class="rv"><div class="day">Your review page</div><h1 class="hello">What I built, and what is next</h1><div class="hellosub">Approve it, or say what to change. Nothing changes from a tap on its own: I read your answers and act.</div>' + seg
-    + (needs.length ? sec('Needs you', needs) : '<h2>Needs you</h2><div class="rvc"><p>Nothing waiting for you. Nice.</p></div>')
-    + sec('Changes being worked on', changing) + sec('Being built now', working) + sec('Coming next', next) + sec('Approved', approved)
-    + '<h2>Something else on your mind?</h2><div class="rvc note"><textarea id="rvgeneral" placeholder="Any note, about anything. I read it and act."></textarea><button class="btn pri" onclick="reviewNote()">Send</button>'
-    + (notes.length ? '<p style="margin-top:12px">' + notes.map(function (k) { return 'You said ' + ago(D[k].at) + ' ago: ' + esc(D[k].note); }).join('<br>') + '</p>' : '') + '</div></div></main>';
+  hubLoad();
+  var f = S.rvP || 'all', all = hubAll(), c = all[0], total = reviewNeeds().length;
+  var chip = function (pid, label, n, color) { return '<button class="hubchip' + (f === pid ? ' on' : '') + '" onclick="S.rvP=\'' + pid + '\';S.rvNote=null;render()">' + (color ? '<span class="hubdot" style="--c:' + color + '"></span>' : '') + esc(label) + '<em>' + n + '</em></button>'; };
+  var chips = '<div class="hubchips">' + chip('all', 'Everything', total) + hubPids().map(function (p) { return chip(p, HUB_SRC[p].name, hubWaiting(p).length, HUB_SRC[p].color); }).join('') + '</div>';
+  var errs = hubPids().filter(function (p) { return HUB.p[p] && HUB.p[p].error; }).map(function (p) { return '<div class="hubwarn">' + esc(HUB_SRC[p].name) + ' did not load: ' + esc(HUB.p[p].error) + ' <button class="hubbtn ghost" onclick="hubLoad(true)">Try again</button></div>'; }).join('');
+  var loading = !HUB.at && HUB.busy ? '<div class="hubwarn">Getting songdrafts, Moon and TEZ…</div>' : '';
+  var lead = total ? '<b>' + total + ' thing' + (total === 1 ? '' : 's') + ' need' + (total === 1 ? 's' : '') + ' you</b>' : '<b>Nothing needs you</b>';
+  var h = '<main class="home hubpage">' + tabs() + '<div class="hub">'
+    + '<div class="hubkick">Review</div><h1 class="hubh1">Your review page</h1>'
+    + '<p class="hublede">' + lead + ' across every project. One card at a time: read the three lines, tap a button, or type what to change. Nothing changes from a tap on its own; the chat that owns it acts.</p>'
+    + chips + loading + errs;
+  if (c) {
+    h += hubCard(c, 1, all.length);
+    var upnext = all.slice(1, 6);
+    if (upnext.length) h += '<div class="hubsec"><div class="hublab">Up next</div>' + upnext.map(function (x) { return '<div class="hubrow" onclick="hubSkipTo(' + esc(JSON.stringify(x.pid + ':' + x.id)) + ')"><span class="hubdot" style="--c:' + HUB_SRC[x.pid].color + '"></span><span class="t">' + esc(x.title) + '</span><span class="m">' + esc(HUB_SRC[x.pid].name) + '</span></div>'; }).join('') + (all.length > 6 ? '<div class="hubrow dim">and ' + (all.length - 6) + ' more</div>' : '') + '</div>';
+  } else if (HUB.at || !S.token) h += '<article class="hubcard empty"><h2 class="hubtitle">All caught up</h2><p>Nothing waits on you' + (f === 'all' ? '' : ' in ' + esc(HUB_SRC[f].name)) + '. New cards land here as each chat finishes work.</p></article>';
+  // Things to do inside a tool (Moon's Approve page, the section test): a link each.
+  var extra = hubPids().filter(function (p) { return f === 'all' || f === p; }).reduce(function (a, p) { return a.concat(((HUB.p[p] || {}).extra || []).map(function (x) { x.pid = p; return x; })); }, []);
+  if (extra.length) h += '<div class="hubsec"><div class="hublab">To do inside the tools</div>' + extra.map(function (x) { return '<a class="hubrow" target="_blank" rel="noopener" href="' + esc(x.href || '#') + '"><span class="hubdot" style="--c:' + HUB_SRC[x.pid].color + '"></span><span class="t">' + esc(x.title) + '<small>' + esc((x.lines || []).join(' · ')) + '</small></span><span class="m">' + esc(x.button || 'Open') + ' ↗</span></a>'; }).join('') + '</div>';
+  var ans = hubPids().filter(function (p) { return f === 'all' || f === p; }).reduce(function (a, p) {
+    if (p === 'inbox') { var r = reviewData(); return a.concat(r.items.filter(function (i) { return r.decisions[i.id]; }).map(function (i) { var d = r.decisions[i.id]; return { pid:p, title:i.title, decision:d.decision, note:d.note, at:d.at }; })); }
+    return a.concat(((HUB.p[p] || {}).answered || []).map(function (x) { x.pid = p; return x; }));
+  }, []).sort(function (a, b) { return a.at < b.at ? 1 : -1; });
+  var changing = ans.filter(function (x) { return x.decision === 'change'; }).slice(0, 12), done = ans.filter(function (x) { return x.decision !== 'change'; }).slice(0, 12);
+  var row = function (x) { return '<div class="hubrow"><span class="hubdot" style="--c:' + HUB_SRC[x.pid].color + '"></span><span class="t">' + esc(x.title) + (x.note ? '<small>' + (x.decision === 'change' ? 'You said: ' : 'Your pick: ') + esc(x.note) + '</small>' : '') + '</span><span class="m">' + ago(x.at) + ' ago</span></div>'; };
+  if (changing.length) h += '<details class="hubsec" open><summary class="hublab">Changes you asked for <em>' + changing.length + '</em></summary>' + changing.map(row).join('') + '</details>';
+  if (done.length) h += '<details class="hubsec"><summary class="hublab">You approved <em>' + done.length + '</em></summary>' + done.map(row).join('') + '</details>';
+  var nexts = hubPids().filter(function (p) { return (f === 'all' || f === p) && p !== 'inbox'; }).map(function (p) { var l = (HUB.p[p] || {}).next || []; return l.length ? '<div class="hubnext"><div class="hubtag"><span class="hubdot" style="--c:' + HUB_SRC[p].color + '"></span>' + esc(HUB_SRC[p].name) + '</div><ul>' + l.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul></div>' : ''; }).join('');
+  var r0 = reviewData(), inboxNext = (f === 'all' || f === 'inbox') ? r0.items.filter(function (i) { return i.status === 'next' || i.status === 'working'; }) : [];
+  if (inboxNext.length) nexts += '<div class="hubnext"><div class="hubtag"><span class="hubdot" style="--c:' + HUB_SRC.inbox.color + '"></span>Inbox and Money</div><ul>' + inboxNext.map(function (i) { return '<li>' + esc(i.title) + (i.status === 'working' ? ' <small>being built</small>' : '') + '</li>'; }).join('') + '</ul></div>';
+  if (nexts) h += '<details class="hubsec"><summary class="hublab">Asked for, not built yet</summary>' + nexts + '</details>';
+  var D = r0.decisions, notes = Object.keys(D).filter(function (k) { return /^note-/.test(k); }).sort().reverse().slice(0, 5);
+  h += '<div class="hubsec"><div class="hublab">Something else on your mind?</div><div class="hubnote"><textarea id="rvgeneral" placeholder="Any note, about anything. I read it and act."></textarea><button class="hubbtn yes" onclick="reviewNote()">Send</button></div>'
+    + (notes.length ? notes.map(function (k) { return '<div class="hubrow"><span class="t"><small>You said ' + ago(D[k].at) + ' ago: ' + esc(D[k].note) + '</small></span></div>'; }).join('') : '') + '</div>'
+    + '<p class="hubfoot">RideTandem has its own page, kept on company Google: <a target="_blank" rel="noopener" href="https://ridetandem-operator-map.web.app/review">open it ↗</a></p>';
+  return h + '</div>' + hubZoom() + '</main>';
 }
+function hubSkipTo(key) { var all = hubAll(), i = all.map(function (c) { return c.pid + ':' + c.id; }).indexOf(key); if (i > 0) { S.rvSkip = (S.rvSkip || []).concat(all.slice(0, i).map(function (c) { return c.pid + ':' + c.id; })); } S.rvNote = null; render(); var m = document.querySelector('.hubpage'); if (m) m.scrollTop = 0; }
 function reviewSave(id, decision, note) {
   var r = reviewData(); r.decisions[id] = { decision:decision, note:note || '', at:new Date().toISOString() }; S.rvNote = null; render();
   toast(decision === 'approved' ? 'Approved' : decision === 'note' ? 'Sent' : 'Saved');
   return api(decision === 'note' ? 'reviewNote' : 'reviewDecide', decision === 'note' ? { text:note } : { id:id, decision:decision, note:note || '' }).catch(function (e) { delete r.decisions[id]; fail(e); });
 }
-function reviewDecide(id, decision) { var t = decision === 'change' ? ((document.getElementById('rvtext') || {}).value || '').trim() : ''; if (decision === 'change' && !t) { toast('Say what to change first', true); return; } reviewSave(id, decision, t); }
-function reviewPick(id, o) { reviewSave(id, 'pick', o); }
 function reviewNote() { var t = ((document.getElementById('rvgeneral') || {}).value || '').trim(); if (!t) return; reviewSave('note-' + Date.now(), 'note', t); }
 
 function inboxStrip() {
@@ -1823,7 +2007,7 @@ setInterval(function () {
   if (q) { S.key = q; history.replaceState(null, '', location.pathname); }
   try { var tok = localStorage.getItem('inbox-id') || ''; if (tok && tokenExp(tok) > Date.now() + 60000) S.token = tok; } catch (e) {}
   try { S.local = JSON.parse(localStorage.getItem('inbox-local') || '{}'); } catch (e) { S.local = {}; }
-  tezReviewLoad(); setInterval(tezReviewLoad, 600000);
+  setInterval(function () { hubLoad(); }, 600000);
   if (S.token || S.key) { var c = readCache(); if (c) { S.data = applyLocal(c); slackNames(); S.loading = false; S.stale = true; S.refreshing = true; render(); } load('load'); } else render();
 })();
 </script>
