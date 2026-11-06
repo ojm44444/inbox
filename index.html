@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1793964132">
+<html lang="en" data-build="b1793964887">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -746,6 +746,7 @@ function reading() {
     h += '<section class="series' + (open ? ' open' : '') + '"><div class="serh" onclick="if(!event.target.closest(\'button\')){S.openSeries[\'' + esc(g.key) + '\']=!S.openSeries[\'' + esc(g.key) + '\'];render()}">'
       + '<span class="av" style="background:' + hue(g.key) + '">' + esc(initials(g.name)) + '</span><div style="flex:1;min-width:0"><div class="sert">' + esc(g.name) + ' <span class="badge">' + g.items.length + '</span></div>'
       + '<div class="l3">' + acctTag(first.account) + (g.items.length > 1 ? 'From ' + ago(first.received_at) + ' ago to ' + ago(last.received_at) + ' ago' : ago(first.received_at) + ' ago') + (first.why ? ' · ' + esc(first.why) : '') + '</div></div>'
+      + '<button class="btn sm pri" onclick="copySeries(\'' + esc(g.key) + '\')"' + (S.copyBusy === g.key ? ' disabled' : '') + '>' + I.copy + (S.copyBusy === g.key ? 'Getting them…' : 'Copy all') + '</button>'
       + (g.unread ? '<button class="btn sm ghost" onclick="readSeries(\'' + esc(g.key) + '\')">' + I.check + 'Mark all read</button>' : '')
       + '<span class="chev">' + (open ? '▾' : '▸') + '</span></div>';
     if (open) h += seriesSummary(g);
@@ -764,6 +765,36 @@ function reading() {
     h += '</section>';
   });
   return h + '</main>';
+}
+// Every email from one sender, oldest first, as one block of text to paste into Claude.
+function seriesItems(key) {
+  var dk = function (e) { return String(e.subject || '').toLowerCase().replace(/\s+/g, ' ').trim() + '|' + String(e.snippet || '').toLowerCase().replace(/&[#a-z0-9]+;/g, '').replace(/[^a-z0-9]+/g, '').slice(0, 80); };
+  var seen = {};
+  return ((S.data && S.data.emails) || []).filter(function (e) { return e.category === 'learn' && String(e.from_email || e.from_name || '?').toLowerCase() === key; })
+    .sort(function (a, b) { return Date.parse(a.received_at) - Date.parse(b.received_at); })
+    .filter(function (e) { var k = dk(e); if (seen[k]) return false; seen[k] = 1; return true; });
+}
+function copySeries(key) {
+  var items = seriesItems(key); if (!items.length) return;
+  var name = items[0].from_name || items[0].from_email || key;
+  S.copyBusy = key; render();
+  var job = api('seriesText', { ids: items.map(function (e) { return e.id; }) }).then(function (r) {
+    var t = r.texts || {}, got = items.filter(function (e) { return t[e.id] != null; });
+    var text = 'Every email from ' + name + ' (' + got.length + ' emails, oldest first)\n\n' + got.map(function (e, i) {
+      return '===== ' + (i + 1) + '. ' + e.subject + ' (' + new Date(e.received_at).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }) + ') =====\n\n' + t[e.id];
+    }).join('\n\n');
+    S.seriesCopy = { key:key, text:text, n:got.length, of:items.length };
+    return text;
+  });
+  var done = function () { S.copyBusy = ''; render(); var c = S.seriesCopy; toast(c.n + ' emails copied' + (c.n < c.of ? ' (' + (c.of - c.n) + ' missing, press again for the rest)' : '') + '. Paste into Claude.'); };
+  // The copy is promised straight from the click, so the browser allows it once the text arrives.
+  try {
+    if (!window.ClipboardItem || !navigator.clipboard || !navigator.clipboard.write) throw 0;
+    navigator.clipboard.write([new ClipboardItem({ 'text/plain': job.then(function (t) { return new Blob([t], { type:'text/plain' }); }) })]).then(done, function () {
+      job.then(function (t) { copyText(t, 'Copied. Paste into Claude.'); S.copyBusy = ''; render(); });
+    });
+  } catch (e) { job.then(function (t) { copyText(t, 'Copied. Paste into Claude.'); S.copyBusy = ''; render(); }); }
+  job.catch(function (e) { S.copyBusy = ''; render(); fail(e); });
 }
 // What a sender's series teaches, written once and kept (refreshes when new emails arrive).
 function sumLine(key, id) { var r = ((S.data && S.data.reading) || {})[key]; return r && r.lines ? r.lines[id] || '' : ''; }
