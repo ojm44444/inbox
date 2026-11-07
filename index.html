@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794093162">
+<html lang="en" data-build="b1794093247">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -138,6 +138,7 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .waitline { margin-top:10px; padding:10px 14px; border-radius:12px; background:color-mix(in srgb, var(--reply) 12%, transparent); border:1px solid color-mix(in srgb, var(--reply) 35%, transparent); cursor:pointer; font-size:15px; line-height:1.4; }
 .waitline .go { color:var(--reply); font-weight:600; white-space:nowrap; }
 .tiles.apps { margin-top:-10px; }
+.tiles.apps + .strip { margin-bottom:16px; }
 .morebtn { display:block; margin:18px auto 30px; }
 .wam { width:fit-content; max-width:min(72%, 560px); margin:6px 14px; padding:7px 10px; border-radius:10px; background:rgba(127,127,127,.12); font-size:14px; line-height:1.4; white-space:pre-wrap; word-wrap:break-word; }
 .wam.me { margin-left:auto; background:color-mix(in srgb, #25d366 22%, transparent); }
@@ -826,7 +827,7 @@ function home() {
   var hi = hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
   var total = unreadCount('all');
   var people = pileList('reply').length, chase = unreadCount('chase'), fixN = groups().filter(function (g) { return g.isChat && g.unread.length; }).length;
-  var bits = []; if (people) bits.push(people + ' ' + (people === 1 ? 'person' : 'people') + ' waiting on you'); if (fixN) bits.push(fixN + ' chat' + (fixN === 1 ? '' : 's') + ' to send broken things to'); if (chase) bits.push(chase + ' to chase'); var promN = pileList('promise').length; if (promN) bits.splice(1, 0, promN + ' thing' + (promN === 1 ? '' : 's') + ' you said you\'d do');
+  var bits = []; if (fixN) bits.push(fixN + ' chat' + (fixN === 1 ? '' : 's') + ' to send broken things to'); if (chase) bits.push(chase + ' to chase'); var promN = pileList('promise').length; if (promN) bits.splice(1, 0, promN + ' thing' + (promN === 1 ? '' : 's') + ' you said you\'d do');
   var day = new Date().toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', timeZone:'Europe/London' });
   // Owen, 7 Nov 2026: "brief me to tell me people are waiting for replies". Names first, every inbox and app together.
   var waitG = pileList('reply').filter(function (g) { return g.unread.length && !OWN_RE.test(String(g.items[0].from_email || '')); }), seenN = {}, waitNames = [];
@@ -835,8 +836,7 @@ function home() {
   // Calm Home (5 Nov 2026 overhaul): one line of counts, the brief, then three short columns.
   var h = '<main class="home">' + tabs() + '<div class="hero2"><div style="min-width:0"><div class="day">' + day + '</div><h1 class="hello">' + hi + ', Owen</h1><div class="hellosub">' + (bits.length ? bits.join(' · ') + '.' : 'Inbox clear. Nice.') + '</div>' + waitLine + '</div>'
     + '</div>'
-    + '<div class="tiles">' + PILES.filter(function (p) { return p.key !== 'new'; }).map(function (p) { return '<div class="tile" style="--c:' + p.color + '" onclick="go(\'' + (p.key === 'learn' ? 'reading' : p.key) + '\')"><div class="lab"><span class="pico">' + PILE_ICON[p.key] + '</span>' + p.title + '</div><div class="num">' + unreadCount(p.key) + '</div><div class="hint">' + p.help + '</div></div>'; }).join('') + '</div>' + inboxStrip()
-    + appTiles()
+    + '<div class="tiles">' + PILES.filter(function (p) { return p.key !== 'new'; }).map(function (p) { return '<div class="tile" style="--c:' + p.color + '" onclick="go(\'' + (p.key === 'learn' ? 'reading' : p.key) + '\')"><div class="lab"><span class="pico">' + PILE_ICON[p.key] + '</span>' + p.title + '</div><div class="num">' + unreadCount(p.key) + '</div><div class="hint">' + p.help + '</div></div>'; }).join('') + '</div>' + appTiles() + inboxStrip()
     + askBar() + briefCard()
     // Owen, 7 Nov: "the bits below are a bit overwhelming. I don't really scroll." Folded away, one tap to open.
     + '<button class="btn ghost morebtn" onclick="S.homeMore=!S.homeMore;render()">' + (S.homeMore ? 'Show less' : 'More: tasks, calendar, notes, ideas, shop') + '</button>';
