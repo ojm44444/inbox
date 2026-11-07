@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794093100">
+<html lang="en" data-build="b1794093162">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -829,7 +829,7 @@ function home() {
   var bits = []; if (people) bits.push(people + ' ' + (people === 1 ? 'person' : 'people') + ' waiting on you'); if (fixN) bits.push(fixN + ' chat' + (fixN === 1 ? '' : 's') + ' to send broken things to'); if (chase) bits.push(chase + ' to chase'); var promN = pileList('promise').length; if (promN) bits.splice(1, 0, promN + ' thing' + (promN === 1 ? '' : 's') + ' you said you\'d do');
   var day = new Date().toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', timeZone:'Europe/London' });
   // Owen, 7 Nov 2026: "brief me to tell me people are waiting for replies". Names first, every inbox and app together.
-  var waitG = pileList('reply').filter(function (g) { return g.unread.length; }), seenN = {}, waitNames = [];
+  var waitG = pileList('reply').filter(function (g) { return g.unread.length && !OWN_RE.test(String(g.items[0].from_email || '')); }), seenN = {}, waitNames = [];
   waitG.forEach(function (g) { var n = String(g.items[0].from_name || g.items[0].from_email || '').split(' <')[0].trim(); var k = n.toLowerCase(); if (n && !seenN[k]) { seenN[k] = 1; waitNames.push(n); } });
   var waitLine = waitNames.length ? '<div class="waitline" onclick="go(\'reply\')"><b>' + waitNames.length + ' ' + (waitNames.length === 1 ? 'person is' : 'people are') + ' waiting for your reply:</b> ' + esc(waitNames.slice(0, 5).join(', ')) + (waitNames.length > 5 ? ' and ' + (waitNames.length - 5) + ' more' : '') + '. <span class="go">Reply →</span></div>' : '';
   // Calm Home (5 Nov 2026 overhaul): one line of counts, the brief, then three short columns.
