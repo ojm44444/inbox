@@ -5,7 +5,7 @@ Every minute: carries out what Owen did on the page (inbox_mac_actions: tick a r
 add one, open a note) and re-reads open reminders, so one ticked on his phone leaves the
 page within a minute. Every 5 minutes: every note (only changed ones are written). Writes only on change. Uses Moon's database helper, so no keys live here.
 """
-import datetime, hashlib, json, os, subprocess, sys, time
+import datetime, hashlib, json, os, re, subprocess, sys, time
 sys.path.insert(0, os.path.expanduser('~/moon-dashboard/tools/snippets'))
 import moon
 
@@ -135,6 +135,47 @@ def do_actions():
             res = 'error: ' + str(e)[:200]
         x("UPDATE inbox_mac_actions SET done_at = now(), result = '%s' WHERE id = %d" % (esc(res), int(a['id'])))
 
+STICKY_DIR = os.path.expanduser('~/Sticky files')
+def sticky_files():
+    """Attachments added to a sticky note: from the private bucket to ~/Sticky files/<note>/, so a Claude chat can open them."""
+    import urllib.request, urllib.parse
+    rows = q("SELECT i.id, i.files, s.name FROM inbox_sticky_items i JOIN inbox_sticky s ON s.id = i.sticky_id WHERE i.cleared_at IS NULL AND i.files::text <> '[]' AND i.files::text NOT LIKE '%\"local\"%' LIMIT 10") or []
+    for r in rows:
+        files = r['files'] if isinstance(r['files'], list) else json.loads(r['files'] or '[]')
+        folder = os.path.join(STICKY_DIR, re.sub(r'[^A-Za-z0-9 ._-]', '_', r['name']))
+        os.makedirs(folder, exist_ok=True)
+        for f in files:
+            if f.get('local') or not f.get('path'): continue
+            req = urllib.request.Request(moon.SB + '/storage/v1/object/sticky-files/' + urllib.parse.quote(f['path']), headers={'apikey': moon.KEY, 'Authorization': 'Bearer ' + moon.KEY})
+            dest = os.path.join(folder, f['path'].replace('/', '-'))
+            with urllib.request.urlopen(req, timeout=120) as resp, open(dest, 'wb') as out: out.write(resp.read())
+            os.chmod(dest, 0o600)
+            f['local'] = dest
+        x("UPDATE inbox_sticky_items SET files = '%s'::jsonb WHERE id = %d" % (esc(json.dumps(files)), int(r['id'])))
+
+TRELLO_KEYS = os.path.expanduser('~/.moon-snippets/trello.json')
+CLAUDE_BOARD = '6ade3506b43df64e35a15320'
+def trello_pics(state):
+    """Pictures on the Claude Board's cards, saved to ~/Sticky files/Claude Board/<attachment id>-<name> every 5 minutes,
+    so a pasted sticky note can point Claude at them. Needs Owen's own Trello key (Trello won't give files to Composio)."""
+    if not os.path.exists(TRELLO_KEYS) or time.time() - state.get('trello_pics_at', 0) < 300: return
+    state['trello_pics_at'] = time.time()
+    import urllib.request
+    k = json.load(open(TRELLO_KEYS))
+    auth = 'OAuth oauth_consumer_key="%s", oauth_token="%s"' % (k['key'], k['token'])
+    req = urllib.request.Request('https://api.trello.com/1/boards/%s/cards?fields=id,dueComplete&attachments=true&attachment_fields=id,name,url,mimeType' % CLAUDE_BOARD, headers={'Authorization': auth})
+    cards = json.loads(urllib.request.urlopen(req, timeout=60).read())
+    folder = os.path.join(STICKY_DIR, 'Claude Board'); os.makedirs(folder, exist_ok=True)
+    for c in cards:
+        if c.get('dueComplete'): continue
+        for a in c.get('attachments') or []:
+            if not (str(a.get('mimeType') or '').startswith('image/') or re.search(r'\.(png|jpe?g|gif|heic|webp)$', a.get('name') or '', re.I)): continue
+            dest = os.path.join(folder, a['id'] + '-' + re.sub(r'[^A-Za-z0-9._-]', '_', a.get('name') or 'image'))
+            if os.path.exists(dest): continue
+            r = urllib.request.Request(a['url'], headers={'Authorization': auth})
+            with urllib.request.urlopen(r, timeout=120) as resp, open(dest, 'wb') as out: out.write(resp.read())
+            os.chmod(dest, 0o600)
+
 def sync(kind, rows, folder_key):
     """One upsert for all rows, one delete for anything gone from the Mac (deleted, or ticked there)."""
     sync_rows(kind, rows, folder_key)
@@ -172,6 +213,12 @@ if __name__ == '__main__':
     try:
         if q("SELECT 1 AS n FROM inbox_mac_actions WHERE done_at IS NULL LIMIT 1"): do_actions(); state.pop('reminder', None); state.pop('note', None)
     except Exception as e: status['actions_error'] = str(e)[:200]
+    try: sticky_files()
+    except Exception as e: status['sticky_files_error'] = str(e)[:200]
+    try: trello_pics(state)
+    except Exception as e: status['trello_pics_error'] = str(e)[:200]
+    try: pass
+    except Exception as e: status['sticky_files_error'] = str(e)[:200]
     try:
         rems = read_reminders(); status['reminders'] = len(rems)
         if changed(state, 'reminder', rems): sync('reminder', rems, 'list')
