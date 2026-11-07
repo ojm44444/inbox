@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794087100">
+<html lang="en" data-build="b1794087281">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1682,7 +1682,7 @@ function addRem(t, d) { t = String(t || '').trim(); if (!t) return; S.data.remin
 // Before a call (readywhen-style): who it is, where things were left, what you promised. Cached on the server 6h.
 S.cu = {};
 function catchup(ck) {
-  var cu = S.cu[ck]; if (cu === 'busy') return; if (cu) { cu.show = !cu.show; render(); return; }
+  var cu = S.cu[ck]; if (cu === 'busy') return; if (cu && !cu.error) { cu.show = !cu.show; render(); return; }
   var ev = ((S.data.calendar || {}).events || []).filter(function (e) { return e.title + '|' + e.start === ck; })[0]; if (!ev) return;
   S.cu[ck] = 'busy'; render();
   api('catchup', { title:ev.title, emails:ev.guests || [] }).then(function (r) { r.show = true; S.cu[ck] = r; render(); }).catch(function (e) { S.cu[ck] = { show:true, error:e.message }; render(); });
@@ -1697,8 +1697,8 @@ function timeline() {
     if (x.free) h += '<div class="tli free"><span class="tm">' + hm(x.free.start) + '–' + hm(x.free.end) + '</span><div class="tt">Free</div></div>';
     else { var ck = x.ev.title + '|' + x.ev.start, cu = S.cu[ck];
       h += '<div class="tli' + (x.ev.allDay ? ' allday' : '') + '"><span class="tm">' + (x.ev.allDay ? 'All day' : hm(x.ev.start) + '–' + hm(x.ev.end)) + '</span><div class="tt">' + esc(x.ev.title)
-        + (x.ev.allDay || !((x.ev.guests && x.ev.guests.length) || /\b[A-Z][a-z]+ [A-Z][a-z]+\b/.test(x.ev.title)) ? '' : ' <button class="linkbtn" onclick="catchup(' + esc(JSON.stringify(ck)).replace(/"/g, '&quot;') + ')">' + (cu === 'busy' ? 'Getting it…' : cu ? 'Hide' : 'Catch up') + '</button>') + '</div>'
-        + (cu && cu !== 'busy' && cu.show ? '<div class="cubox">' + (cu.lines && cu.lines.length ? cu.lines.map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('') : '<div class="l3">' + esc(cu.error || 'Nothing in your mail or calls about this one yet.') + '</div>') + '</div>' : '') + '</div>'; }
+        + (x.ev.allDay || !((x.ev.guests && x.ev.guests.length) || /\b[A-Z][a-z]+ [A-Z][a-z]+\b/.test(x.ev.title)) ? '' : ' <button class="linkbtn" onclick="catchup(' + esc(JSON.stringify(ck)).replace(/"/g, '&quot;') + ')">' + (cu === 'busy' ? 'Getting it…' : cu && cu.error ? 'Try again' : cu ? 'Hide' : 'Catch up') + '</button>') + '</div>'
+        + (cu && cu !== 'busy' && cu.show ? '<div class="cubox">' + (cu.lines && cu.lines.length ? cu.lines.map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('') : '<div class="l3">' + (cu.error ? 'Could not get it just now. Tap Try again.' : 'Nothing in your mail or calls about this one yet.') + '</div>') + '</div>' : '') + '</div>'; }
   });
   return h ? h + '</div>' : '<div class="empty" style="padding:20px">Nothing booked.</div>';
 }
