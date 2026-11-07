@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794092347">
+<html lang="en" data-build="b1794093016">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -135,7 +135,7 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .when { color:var(--faint); font-size:12px; white-space:nowrap; text-align:right; }
 .when .pd { display:block; margin-top:4px; }
 .wait { color:var(--chase); }
-.wam { max-width:72%; margin:6px 14px; padding:7px 10px; border-radius:10px; background:rgba(127,127,127,.12); font-size:14px; line-height:1.4; white-space:pre-wrap; word-wrap:break-word; }
+.wam { width:fit-content; max-width:min(72%, 560px); margin:6px 14px; padding:7px 10px; border-radius:10px; background:rgba(127,127,127,.12); font-size:14px; line-height:1.4; white-space:pre-wrap; word-wrap:break-word; }
 .wam.me { margin-left:auto; background:color-mix(in srgb, #25d366 22%, transparent); }
 .wam .was { font-size:12px; font-weight:600; color:#25d366; margin-bottom:2px; }
 .wam .wat { font-size:11px; color:var(--faint); text-align:right; margin-top:2px; }
@@ -1365,7 +1365,7 @@ function waView() {
   var msgs = WA.hist[c.id];
   det += '<div class="dhead slhead"><div style="display:flex;gap:10px;align-items:center"><button class="iconbtn back" onclick="S.phoneOpen=false;render()">' + I.back + '</button><h2 style="margin:0;flex:1">' + esc(c.name || '') + '</h2><span class="acct" style="--c:#25d366">WhatsApp</span>' + stickySelect('slack', c.name || 'WhatsApp') + '</div></div><div class="slmsgs">' + (msgs && msgs.length ? '<div class="l3" style="text-align:center;margin:10px">Messages from ' + esc(new Date(msgs[0].ts).toLocaleDateString('en-GB', { day:'numeric', month:'short' })) + '. Older ones are on your phone.</div>' : '')
     + (!msgs ? '<div class="skel" style="height:260px;margin:16px"></div>' : msgs.map(function (m) { return '<div class="wam' + (m.from_me ? ' me' : '') + '">' + (c.is_group && !m.from_me ? '<div class="was">' + esc(m.sender) + '</div>' : '') + '<div>' + linkify(m.text || '') + '</div><div class="wat">' + hm(m.ts) + '</div></div>'; }).join(''))
-    + '</div><div class="wacomp"><textarea id="waText" placeholder="Message ' + esc(c.name || '') + '" onkeydown="if((event.metaKey||event.ctrlKey)&&event.key===\'Enter\')waSendIt()"></textarea><button class="btn pri" onclick="waSendIt()">' + I.send + 'Send</button></div></section>';
+    + '</div><div class="wacomp"><textarea id="waText" placeholder="Message ' + esc(c.name || '') + ' (Enter sends, Shift+Enter for a new line)" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();waSendIt()}"></textarea><button class="btn pri" onclick="waSendIt()">' + I.send + 'Send</button></div></section>';
   return list + det;
 }
 function slackWaiting() { return ((S.data && S.data.emails) || []).filter(function (e) { return e.account === 'slack' && !isRead(e); }).length; }

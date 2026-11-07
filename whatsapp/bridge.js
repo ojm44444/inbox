@@ -97,10 +97,20 @@ function mentionsMe(msg, me) {
 function ts(msg) { const t = Number(msg.messageTimestamp && msg.messageTimestamp.low !== undefined ? msg.messageTimestamp.low : msg.messageTimestamp); return new Date((t || Date.now() / 1000) * 1000).toISOString(); }
 
 // ---- saving ----
+// WhatsApp now sends some chats under a hidden id (@lid) and others under the number: one person, one chat.
+function chatOf(msg) {
+  let jid = msg.key.remoteJid;
+  if (/@lid$/.test(jid)) {
+    const pn = msg.key.senderPn || msg.key.remoteJidAlt;
+    if (pn && !lidMap[jid]) { lidMap[jid] = jidNormalizedUser(pn); namesDirty = true; }
+    if (lidMap[jid]) jid = lidMap[jid];
+  }
+  return jid;
+}
 async function saveMsgs(msgs) {
   const rows = [], chats = {};
   for (const msg of msgs) {
-    const jid = msg.key && msg.key.remoteJid; if (!jid || jid === 'status@broadcast' || /@newsletter$/.test(jid)) continue;
+    const jid = msg.key && msg.key.remoteJid && chatOf(msg); if (!jid || jid === 'status@broadcast' || /@newsletter$/.test(jid)) continue;
     const t = textOf(msg); if (t === null) continue;
     const from = msg.key.fromMe ? 'me' : jidNormalizedUser(msg.key.participant || jid);
     if (!msg.key.fromMe && msg.pushName) setName(from, msg.pushName);
@@ -175,7 +185,7 @@ async function start() {
       const chats = await saveMsgs(messages);
       if (type !== 'notify' && type !== 'append') return;
       for (const jid of Object.keys(chats)) {
-        const mentioned = messages.some((m) => m.key.remoteJid === jid && mentionsMe(m, me));
+        const mentioned = messages.some((m) => chatOf(m) === jid && mentionsMe(m, me));
         if (isGroup(jid) && !names[jid]) { try { const md = await sock.groupMetadata(jid); setName(jid, md.subject); await x('UPDATE inbox_wa_chats SET name = ' + lit(md.subject) + ' WHERE id = ' + lit(jid)); } catch (e) {} }
         if (!chats[jid].from_me) await x('UPDATE inbox_wa_chats SET unread = unread + 1 WHERE id = ' + lit(jid));
         await touchInbox(jid, chats[jid], me, mentioned);
@@ -194,6 +204,19 @@ async function start() {
 async function renameSweep() {
   if (!me) return;
   try {
+    // Fold any hidden-id chat we now know the number for into that number's chat.
+    for (const lid of Object.keys(lidMap)) {
+      const pn = lidMap[lid]; if (!/@lid$/.test(lid) || !pn) continue;
+      const has = (await q('SELECT 1 AS n FROM inbox_wa_chats WHERE id = ' + lit(lid)) || [])[0]; if (!has) continue;
+      const pre = rowId(pn) + ':';
+      await x('DELETE FROM inbox_wa_msgs WHERE chat_id = ' + lit(lid) + " AND split_part(id, ':', 3) IN (SELECT split_part(id, ':', 3) FROM inbox_wa_msgs WHERE chat_id = " + lit(pn) + ')');
+      await x('UPDATE inbox_wa_msgs SET chat_id = ' + lit(pn) + ', id = ' + lit(pre) + " || split_part(id, ':', 3) WHERE chat_id = " + lit(lid));
+      await x('INSERT INTO inbox_wa_chats (id, name, is_group, unread) SELECT ' + lit(pn) + ', name, false, unread FROM inbox_wa_chats WHERE id = ' + lit(lid) + ' ON CONFLICT (id) DO UPDATE SET unread = greatest(inbox_wa_chats.unread, EXCLUDED.unread)');
+      await x('UPDATE inbox_wa_chats c SET last_ts = m.ts, last_text = left(m.text, 300), last_from_me = m.from_me, last_sender = m.sender FROM (SELECT ts, text, from_me, sender FROM inbox_wa_msgs WHERE chat_id = ' + lit(pn) + ' ORDER BY ts DESC LIMIT 1) m WHERE c.id = ' + lit(pn));
+      await x('DELETE FROM inbox_wa_chats WHERE id = ' + lit(lid));
+      await x("UPDATE inbox_emails SET status = 'done', done_at = now(), gmail_done = true WHERE id = " + lit(rowId(lid)) + " AND status = 'open'");
+      log('merged', lid, 'into', pn);
+    }
     const rows = await q("SELECT id, name FROM inbox_wa_chats WHERE name LIKE '+%' OR name IN ('Group', 'Unknown number') OR id = " + lit(me) + (myLid ? ' OR id = ' + lit(myLid) : '')) || [];
     for (const r of rows) {
       let n = isGroup(r.id) ? names[r.id] : nameOf(r.id);
