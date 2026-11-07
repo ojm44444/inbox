@@ -120,7 +120,7 @@ let sock = null, me = null, busy = false;
 async function start() {
   const { state, saveCreds } = await useMultiFileAuthState(AUTH);
   const { version } = await fetchLatestBaileysVersion().catch(() => ({ version: undefined }));
-  sock = makeWASocket({ auth: state, version, logger: pino({ level: process.env.WA_LOG || 'warn' }), browser: Browsers.macOS('Desktop'), markOnlineOnConnect: false, syncFullHistory: true, shouldSyncHistoryMessage: () => true }); // history only comes at linking: keep the last 3 weeks of it
+  sock = makeWASocket({ auth: state, version, logger: pino({ level: process.env.WA_LOG || 'warn' }), browser: Browsers.macOS('Desktop'), markOnlineOnConnect: false, syncFullHistory: false, shouldSyncHistoryMessage: () => true }); // recent history comes at linking (full history makes WhatsApp refuse the link): keep 3 weeks
   sock.ev.on('creds.update', saveCreds);
   sock.ev.on('connection.update', async (u) => {
     if (u.qr) { log('QR ready, scan it on the Inbox page'); await status({ state: 'qr', qr: await QR.toDataURL(u.qr, { margin: 1, width: 280 }) }); }
