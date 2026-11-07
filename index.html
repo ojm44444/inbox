@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794090470">
+<html lang="en" data-build="b1794091966">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1329,12 +1329,14 @@ function snooze(kind) {
 var SL = { ch:null, busy:false, hist:{}, sending:false };
 var EMO = { grin:'😁', smile:'😄', joy:'😂', heart:'❤️', '+1':'👍', thumbsup:'👍', pray:'🙏', fire:'🔥', tada:'🎉', eyes:'👀', white_check_mark:'✅', heavy_check_mark:'✔️', x:'❌', warning:'⚠️', rocket:'🚀', raised_hands:'🙌', clap:'👏', sweat_smile:'😅', slightly_smiling_face:'🙂', wink:'😉', thinking_face:'🤔', sob:'😭', cry:'😢', muscle:'💪', ok_hand:'👌', star:'⭐', sparkles:'✨', iphone:'📱', spiral_calendar_pad:'🗓️', speech_balloon:'💬', memo:'📝', bell:'🔔', rotating_light:'🚨', chart_with_upwards_trend:'📈', moneybag:'💰', sunglasses:'😎', partying_face:'🥳', hugging_face:'🤗', blush:'😊', laughing:'😆', upside_down_face:'🙃', heart_eyes:'😍', point_right:'👉', wave:'👋', 100:'💯', zap:'⚡', bulb:'💡', calendar:'📅', link:'🔗', camera:'📷', movie_camera:'🎥', musical_note:'🎵', headphones:'🎧', microphone:'🎤', guitar:'🎸' };
 // ---- WhatsApp (7 Nov 2026): linked from Owen's Mac like WhatsApp Web, free. Replies go with 5 seconds to undo. ----
-var WA = { list:null, busy:false, hist:{}, chat:null, f:'all' };
+var WA = { list:null, busy:false, hist:{}, chat:null, f:'all', lim:{} };
+// Older messages: ask WhatsApp for 50 more (it answers within seconds while the Mac is awake), then show them.
+function waOlder() { var id = WA.chat; if (!id) return; WA.lim[id] = (WA.lim[id] || 80) + 50; WA.olderBusy = true; render(); api('waOlder', { chat:id }).then(function () { setTimeout(function () { WA.olderBusy = false; waHist(id); }, 7000); }).catch(fail); }
 function waWaiting() { return ((S.data && S.data.emails) || []).filter(function (e) { return e.account === 'whatsapp' && !isRead(e); }).length; }
 function waLoad() { if (WA.busy) return; WA.busy = true; if (!WA.list) { try { WA.list = JSON.parse(localStorage.getItem('inbox-wa') || 'null'); } catch (e) {} } api('waChats').then(function (r) { WA.list = r; WA.busy = false; try { localStorage.setItem('inbox-wa', JSON.stringify(r)); } catch (e) {} render(); }).catch(function (e) { WA.busy = false; WA.err = e.message; render(); }); }
 function waOpen(id) { WA.chat = id; S.phoneOpen = true; waHist(id); var c = (WA.list.chats || []).filter(function (x) { return x.id === id; })[0]; if (c && c.unread) { setTimeout(function () { if (WA.chat !== id) return; c.unread = 0; var row = waRow(id); if (row) setStatus([row], 'done'); api('waRead', { chat:id, row:row || '' }).catch(function () {}); render(); }, 1500); } render(); }
 function waRow(jid) { var m = String(jid).match(/^([0-9-]+)@(s\.whatsapp\.net|g\.us|lid)$/); return m ? 'wa:' + (m[2] === 'g.us' ? 'g' : m[2] === 'lid' ? 'l' : '') + m[1] : ''; }
-function waHist(id) { api('waHistory', { chat:id }).then(function (r) { WA.hist[id] = r.messages; render(); var b = document.querySelector('.slmsgs'); if (b) b.scrollTop = b.scrollHeight; }).catch(function () {}); }
+function waHist(id) { api('waHistory', { chat:id, limit:WA.lim[id] || 80 }).then(function (r) { WA.hist[id] = r.messages; render(); var b = document.querySelector('.slmsgs'); if (b) b.scrollTop = b.scrollHeight; }).catch(function () {}); }
 function waSendIt() {
   var t = document.getElementById('waText'), id = WA.chat; if (!t || !t.value.trim() || !id) return; var text = t.value.trim(); t.value = '';
   var undone = false, u = document.createElement('div'); u.className = 'toast show'; u.innerHTML = 'Sending on WhatsApp… <button class="btn sm">Undo</button>';
@@ -1361,7 +1363,7 @@ function waView() {
   var c = (L.chats || []).filter(function (x) { return x.id === WA.chat; })[0];
   if (!c) return list + det + '<div class="empty" style="margin-top:20vh">Pick a chat</div></section>';
   var msgs = WA.hist[c.id];
-  det += '<div class="dhead slhead"><div style="display:flex;gap:10px;align-items:center"><button class="iconbtn back" onclick="S.phoneOpen=false;render()">' + I.back + '</button><h2 style="margin:0;flex:1">' + esc(c.name || '') + '</h2><span class="acct" style="--c:#25d366">WhatsApp</span>' + stickySelect('slack', c.name || 'WhatsApp') + '</div></div><div class="slmsgs">'
+  det += '<div class="dhead slhead"><div style="display:flex;gap:10px;align-items:center"><button class="iconbtn back" onclick="S.phoneOpen=false;render()">' + I.back + '</button><h2 style="margin:0;flex:1">' + esc(c.name || '') + '</h2><span class="acct" style="--c:#25d366">WhatsApp</span>' + stickySelect('slack', c.name || 'WhatsApp') + '</div></div><div class="slmsgs">' + (msgs ? '<div style="text-align:center;margin:10px"><button class="btn sm ghost" onclick="waOlder()">' + (WA.olderBusy ? 'Getting older messages…' : 'Load older messages') + '</button></div>' : '')
     + (!msgs ? '<div class="skel" style="height:260px;margin:16px"></div>' : msgs.map(function (m) { return '<div class="wam' + (m.from_me ? ' me' : '') + '">' + (c.is_group && !m.from_me ? '<div class="was">' + esc(m.sender) + '</div>' : '') + '<div>' + linkify(m.text || '') + '</div><div class="wat">' + hm(m.ts) + '</div></div>'; }).join(''))
     + '</div><div class="wacomp"><textarea id="waText" placeholder="Message ' + esc(c.name || '') + '" onkeydown="if((event.metaKey||event.ctrlKey)&&event.key===\'Enter\')waSendIt()"></textarea><button class="btn pri" onclick="waSendIt()">' + I.send + 'Send</button></div></section>';
   return list + det;

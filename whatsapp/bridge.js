@@ -58,7 +58,14 @@ let names = {}; try { names = JSON.parse(fs.readFileSync(NAMES_FILE, 'utf8')); }
 let namesDirty = false;
 function setName(jid, n) { if (jid && n && names[jid] !== n) { names[jid] = n; namesDirty = true; } }
 setInterval(() => { if (namesDirty) { namesDirty = false; fs.writeFileSync(NAMES_FILE, JSON.stringify(names)); } }, 30000);
-function nameOf(jid) { return names[jid] || ('+' + String(jid).split('@')[0]); }
+// Hidden numbers (@lid) map to real ones once WhatsApp says so; his own chat is his notes to self.
+let lidMap = names.__lid || {}; names.__lid = lidMap;
+function nameOf(jid) {
+  if (jid && (jid === me || jid === myLid)) return 'You (notes to self)';
+  const real = lidMap[jid];
+  return names[jid] || (real && names[real]) || (/@lid$/.test(jid) ? (real ? '+' + real.split('@')[0] : 'Unknown number') : '+' + String(jid).split('@')[0]);
+}
+let myLid = null;
 
 // ---- message text ----
 function unwrap(m) { while (m && (m.ephemeralMessage || m.viewOnceMessage || m.viewOnceMessageV2 || m.documentWithCaptionMessage || m.editedMessage)) m = (m.ephemeralMessage || m.viewOnceMessage || m.viewOnceMessageV2 || m.documentWithCaptionMessage || m.editedMessage).message; return m || {}; }
@@ -124,7 +131,7 @@ async function start() {
   sock.ev.on('creds.update', saveCreds);
   sock.ev.on('connection.update', async (u) => {
     if (u.qr) { log('QR ready, scan it on the Inbox page'); await status({ state: 'qr', qr: await QR.toDataURL(u.qr, { margin: 1, width: 280 }) }); }
-    if (u.connection === 'open') { me = jidNormalizedUser(sock.user.id); log('linked as', me); await status({ state: 'open', me: me.split('@')[0] }); }
+    if (u.connection === 'open') { me = jidNormalizedUser(sock.user.id); myLid = sock.user.lid ? jidNormalizedUser(sock.user.lid) : null; log('linked as', me); await status({ state: 'open', me: me.split('@')[0] }); }
     if (u.connection === 'close') {
       const code = u.lastDisconnect && u.lastDisconnect.error && u.lastDisconnect.error.output ? u.lastDisconnect.error.output.statusCode : 0;
       log('closed', code);
@@ -133,7 +140,8 @@ async function start() {
       setTimeout(start, code === DisconnectReason.loggedOut ? 2000 : 5000);
     }
   });
-  sock.ev.on('contacts.upsert', (cs) => cs.forEach((c) => setName(c.id, c.name || c.notify || c.verifiedName)));
+  const contact = (c) => { setName(c.id, c.name || c.notify || c.verifiedName); if (c.lid && c.jid) { lidMap[c.lid] = c.jid; namesDirty = true; if (c.name) setName(c.lid, c.name); } };
+  sock.ev.on('contacts.upsert', (cs) => cs.forEach(contact));
   sock.ev.on('contacts.update', (cs) => cs.forEach((c) => setName(c.id, c.name || c.notify)));
   sock.ev.on('groups.upsert', (gs) => gs.forEach((g) => setName(g.id, g.subject)));
   sock.ev.on('groups.update', (gs) => gs.forEach((g) => g.subject && setName(g.id, g.subject)));
@@ -141,9 +149,9 @@ async function start() {
   sock.ev.on('messaging-history.set', async ({ chats, contacts, messages, syncType, progress }) => {
     log('history event', syncType, progress, (messages || []).length);
     try {
-      (contacts || []).forEach((c) => setName(c.id, c.name || c.notify));
+      (contacts || []).forEach(contact);
       (chats || []).forEach((c) => c.name && setName(c.id, c.name));
-      const cut = Date.now() - 21 * 86400000;
+      const cut = Date.now() - 3 * 365 * 86400000; // keep it all, like the app (Owen 7 Nov)
       const recent = (messages || []).filter((m) => new Date(ts(m)).getTime() > cut);
       await saveMsgs(recent);
       for (const c of chats || []) if (c.unreadCount !== undefined) await x('UPDATE inbox_wa_chats SET unread = ' + Number(c.unreadCount || 0) + ' WHERE id = ' + lit(c.id));
@@ -171,6 +179,20 @@ async function start() {
   });
 }
 
+// Names arrive after the chats (WhatsApp sends contacts a bit later): fix any chat still showing a number.
+async function renameSweep() {
+  if (!me) return;
+  try {
+    const rows = await q("SELECT id, name FROM inbox_wa_chats WHERE name LIKE '+%' OR name IN ('Group', 'Unknown number') OR id = " + lit(me) + (myLid ? ' OR id = ' + lit(myLid) : '')) || [];
+    for (const r of rows) {
+      let n = isGroup(r.id) ? names[r.id] : nameOf(r.id);
+      if (isGroup(r.id) && !n) { try { n = (await sock.groupMetadata(r.id)).subject; setName(r.id, n); } catch (e) {} }
+      if (n && n !== r.name) { await x('UPDATE inbox_wa_chats SET name = ' + lit(n) + ' WHERE id = ' + lit(r.id)); await x('UPDATE inbox_emails SET from_name = ' + lit(n) + ' WHERE id = ' + lit(rowId(r.id))); }
+    }
+  } catch (e) { log('rename', e.message); }
+}
+setInterval(renameSweep, 60000); setTimeout(renameSweep, 20000);
+
 // ---- What Owen did on the page ----
 async function outbox() {
   if (busy || !sock || !me) return; busy = true;
@@ -180,6 +202,10 @@ async function outbox() {
       let res = 'ok';
       try {
         if (j.kind === 'send') { const s = await sock.sendMessage(j.chat_id, { text: j.text }); await saveMsgs([s]); await touchInbox(j.chat_id, { from_me: true }, me, false); }
+        else if (j.kind === 'older') {
+          const o = (await q('SELECT id, from_me, ts FROM inbox_wa_msgs WHERE chat_id = ' + lit(j.chat_id) + ' ORDER BY ts ASC LIMIT 1') || [])[0];
+          if (o) await sock.fetchMessageHistory(50, { remoteJid: j.chat_id, id: o.id.split(':').pop(), fromMe: !!o.from_me }, Math.floor(new Date(o.ts).getTime() / 1000));
+        }
         else if (j.kind === 'read') {
           const last = await q('SELECT id FROM inbox_wa_msgs WHERE chat_id = ' + lit(j.chat_id) + ' AND NOT from_me ORDER BY ts DESC LIMIT 5') || [];
           const keys = last.map((m) => ({ remoteJid: j.chat_id, id: m.id.split(':').pop(), fromMe: false }));
