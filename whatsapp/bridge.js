@@ -161,7 +161,11 @@ async function start() {
       const cut = Date.now() - 3 * 365 * 86400000; // keep it all, like the app (Owen 7 Nov)
       const recent = (messages || []).filter((m) => new Date(ts(m)).getTime() > cut);
       await saveMsgs(recent);
-      for (const c of chats || []) if (c.unreadCount !== undefined) await x('UPDATE inbox_wa_chats SET unread = ' + Number(c.unreadCount || 0) + ' WHERE id = ' + lit(c.id));
+      for (const c of chats || []) if (c.unreadCount !== undefined) {
+        await x('UPDATE inbox_wa_chats SET unread = ' + Number(c.unreadCount || 0) + ' WHERE id = ' + lit(c.id));
+        // Unread from a person when he linked: waiting on him, like an unread email.
+        if (c.unreadCount > 0 && isPerson(c.id)) { const l = (await q('SELECT from_me, sender, text, ts FROM inbox_wa_msgs WHERE chat_id = ' + lit(c.id) + ' ORDER BY ts DESC LIMIT 1') || [])[0]; if (l && !l.from_me) await touchInbox(c.id, l, me, false); }
+      }
       log('history', recent.length, 'of', (messages || []).length, 'messages,', (chats || []).length, 'chats');
     } catch (e) { log('history', e.message); }
   });
