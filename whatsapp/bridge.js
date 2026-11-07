@@ -128,6 +128,8 @@ async function saveMsgs(msgs) {
 
 /** A person waiting on Owen: one inbox row per chat, like an email thread. Closes when he answers. */
 async function touchInbox(jid, last, me, mentioned) {
+  // Owen, 7 Nov: WhatsApp stays on its own page, not in Reply (links from Joe, people in other timezones).
+  return;
   const id = rowId(jid);
   if (last.from_me) { await x("UPDATE inbox_emails SET status = 'done', done_at = now(), gmail_done = true WHERE id = " + lit(id) + " AND status = 'open'"); return; }
   if (!(isPerson(jid) || (isGroup(jid) && mentioned))) return;

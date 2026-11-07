@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794093247">
+<html lang="en" data-build="b1794093831">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1114,7 +1114,7 @@ function appTiles() {
   var t = function (view, color, icon, label, num, hint) { return '<div class="tile" style="--c:' + color + '" onclick="go(\'' + view + '\')"><div class="lab"><span class="pico">' + icon + '</span>' + label + '</div><div class="num">' + num + '</div><div class="hint">' + hint + '</div></div>'; };
   var stN = stickyTotal(), rvN = reviewNeeds().length;
   return '<div class="tiles apps">'
-    + t('whatsapp', '#25d366', I.wa, 'WhatsApp', waWaiting(), 'People waiting on WhatsApp.')
+    + t('whatsapp', '#25d366', I.wa, 'WhatsApp', waWaiting(), 'Unread chats with people.')
     + t('slack', '#a35bd6', I.slack, 'Slack', slackWaiting(), 'Waiting on lazygecko Slack.')
     + t('sticky', '#d6a23a', I.sticky, 'Sticky notes', stN, stN ? 'Ready to paste into Claude.' : 'Add things for a Claude chat.')
     + t('review', '#6d6af5', I.check, 'Review', rvN, 'Things to approve.')
@@ -1359,7 +1359,11 @@ var EMO = { grin:'😁', smile:'😄', joy:'😂', heart:'❤️', '+1':'👍', 
 var WA = { list:null, busy:false, hist:{}, chat:null, f:'all', lim:{} };
 // Older messages: ask WhatsApp for 50 more (it answers within seconds while the Mac is awake), then show them.
 function waOlder() { var id = WA.chat; if (!id) return; WA.lim[id] = (WA.lim[id] || 80) + 50; WA.olderBusy = true; render(); api('waOlder', { chat:id }).then(function () { setTimeout(function () { WA.olderBusy = false; waHist(id); }, 7000); }).catch(fail); }
-function waWaiting() { return ((S.data && S.data.emails) || []).filter(function (e) { return e.account === 'whatsapp' && !isRead(e); }).length; }
+// Unread chats with people (not groups), from WhatsApp itself; WhatsApp stays out of Reply (Owen, 7 Nov).
+function waWaiting() {
+  if (!WA.list) { try { WA.list = JSON.parse(localStorage.getItem('inbox-wa') || 'null'); } catch (e) {} if (!waWaiting.asked) { waWaiting.asked = true; setTimeout(waLoad, 3000); } }
+  return ((WA.list && WA.list.chats) || []).filter(function (c) { return !c.is_group && c.unread > 0; }).length;
+}
 function waLoad() { if (WA.busy) return; WA.busy = true; if (!WA.list) { try { WA.list = JSON.parse(localStorage.getItem('inbox-wa') || 'null'); } catch (e) {} } api('waChats').then(function (r) { WA.list = r; WA.busy = false; try { localStorage.setItem('inbox-wa', JSON.stringify(r)); } catch (e) {} render(); }).catch(function (e) { WA.busy = false; WA.err = e.message; render(); }); }
 function waOpen(id) { WA.chat = id; S.phoneOpen = true; waHist(id); var c = (WA.list.chats || []).filter(function (x) { return x.id === id; })[0]; if (c && c.unread) { setTimeout(function () { if (WA.chat !== id) return; c.unread = 0; var row = waRow(id); if (row) setStatus([row], 'done'); api('waRead', { chat:id, row:row || '' }).catch(function () {}); render(); }, 1500); } render(); }
 function waRow(jid) { var m = String(jid).match(/^([0-9-]+)@(s\.whatsapp\.net|g\.us|lid)$/); return m ? 'wa:' + (m[2] === 'g.us' ? 'g' : m[2] === 'lid' ? 'l' : '') + m[1] : ''; }
