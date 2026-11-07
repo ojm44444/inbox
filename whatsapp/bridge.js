@@ -22,7 +22,11 @@ fs.readFileSync(CFG.env_file, 'utf8').split('\n').forEach((l) => { const m = l.t
 const SB = ENV.VITE_SUPABASE_URL, KEY = ENV.SUPABASE_SERVICE_ROLE_KEY;
 const AUTH = path.join(HOME, '.moon-snippets/wa-auth');
 const NAMES_FILE = path.join(HOME, '.moon-snippets/wa-names.json');
-const log = (...a) => console.log(new Date().toISOString(), ...a);
+const out = console.log.bind(console);
+const log = (...a) => out(new Date().toISOString(), ...a);
+// The encryption library prints whole session keys to the console: never let those reach the log file.
+console.log = console.info = console.warn = console.debug = () => {};
+process.on('unhandledRejection', (e) => log('unhandled', String(e && e.message || e).slice(0, 200)));
 
 // ---- Supabase ----
 async function sb(pathq, body, headers = {}) {
@@ -116,7 +120,7 @@ let sock = null, me = null, busy = false;
 async function start() {
   const { state, saveCreds } = await useMultiFileAuthState(AUTH);
   const { version } = await fetchLatestBaileysVersion().catch(() => ({ version: undefined }));
-  sock = makeWASocket({ auth: state, version, logger: pino({ level: 'silent' }), browser: Browsers.macOS('Desktop'), markOnlineOnConnect: false, syncFullHistory: false });
+  sock = makeWASocket({ auth: state, version, logger: pino({ level: process.env.WA_LOG || 'warn' }), browser: Browsers.macOS('Desktop'), markOnlineOnConnect: false, syncFullHistory: true, shouldSyncHistoryMessage: () => true }); // history only comes at linking: keep the last 3 weeks of it
   sock.ev.on('creds.update', saveCreds);
   sock.ev.on('connection.update', async (u) => {
     if (u.qr) { log('QR ready, scan it on the Inbox page'); await status({ state: 'qr', qr: await QR.toDataURL(u.qr, { margin: 1, width: 280 }) }); }
@@ -134,7 +138,8 @@ async function start() {
   sock.ev.on('groups.upsert', (gs) => gs.forEach((g) => setName(g.id, g.subject)));
   sock.ev.on('groups.update', (gs) => gs.forEach((g) => g.subject && setName(g.id, g.subject)));
   // First link and after sleep: what WhatsApp holds comes in as history. Recent only.
-  sock.ev.on('messaging-history.set', async ({ chats, contacts, messages }) => {
+  sock.ev.on('messaging-history.set', async ({ chats, contacts, messages, syncType, progress }) => {
+    log('history event', syncType, progress, (messages || []).length);
     try {
       (contacts || []).forEach((c) => setName(c.id, c.name || c.notify));
       (chats || []).forEach((c) => c.name && setName(c.id, c.name));
@@ -142,10 +147,11 @@ async function start() {
       const recent = (messages || []).filter((m) => new Date(ts(m)).getTime() > cut);
       await saveMsgs(recent);
       for (const c of chats || []) if (c.unreadCount !== undefined) await x('UPDATE inbox_wa_chats SET unread = ' + Number(c.unreadCount || 0) + ' WHERE id = ' + lit(c.id));
-      log('history', recent.length, 'messages');
+      log('history', recent.length, 'of', (messages || []).length, 'messages,', (chats || []).length, 'chats');
     } catch (e) { log('history', e.message); }
   });
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
+    log('upsert', type, messages.length);
     try {
       const chats = await saveMsgs(messages);
       if (type !== 'notify' && type !== 'append') return;
