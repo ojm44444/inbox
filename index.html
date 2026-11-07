@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794082056">
+<html lang="en" data-build="b1794086451">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -135,6 +135,15 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .when { color:var(--faint); font-size:12px; white-space:nowrap; text-align:right; }
 .when .pd { display:block; margin-top:4px; }
 .wait { color:var(--chase); }
+.stidea { display:flex; gap:8px; align-items:flex-end; margin-bottom:14px; }
+.stidea textarea { flex:1; min-height:56px; resize:vertical; background:var(--panel2, rgba(127,127,127,.08)); color:inherit; border:1px solid var(--line, rgba(127,127,127,.25)); border-radius:10px; padding:10px; font:inherit; font-size:14px; }
+.stitem { border:1px solid var(--line, rgba(127,127,127,.2)); border-radius:10px; padding:10px 12px; margin-bottom:8px; }
+.stitem .sth { display:flex; align-items:center; gap:8px; }
+.stitem .sth b { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; font-size:14px; }
+.stitem .s { color:var(--faint); font-size:12px; }
+.stitem .stb { color:var(--faint); font-size:12.5px; margin-top:6px; white-space:pre-wrap; max-height:5.4em; overflow:hidden; }
+.sttag { font-size:11px; padding:1px 7px; border-radius:6px; background:rgba(127,127,127,.15); }
+.sthead { margin:16px 0 8px; font-size:12px; color:var(--faint); text-transform:uppercase; letter-spacing:.06em; }
 .promisebox { border:1px solid color-mix(in srgb, var(--promise) 35%, transparent); background:color-mix(in srgb, var(--promise) 8%, transparent); border-radius:12px; padding:12px 14px; margin:0 0 14px; }
 .promisebox .pl { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--promise); }
 .promisebox .pl svg { width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:2; }
@@ -623,6 +632,7 @@ var I = {
   bag:'<svg viewBox="0 0 24 24"><path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>',
   chat:'<svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg>',
   note:'<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 12h7M9 16h5"/></svg>',
+  sticky:'<svg viewBox="0 0 24 24"><path d="M4 4h16v10l-6 6H4z"/><path d="M14 20v-6h6"/></svg>',
   info:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>'
 };
 I.reply = PILE_ICON.reply;
@@ -640,7 +650,7 @@ function toast(msg, bad) { var t = document.getElementById('toast'); t.textConte
 
 // Changes (read, unread, move, bin) go one at a time, in the order Owen made them,
 // so a quick read-then-unread can never finish the wrong way round.
-var WRITES = { reviewDecide:1, reviewNote:1, markRead:1, markUnread:1, setPile:1, setChat:1, bin:1, saveDraft:1, doneWith:1, binNoise:1 }, queue = Promise.resolve();
+var WRITES = { stickyAdd:1, stickyRemove:1, stickyClear:1, stickyUndoClear:1, stickyCreate:1, stickyDelete:1, reviewDecide:1, reviewNote:1, markRead:1, markUnread:1, setPile:1, setChat:1, bin:1, saveDraft:1, doneWith:1, binNoise:1 }, queue = Promise.resolve();
 function api(op, args) {
   if (WRITES[op]) { var p = queue.then(function () { return send(op, args); }); queue = p.catch(function () {}); return p; }
   return send(op, args);
@@ -710,7 +720,7 @@ function render() {
   if (!S.token && !S.key) return renderGate();
   var sc = document.querySelector('.rows, .home'), keep = sc ? sc.scrollTop : 0;
   var mail = S.view !== 'home' && S.view !== 'reading' && S.view !== 'trello' && S.view !== 'person' && S.view !== 'review';
-  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : S.view === 'review' ? reviewView() : home()) + '</div>';
+  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'sticky' ? stickyView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : S.view === 'review' ? reviewView() : home()) + '</div>';
   var ns = document.querySelector('.rows, .home'); if (ns) ns.scrollTop = keep;
   bulkBar(); wire(); phoneBar(); swipes();
 }
@@ -763,7 +773,7 @@ function side() {
     var n = unreadCount(p.key); if (p.key === 'new' && !n) return;
     h += '<button class="nav' + (S.view === p.key ? ' on' : '') + '" onclick="go(\'' + p.key + '\')"><span class="dot" style="background:' + p.color + '"></span>' + p.title + '<span class="n">' + (n || '') + '</span></button>';
   });
-  h += '<div class="navlabel">Apps</div>' + nv('slack', I.slack, 'Slack', slackWaiting()) + nv('trello', I.board, 'Trello') + nv('notes', I.note, 'Notes')
+  h += '<div class="navlabel">Apps</div>' + nv('slack', I.slack, 'Slack', slackWaiting()) + nv('sticky', I.sticky, 'Sticky notes', stickyTotal()) + nv('trello', I.board, 'Trello') + nv('notes', I.note, 'Notes')
     + '<div class="navlabel">Folders</div><div class="navrow">' + ['sent', 'drafts', 'trash'].map(function (b) { return '<button class="' + (S.view === 'box:' + b ? 'on' : '') + '" onclick="FD.open=null;go(\'box:' + b + '\')">' + BOXES[b] + '</button>'; }).join('') + '</div>';
   var last = S.data && S.data.last && S.data.last.at;
   return h + '<div class="sidefoot"><span style="flex:1">' + (S.stale ? 'Updating…' : last ? 'Synced ' + ago(last) + ' ago' : '') + '</span>'
@@ -806,7 +816,7 @@ function home() {
       var kinds = issues({ items:g.unread }).map(function (x) { return x.title; });
       h += '<div class="chatrow"><div class="chatico" style="background:' + (CHAT_COLOURS[g.chat] || '#6c6d79') + '">' + esc(initials(chatShort(g.chat))) + '</div>'
         + '<div style="flex:1;min-width:0;cursor:pointer" onclick="openFrom(\'fix\',\'' + g.id + '\')"><div class="t">' + esc(chatShort(g.chat)) + ' <span class="badge">' + g.unread.length + '</span></div><div class="s">' + esc(kinds.slice(0, 3).join(' · ')) + '</div></div>'
-        + '<button class="btn sm pri" onclick="sendToChat(\'' + g.id + '\')">' + I.send + 'Send</button><button class="iconbtn" title="Copy and mark done" onclick="copyGroup(\'' + g.id + '\')">' + I.copy + '</button></div>';
+        + '<button class="btn sm pri" title="Adds these to the ' + esc(stickyFor(g.chat).name) + ' sticky note" onclick="groupToSticky(\'' + g.id + '\')">' + I.sticky + 'To sticky</button><button class="iconbtn" title="Copy and mark done" onclick="copyGroup(\'' + g.id + '\')">' + I.copy + '</button></div>';
     });
     h += '</div>';
   }
@@ -1334,7 +1344,7 @@ function slackPane(ch, thread, g, c, lit) {
   var title = c ? (c.kind === 'channel' ? '#' + c.name : c.name) : g ? (g.items[0].from_name || 'Slack') : 'Slack';
   var out = '<section class="detail sldetail' + (S.phoneOpen ? ' open' : '') + '"><div class="dhead slhead"><div style="display:flex;gap:10px;align-items:center"><button class="iconbtn back" onclick="' + (S.view === 'slack' ? 'S.phoneOpen=false;render()' : 'closeG()') + '">' + I.back + '</button>'
     + (hl ? '<h2 style="margin:0;flex:1">' + esc(title) + '</h2><span class="l3">Your reply goes in a thread on the lit-up message</span>' : thread ? '<button class="btn sm ghost" onclick="SL.thread=null;render();slackScroll()">' + I.back + ' ' + esc(title) + '</button><h2 style="margin:0;flex:1">Thread</h2>' : '<h2 style="margin:0;flex:1">' + esc(title) + '</h2>')
-    + '<span class="acct" style="--c:#a35bd6">lazygecko Slack</span>'
+    + '<span class="acct" style="--c:#a35bd6">lazygecko Slack</span>' + stickySelect('slack', title)
     + (g ? '<button class="btn sm" onclick="markRead()">' + I.check + 'Done<kbd>E</kbd></button>' : '') + '</div></div>';
   out += '<div class="slmsgs">';
   if (!h || (!h.messages && !h.error)) out += '<div class="skel" style="height:260px;margin:16px"></div>';
@@ -1566,7 +1576,7 @@ function notesView() {
     var editing = S.noteEdit === cur.id, ro = cur.attach > 0;
     det += '<div class="dhead"><div style="display:flex;gap:10px;align-items:center"><button class="iconbtn back" onclick="S.phoneOpen=false;S.noteId=null;S.noteEdit=null;render()">' + I.back + '</button><h2 style="margin:0;flex:1">' + esc(cur.title) + '</h2></div><div class="l3">' + esc(cur.list || '') + (cur.modified_at ? ' · edited ' + ago(cur.modified_at) + ' ago' : '') + ' · ' + macStatus() + '</div>'
       + '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">' + (editing ? '<button class="btn pri" onclick="saveNote(\'' + esc(cur.id) + '\')">Save to Notes</button><button class="btn ghost" onclick="S.noteEdit=null;render()">Cancel</button>'
-        : (ro ? '' : '<button class="btn" onclick="S.noteEdit=\'' + esc(cur.id) + '\';render();setTimeout(function(){var t=document.getElementById(\'noteed\');if(t)t.focus()},30)">Edit</button>') + '<button class="btn ghost" onclick="copyText(' + esc(JSON.stringify(cur.body || '')) + ',\'Note copied\')">Copy</button><button class="btn ghost" onclick="openOnMac(\'' + esc(cur.id) + '\')">Open in Notes</button><button class="btn ghost" onclick="delNote(\'' + esc(cur.id) + '\')">Delete</button>')
+        : (ro ? '' : '<button class="btn" onclick="S.noteEdit=\'' + esc(cur.id) + '\';render();setTimeout(function(){var t=document.getElementById(\'noteed\');if(t)t.focus()},30)">Edit</button>') + '<button class="btn ghost" onclick="copyText(' + esc(JSON.stringify(cur.body || '')) + ',\'Note copied\')">Copy</button><button class="btn ghost" onclick="openOnMac(\'' + esc(cur.id) + '\')">Open in Notes</button><button class="btn ghost" onclick="delNote(\'' + esc(cur.id) + '\')">Delete</button>' + stickySelect('note', cur.id))
       + '</div>' + (ro && !editing ? '<div class="l3" style="margin-top:6px">Has pictures or files, so edit this one in Notes.</div>' : '') + '</div>'
       + '<div class="dbody">' + (editing ? '<textarea id="noteed" class="noteed">' + esc(cur.body || '') + '</textarea>' : '<div class="notebody">' + linkify(esc(cur.body || '')) + '</div>') + '</div>';
   }
@@ -1587,6 +1597,68 @@ function delNote(id) {
   var drop = function (l) { return (l || []).filter(function (n) { return n.id !== id; }); };
   S.data.notes = drop(S.data.notes); if (S.noteHits) S.noteHits = drop(S.noteHits); S.noteId = null; S.noteEdit = null; S.phoneOpen = false; render();
   toast('Deleted. Gone from Notes on your Mac and phone within a minute.'); api('macDeleteNote', { id:id }).catch(fail);
+}
+// ---- Sticky notes, one per project (7 Nov 2026). Add anything; Copy and clear pastes it all into one Claude chat. ----
+function stickies() { return (S.data && S.data.stickies) || []; }
+function stickyTotal() { return stickies().reduce(function (a, x) { return a + x.items.length; }, 0); }
+function stickyFor(name) { var l = stickies(), k = String(name || '').toLowerCase(); return l.filter(function (x) { return x.name.toLowerCase() === k; })[0] || l.filter(function (x) { return x.name === 'General TO DOs'; })[0] || l[0] || { name:'General TO DOs' }; }
+function stickySelect(kind, arg) {
+  if (!stickies().length) return '';
+  return '<select class="sel" title="Add to a sticky note, to paste into Claude later in one go" onchange="stickyPick(this,\'' + kind + '\',\'' + esc(String(arg).replace(/'/g, '')) + '\')"><option value="">' + '📌 Sticky…</option>'
+    + stickies().map(function (x) { return '<option value="' + x.id + '">' + esc(x.name) + (x.items.length ? ' (' + x.items.length + ')' : '') + '</option>'; }).join('') + '<option value="new">+ New sticky…</option></select>';
+}
+function stickyPick(sel, kind, arg) {
+  var v = sel.value; sel.value = ''; if (!v) return;
+  var go2 = function (sid) {
+    if (kind === 'ids') { var g = groups().filter(function (x) { return x.id === arg; })[0]; if (g) stickyAddIds(sid, g.items.map(function (e) { return e.id; })); }
+    else if (kind === 'note') stickyAdd(sid, { noteId:arg });
+    else if (kind === 'slack') { var b = document.querySelector('.slmsgs'); stickyAdd(sid, { text:'Slack, ' + arg + ':\n' + String(b ? b.innerText : '').trim().slice(-4000) }); }
+  };
+  if (v === 'new') { var nm = prompt('Name the new sticky note'); if (!nm || !nm.trim()) return; api('stickyCreate', { name:nm }).then(function (r) { S.data.stickies = r.stickies; go2(r.id); }).catch(fail); return; }
+  go2(Number(v));
+}
+function stickyName(sid) { return (stickies().filter(function (x) { return x.id == sid; })[0] || {}).name || 'sticky'; }
+function stickyAdd(sid, payload) {
+  toast('Added to ' + stickyName(sid));
+  return api('stickyAdd', Object.assign({ sticky:sid }, payload)).then(function (r) { S.data.stickies = r.stickies; delete S.stText[sid]; render(); }).catch(fail);
+}
+// Emails and Slack items: added and read here, gone from the list like Send to chat was.
+function stickyAddIds(sid, ids) { var mail = ids.filter(function (id) { return !/^(promise|chase):/.test(id); }); if (mail.length) { setStatus(mail, 'done'); afterChange(); } stickyAdd(sid, { ids:ids }); }
+function groupToSticky(gid) { var g = groups().filter(function (x) { return x.id === gid; })[0]; if (!g) return; var st = stickyFor(g.chat); if (!st.id) return; stickyAddIds(st.id, (g.unread.length ? g.unread : g.items).map(function (e) { return e.id; })); }
+S.stText = {};
+function stickyLoadText(sid) { if (S.stText[sid] || stickyLoadText.p[sid]) return; stickyLoadText.p[sid] = true; api('stickyText', { sticky:sid }).then(function (r) { S.stText[sid] = r; stickyLoadText.p[sid] = false; render(); }).catch(function () { stickyLoadText.p[sid] = false; }); }
+stickyLoadText.p = {};
+function stickyCopy(sid, clear) {
+  var t = S.stText[sid]; if (!t) { toast('Still getting it ready, one second'); return; }
+  var n = stickies().filter(function (x) { return x.id == sid; })[0];
+  copyText(t.text, 'Copied ' + ((n ? n.items.length : 0) + t.cards.length) + ' things. Paste into your ' + stickyName(sid) + ' chat.');
+  if (!clear) return;
+  if (n) n.items = []; S.stUndo = { sid:sid, at:Date.now() }; delete S.stText[sid]; render();
+  api('stickyClear', { sticky:sid }).then(function (r) { S.data.stickies = r.stickies; render(); }).catch(fail);
+}
+function stickyUndo() { var u = S.stUndo; if (!u) return; S.stUndo = null; api('stickyUndoClear', { sticky:u.sid }).then(function (r) { S.data.stickies = r.stickies; delete S.stText[u.sid]; render(); toast('Back on the note'); }).catch(fail); }
+function stickyRemove(sid, id) { var n = stickies().filter(function (x) { return x.id == sid; })[0]; if (n) n.items = n.items.filter(function (i) { return i.id !== id; }); delete S.stText[sid]; render(); api('stickyRemove', { item:id }).then(function (r) { S.data.stickies = r.stickies; render(); }).catch(fail); }
+function stickyIdea(sid) { var t = document.getElementById('stidea'); if (!t || !t.value.trim()) return; var v = t.value; t.value = ''; stickyAdd(sid, { text:v }); }
+function stickyNew() { var nm = prompt('Name the new sticky note'); if (!nm || !nm.trim()) return; api('stickyCreate', { name:nm }).then(function (r) { S.data.stickies = r.stickies; S.stOpen = r.id; render(); }).catch(fail); }
+function stickyDel(sid) { if (!confirm('Delete the ' + stickyName(sid) + ' sticky note and everything on it?')) return; S.stOpen = null; S.data.stickies = stickies().filter(function (x) { return x.id != sid; }); render(); api('stickyDelete', { sticky:sid }).then(function (r) { S.data.stickies = r.stickies; render(); }).catch(fail); }
+var ST_TAG = { email:'Email', slack:'Slack', note:'Note', idea:'Idea', promise:'Promise' };
+function stickyView() {
+  var l = stickies(), cur = l.filter(function (x) { return x.id == S.stOpen; })[0] || (window.innerWidth > 800 ? l.filter(function (x) { return x.items.length; })[0] || l[0] : null);
+  var list = '<section class="list">' + tabs() + '<div class="listhead"><div style="flex:1;min-width:0"><h1>Sticky notes</h1><div class="sub">One per chat. Add things, then paste the lot into Claude.</div></div><button class="btn sm" onclick="stickyNew()">New sticky</button></div><div class="rows">'
+    + l.map(function (x) { return '<div class="row nrow' + (cur && cur.id === x.id ? ' on' : '') + '" onclick="S.stOpen=' + x.id + ';S.phoneOpen=true;render()"><div class="rowav" style="background:' + (x.color || CHAT_COLOURS[x.name] || '#6c6d79') + '">' + esc(initials(x.name)) + '</div><div style="min-width:0;flex:1"><div class="t">' + esc(x.name) + '</div><div class="l3">' + (x.items.length ? x.items.length + ' on it' : 'Empty') + '</div></div>' + (x.items.length ? '<span class="badge">' + x.items.length + '</span>' : '') + '</div>'; }).join('') + '</div></section>';
+  var det = '<section class="detail' + (S.phoneOpen && cur ? ' open' : '') + '">';
+  if (!cur) return list + det + '<div class="empty" style="margin-top:20vh">Pick a sticky note</div></section>';
+  stickyLoadText(cur.id);
+  var t = S.stText[cur.id], cards = t ? t.cards : null, n = cur.items.length + (cards ? cards.length : 0);
+  det += '<div class="dhead"><div style="display:flex;gap:10px;align-items:center"><button class="iconbtn back" onclick="S.phoneOpen=false;render()">' + I.back + '</button><h2 style="margin:0;flex:1">' + esc(cur.name) + '</h2>' + (cur.sort >= 100 ? '<button class="btn sm ghost" onclick="stickyDel(' + cur.id + ')">Delete sticky</button>' : '') + '</div>'
+    + '<div class="l3">' + n + ' thing' + (n === 1 ? '' : 's') + ' to paste into your ' + esc(cur.name) + ' chat' + (cards && cards.length ? ', including ' + cards.length + ' from the Claude Board' : '') + '</div>'
+    + '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn pri" ' + (t && n ? '' : 'disabled') + ' onclick="stickyCopy(' + cur.id + ',true)">' + I.copy + (t ? 'Copy and clear' : 'Getting it ready…') + '</button><button class="btn ghost" ' + (t && n ? '' : 'disabled') + ' onclick="stickyCopy(' + cur.id + ',false)">Copy only</button>'
+    + (S.stUndo && S.stUndo.sid === cur.id && Date.now() - S.stUndo.at < 900000 ? '<button class="btn ghost" onclick="stickyUndo()">Undo clear</button>' : '') + '</div></div><div class="dbody">'
+    + '<div class="stidea"><textarea id="stidea" placeholder="Add an idea or a note for this chat…" onkeydown="if((event.metaKey||event.ctrlKey)&&event.key===\'Enter\')stickyIdea(' + cur.id + ')"></textarea><button class="btn sm" onclick="stickyIdea(' + cur.id + ')">Add</button></div>';
+  if (!cur.items.length && !(cards && cards.length)) det += '<div class="empty">Nothing on it yet. Use 📌 Sticky on any email, Slack chat or note, or type an idea above.</div>';
+  det += cur.items.map(function (i) { return '<div class="stitem"><div class="sth"><span class="sttag">' + (ST_TAG[i.kind] || i.kind) + '</span><b>' + esc(i.title || '') + '</b><span class="s">' + ago(i.at) + ' ago</span><button class="iconbtn" title="Take it off" onclick="stickyRemove(' + cur.id + ',' + i.id + ')">✕</button></div><div class="stb">' + esc(String(i.body || '').slice(0, 400)) + '</div></div>'; }).join('');
+  if (cards && cards.length) det += '<div class="sthead">From the Claude Board, ' + esc(cur.name) + ' column</div>' + cards.map(function (k) { return '<div class="stitem"><div class="sth"><span class="sttag">Trello</span><b>' + esc(String(k.name).slice(0, 140)) + '</b><a class="s" target="_blank" href="' + esc(k.url) + '">Open</a></div></div>'; }).join('');
+  return list + det + '</div></section>';
 }
 function openOnMac(id) { toast('Opening on your Mac in about a minute'); api('macOpenNote', { id:id }).catch(fail); }
 function doneRem(id) { S.data.reminders = (S.data.reminders || []).filter(function (x) { return x.id !== id; }); render(); toast('Ticked. Gone from Reminders on your Mac and phone within a minute.'); api('macComplete', { id:id }).catch(fail); }
@@ -1668,7 +1740,7 @@ function chatDetail(g) {
     + '<button class="iconbtn back" onclick="closeG()">' + I.back + '</button><div class="chatico" style="background:' + (CHAT_COLOURS[g.chat] || '#6c6d79') + '">' + esc(initials(name)) + '</div><h2 style="margin:0;flex:1">For your ' + esc(name) + ' chat</h2></div>'
     + '<div class="meta" style="margin-top:8px"><span class="chip"><span class="dot" style="background:var(--fix)"></span>Fix</span><span class="chip">' + list.length + ' emails</span><span class="chip">' + iss.length + ' problem' + (iss.length === 1 ? '' : 's') + '</span></div></div>'
     + '<div class="explain">' + I.info + '<div><b>Send to chat:</b> you pick which Claude chat, and one message with every problem below (one full example of each, how many times, when) lands in it within about 5 minutes. The emails are marked read.</div></div>'
-    + '<div class="bar"><button class="btn pri" onclick="sendToChat(\'' + g.id + '\')">' + I.send + 'Send to chat</button><button class="btn ghost" onclick="copyGroup(\'' + g.id + '\')">' + I.copy + 'Copy</button>'
+    + '<div class="bar"><button class="btn pri" onclick="groupToSticky(\'' + g.id + '\')">' + I.sticky + 'Add to ' + esc(stickyFor(g.chat).name) + ' sticky</button><button class="btn ghost" onclick="copyGroup(\'' + g.id + '\')">' + I.copy + 'Copy</button>'
     + (g.unread.length ? '<button class="btn" onclick="markRead()">' + I.check + 'Mark all read<kbd>E</kbd></button>' : '<span class="btn ghost" style="cursor:default;opacity:.7">' + I.check + 'All read</span>')
     + '<span style="flex:1"></span><select class="sel" onchange="moveChat(this.value)" title="Send these to a different chat"><option value="">Wrong chat?</option>' + Object.keys(CHAT_COLOURS).filter(function (c) { return c !== g.chat; }).map(function (c) { return '<option value="' + esc(c) + '">' + esc(chatShort(c)) + '</option>'; }).join('') + '</select></div><div class="dbody">';
   iss.forEach(function (x, i) {
@@ -1694,10 +1766,9 @@ function mailDetail(g) {
   // Mark read button used to flip to Mark unread, so Owen's click undid it). Read shows a plain tick;
   // Mark unread is its own small button at the end.
   h += (read ? '<span class="btn ghost" style="cursor:default;opacity:.7">' + I.check + 'Read</span>' : '<button class="btn' + (replyable ? '' : ' pri') + '" title="E" onclick="markRead()">' + I.check + (chase ? 'Dismiss' : prom ? 'Done' : 'Mark read') + '</button>') + '<button class="btn ghost" title="Gone from here for good, even from All (D)" onclick="doneWith()">' + I.check + 'Done with</button>' + (g.pile === 'noise' ? '<button class="btn" title="Moves it to Reply, and this sender never goes in Noise again" onclick="movePile(\'reply\')">Not noise</button>' : '') + (read ? '<button class="btn ghost sm" title="U" onclick="markUnread()">Mark unread</button>' : '')
-    + (toChat ? '<button class="btn ghost" onclick="sendToChat(\'' + g.id + '\')">' + I.send + 'Send to chat</button>' : '')
+    + stickySelect('ids', g.id)
     + (slack ? '' : '<button class="btn ghost" title="Copy the whole email, pictures and formatting, to paste into Claude" onclick="copyEmail(\'' + e.id + '\')">' + I.copy + 'Copy</button>')
     + '<span style="flex:1"></span>'
-    + (toChat ? '' : '<button class="iconbtn" title="Send to a Claude chat" onclick="sendToChat(\'' + g.id + '\')">' + I.send + '</button>')
     + (e.gmail_url ? '<a class="btn ghost sm" target="_blank" href="' + esc(gmailHref(e.gmail_url)) + '">' + I.gmail + (slack ? 'Open in Slack' : 'Open in Gmail') + '</a>' : '')
     + '<select class="sel" onchange="snooze(this.value)" title="Hide it and bring it back to the top later"><option value="">⏰ Later…</option><option value="later">In 3 hours</option><option value="tomorrow">Tomorrow 9am</option><option value="days3">In 3 days</option><option value="weekend">This weekend</option><option value="nextweek">Next week</option></select>'
     + '<button class="iconbtn" title="Add to Reminders" onclick="taskFromEmail()">' + PILE_ICON.learn + '</button>'
