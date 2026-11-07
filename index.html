@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794087281">
+<html lang="en" data-build="b1794088024">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -659,7 +659,7 @@ function toast(msg, bad) { var t = document.getElementById('toast'); t.textConte
 
 // Changes (read, unread, move, bin) go one at a time, in the order Owen made them,
 // so a quick read-then-unread can never finish the wrong way round.
-var WRITES = { stickyAdd:1, stickyRemove:1, stickyClear:1, stickyUndoClear:1, stickyCreate:1, stickyDelete:1, reviewDecide:1, reviewNote:1, markRead:1, markUnread:1, setPile:1, setChat:1, bin:1, saveDraft:1, doneWith:1, binNoise:1 }, queue = Promise.resolve();
+var WRITES = { stickyTick:1, stickyAdd:1, stickyRemove:1, stickyClear:1, stickyUndoClear:1, stickyCreate:1, stickyDelete:1, reviewDecide:1, reviewNote:1, markRead:1, markUnread:1, setPile:1, setChat:1, bin:1, saveDraft:1, doneWith:1, binNoise:1 }, queue = Promise.resolve();
 function api(op, args) {
   if (WRITES[op]) { var p = queue.then(function () { return send(op, args); }); queue = p.catch(function () {}); return p; }
   return send(op, args);
@@ -1649,6 +1649,8 @@ function stickyCopy(sid, clear) {
   copyText(t.text, 'Copied ' + ((n ? n.items.length : 0) + t.cards.length) + ' things. Paste into your ' + stickyName(sid) + ' chat.');
   if (!clear) return;
   if (n) n.items = []; S.stUndo = { sid:sid, at:Date.now() }; delete S.stText[sid]; render();
+  // The Claude Board cards that went with it get their tick on Trello, so they never go twice.
+  if (t.cards.length) api('stickyTick', { cards:t.cards.map(function (k) { return k.id; }) }).then(function (r) { toast(r.ticked + ' Trello card' + (r.ticked === 1 ? '' : 's') + ' ticked'); }).catch(fail);
   api('stickyClear', { sticky:sid }).then(function (r) { S.data.stickies = r.stickies; render(); }).catch(fail);
 }
 function stickyUndo() { var u = S.stUndo; if (!u) return; S.stUndo = null; api('stickyUndoClear', { sticky:u.sid }).then(function (r) { S.data.stickies = r.stickies; delete S.stText[u.sid]; render(); toast('Back on the note'); }).catch(fail); }
@@ -1667,12 +1669,12 @@ function stickyView() {
   var t = S.stText[cur.id], cards = t ? t.cards : null, n = cur.items.length + (cards ? cards.length : 0);
   det += '<div class="dhead"><div style="display:flex;gap:10px;align-items:center"><button class="iconbtn back" onclick="S.phoneOpen=false;render()">' + I.back + '</button><h2 style="margin:0;flex:1">' + esc(cur.name) + '</h2>' + (cur.sort >= 100 ? '<button class="btn sm ghost" onclick="stickyDel(' + cur.id + ')">Delete sticky</button>' : '') + '</div>'
     + '<div class="l3">' + n + ' thing' + (n === 1 ? '' : 's') + ' to paste into your ' + esc(cur.name) + ' chat' + (cards && cards.length ? ', including ' + cards.length + ' from the Claude Board' : '') + '</div>'
-    + '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn pri" ' + (t && n ? '' : 'disabled') + ' onclick="stickyCopy(' + cur.id + ',true)">' + I.copy + (t ? 'Copy and clear' : 'Getting it ready…') + '</button><button class="btn ghost" ' + (t && n ? '' : 'disabled') + ' onclick="stickyCopy(' + cur.id + ',false)">Copy only</button>'
+    + '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn pri" ' + (t && n ? '' : 'disabled') + ' onclick="stickyCopy(' + cur.id + ',true)">' + I.copy + (t ? 'Copy, clear and tick' : 'Getting it ready…') + '</button><button class="btn ghost" ' + (t && n ? '' : 'disabled') + ' onclick="stickyCopy(' + cur.id + ',false)">Copy only</button>'
     + (S.stUndo && S.stUndo.sid === cur.id && Date.now() - S.stUndo.at < 900000 ? '<button class="btn ghost" onclick="stickyUndo()">Undo clear</button>' : '') + '</div></div><div class="dbody">'
     + '<div class="stidea"><textarea id="stidea" placeholder="Add an idea or a note for this chat…" onkeydown="if((event.metaKey||event.ctrlKey)&&event.key===\'Enter\')stickyIdea(' + cur.id + ')"></textarea><button class="btn sm" onclick="stickyIdea(' + cur.id + ')">Add</button></div>';
   if (!cur.items.length && !(cards && cards.length)) det += '<div class="empty">Nothing on it yet. Use 📌 Sticky on any email, Slack chat or note, or type an idea above.</div>';
   det += cur.items.map(function (i) { return '<div class="stitem"><div class="sth"><span class="sttag">' + (ST_TAG[i.kind] || i.kind) + '</span><b>' + esc(i.title || '') + '</b><span class="s">' + ago(i.at) + ' ago</span><button class="iconbtn" title="Take it off" onclick="stickyRemove(' + cur.id + ',' + i.id + ')">✕</button></div>' + (String(i.body || '').trim() === String(i.title || '').trim() ? '' : '<div class="stb">' + esc(String(i.body || '').slice(0, 400)) + '</div>') + '</div>'; }).join('');
-  if (cards && cards.length) det += '<div class="sthead">From the Claude Board, ' + esc(cur.name) + ' column</div>' + cards.map(function (k) { return '<div class="stitem"><div class="sth"><span class="sttag">Trello</span><b>' + esc(String(k.name).slice(0, 140)) + '</b><a class="s" target="_blank" href="' + esc(k.url) + '">Open</a></div></div>'; }).join('');
+  if (cards && cards.length) det += '<div class="sthead">From the Claude Board, ' + esc(cur.name) + ' column</div>' + cards.map(function (k) { return '<div class="stitem"><div class="sth"><span class="sttag">Trello</span><b>' + esc(String(k.name).slice(0, 140)) + '</b>' + (k.pics && k.pics.length ? '<span class="s">' + k.pics.length + ' picture' + (k.pics.length === 1 ? '' : 's') + '</span>' : '') + '<a class="s" target="_blank" href="' + esc(k.url) + '">Open</a></div></div>'; }).join('');
   return list + det + '</div></section>';
 }
 function openOnMac(id) { toast('Opening on your Mac in about a minute'); api('macOpenNote', { id:id }).catch(fail); }
