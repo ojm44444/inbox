@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794088024">
+<html lang="en" data-build="b1794088323">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -135,6 +135,10 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .when { color:var(--faint); font-size:12px; white-space:nowrap; text-align:right; }
 .when .pd { display:block; margin-top:4px; }
 .wait { color:var(--chase); }
+.dlgdraft { width:100%; min-height:150px; margin:8px 0; background:rgba(127,127,127,.08); color:inherit; border:1px solid rgba(127,127,127,.25); border-radius:10px; padding:10px; font:inherit; font-size:14px; resize:vertical; }
+.answer .cf { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.clash { border-left:3px solid var(--chase); background:color-mix(in srgb, var(--chase) 9%, transparent); border-radius:8px; padding:8px 10px; margin:0 0 8px; font-size:13px; }
+.clash b { color:var(--chase); font-size:12px; }
 .linkbtn { background:none; border:0; color:var(--accent, #8b87ff); font:inherit; font-size:12px; cursor:pointer; padding:0 4px; }
 .cubox { margin:6px 0 2px; padding:8px 10px; border-radius:8px; background:rgba(127,127,127,.08); font-size:12.5px; line-height:1.45; }
 .cubox div + div { margin-top:4px; }
@@ -836,7 +840,8 @@ function home() {
     h += '</div>';
   }
   h += ideasBox() + socialBox() + '</div><div class="hcol">';
-  h += '<div class="box"><h3>' + I.cal + 'Next few days</h3>' + timeline() + '</div>';
+  var clashes = (S.data.calendar && S.data.calendar.clashes) || [];
+  h += '<div class="box"><h3>' + I.cal + 'Next few days</h3>' + clashes.map(function (c) { return '<div class="clash"><b>Clash, ' + esc(c.day) + '</b><div>' + esc(c.text) + '</div>' + (c.move ? '<div class="l3">Free to move ' + esc(c.moveWhat) + ': ' + esc(c.move) + '</div>' : '') + '</div>'; }).join('') + timeline() + '</div>';
   h += notesBox() + shopBox();
   var lb = (S.data.emails || []).filter(function (e) { return /littlebird\.ai$/i.test(e.from_email || ''); }).slice(0, 3);
   if (lb.length) h += '<div class="box"><h3>' + I.spark + 'From Littlebird</h3>'
@@ -1197,7 +1202,12 @@ function inboxStrip() {
 // ---- Ask your inbox ----
 function askBar() {
   var a = S.ask || {};
-  var h = '<form class="ask" onsubmit="event.preventDefault();askIt(this.q.value)">' + I.spark + '<input name="q" id="askq" placeholder="Ask your inbox anything… (who\'s waiting on me? what do I owe The Grace?)" value="' + esc(a.q || '') + '" autocomplete="off"><kbd>⌘K</kbd><button class="btn pri sm">' + (a.busy ? 'Thinking…' : 'Ask') + '</button></form>';
+  var h = '<form class="ask" onsubmit="event.preventDefault();askIt(this.q.value)">' + I.spark + '<input name="q" id="askq" placeholder="Ask, or tell me to do something… (chase Simon about the invoice, remind me Tuesday, what do I owe The Grace?)" value="' + esc(a.q || '') + '" autocomplete="off"><kbd>⌘K</kbd><button class="btn pri sm">' + (a.busy ? 'Working…' : 'Go') + '</button></form>';
+  if (a.r && a.r.type === 'email') h += '<div class="answer"><div class="ansh">' + I.pen + '<b>To ' + esc(a.r.toName && a.r.toName !== a.r.to ? a.r.toName + ' <' + a.r.to + '>' : a.r.to) + '</b>' + acctTag(a.r.account) + '<span class="l3">on "' + esc(a.r.subject.replace(/^re:\s*/i, '')) + '", last ' + esc(a.r.when) + '</span><span style="flex:1"></span><button class="iconbtn" onclick="S.ask={};render()">✕</button></div>'
+    + '<textarea id="dlgdraft" class="dlgdraft">' + esc(a.r.draft) + '</textarea><div class="cf"><button class="btn pri" onclick="delegateSend()">' + I.send + 'Send</button><button class="btn ghost" onclick="S.ask={};render()">Discard</button><span class="l3">Nothing goes until you press Send. 5 seconds to undo.</span></div></div>';
+  if (a.r && a.r.type === 'reminder') h += '<div class="answer"><div class="ansh">' + I.check + '<b>Reminder: ' + esc(a.r.text) + (a.r.due ? ', ' + esc(new Date(a.r.due + 'T12:00:00').toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' })) : '') + '</b><span style="flex:1"></span><button class="btn sm pri" onclick="addRem(S.ask.r.text,S.ask.r.due);S.ask={};render()">Add to Reminders</button><button class="iconbtn" onclick="S.ask={};render()">✕</button></div></div>';
+  if (a.r && a.r.type === 'sticky') h += '<div class="answer"><div class="ansh">' + I.sticky + '<b>Put it on the ' + esc(a.r.name) + ' sticky?</b><span style="flex:1"></span><button class="btn sm pri" onclick="stickyAdd(S.ask.r.sticky,{text:S.ask.r.text});S.ask={};render()">Add</button><button class="iconbtn" onclick="S.ask={};render()">✕</button></div></div>';
+  if (a.r && a.r.type === 'notfound') h += '<div class="answer"><div class="ansh">' + I.spark + '<b>' + esc(a.r.text) + '</b><span style="flex:1"></span><button class="iconbtn" onclick="S.ask={};render()">✕</button></div></div>';
   if (a.answer) h += '<div class="answer"><div class="ansh">' + I.spark + '<b>Answer</b><span style="flex:1"></span><button class="iconbtn" onclick="S.ask={};render()">✕</button></div><div class="anst">' + linkify(a.answer) + '</div></div>';
   return h;
 }
@@ -1208,7 +1218,15 @@ function linkify(t) {
 function askIt(q) {
   q = String(q || '').trim(); if (!q) return;
   S.ask = { q:q, busy:true }; render();
-  api('ask', { q:q }).then(function (r) { S.ask = { q:q, answer:r.answer, ids:r.ids }; render(); }).catch(function (e) { S.ask = { q:q }; render(); toast(e.message, true); });
+  api('delegate', { text:q }).then(function (r) { S.ask = r.type === 'answer' ? { q:q, answer:r.answer, ids:r.ids } : { q:q, r:r }; render(); }).catch(function (e) { S.ask = { q:q }; render(); toast(e.message, true); });
+}
+// The delegated email goes on his press, with 5 seconds to take it back.
+function delegateSend() {
+  var r = S.ask && S.ask.r; if (!r) return; var t = (document.getElementById('dlgdraft') || {}).value || r.draft; if (!t.trim()) return;
+  var undone = false, u = document.createElement('div'); u.className = 'toast show'; u.innerHTML = 'Sending to ' + esc(r.to) + '… <button class="btn sm">Undo</button>';
+  u.querySelector('button').onclick = function () { undone = true; u.remove(); S.ask = { q:S.ask.q, r:Object.assign(r, { draft:t }) }; render(); toast('Not sent'); };
+  S.ask = {}; render(); document.body.appendChild(u);
+  setTimeout(function () { if (undone) return; u.remove(); api('delegateSend', { account:r.account, threadId:r.threadId, to:r.to, subject:r.subject, msgId:r.msgId, text:t }).then(function () { toast('Sent to ' + r.to); load('load'); }).catch(function (e) { S.ask = { q:'', r:Object.assign(r, { draft:t }) }; render(); toast('Did not send: ' + e.message, true); }); }, 5000);
 }
 function openEmail(id) { var g = groups().filter(function (x) { return x.items.some(function (e) { return e.id === id; }); })[0]; if (!g) return; S.f.unread = false; openFrom(g.pile, g.id); }
 
