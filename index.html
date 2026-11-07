@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794093831">
+<html lang="en" data-build="b1794094840">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -739,9 +739,17 @@ function matches(g) {
 function promDue(e) { var m = String(e.why || '').match(/by (\d{4}-\d{2}-\d{2})/); if (!m) return null; var d = Math.round((Date.parse(m[1] + 'T12:00:00') - Date.parse(new Date().toISOString().slice(0, 10) + 'T12:00:00')) / 86400000); return { d:d, label:d < 0 ? 'Overdue' : d === 0 ? 'Due today' : d === 1 ? 'Due tomorrow' : 'Due in ' + d + ' days' }; }
 // They wrote twice since you last did: reply before they chase a third time.
 function chasedTwice(e) { if (e.kind !== 'in' || e.account === 'slack') return false; var parts = String(e.thread_text || '').split(/\n\n=====\n\n/), n = 0; for (var i = parts.length - 1; i >= 0; i--) { var f = (parts[i].match(/^From: .*?<?([^\s<>]+@[^\s<>]+)>?\s*$/m) || [])[1] || ''; if (!f || OWN_RE.test(f)) break; n++; } return n >= 2; }
+// Reply ranked by who matters (Kinso idea, Owen 7 Nov: Build it), not newest first: people who chased twice,
+// people you always answer, money and bookings, band and work, and the longer they've waited.
+var MATTERS_RE = /invoice|payment|pay |paid|fee|contract|gig|booking|book |offer|deadline|urgent|asap|today|tomorrow|tonight|show|festival|deposit|quote/i;
+function matters(e) {
+  var h = ((S.data && S.data.habits) || {})[String(e.from_email || '').toLowerCase()] || {}, lb = ((S.data && S.data.lb && S.data.lb.people) || []).some(function (p) { return p.email && p.email === String(e.from_email || '').toLowerCase(); });
+  return (chasedTwice(e) ? 40 : 0) + Math.min((h.reply || 0) * 8, 40) + (MATTERS_RE.test((e.subject || '') + ' ' + (e.snippet || '') + ' ' + (e.why || '')) ? 20 : 0)
+    + (/^(tez|rt)$/.test(e.account || '') ? 15 : 0) + (lb ? 10 : 0) + Math.min(Math.floor((Date.now() - Date.parse(e.received_at)) / 86400000), 10);
+}
 function pileList(p) {
   var l = groups().filter(function (g) { return (p === 'all' || g.pile === p) && visible(g) && matches(g); });
-  if (p === 'reply') l.sort(function (a, b) { return chasedTwice(b.items[0]) - chasedTwice(a.items[0]); });
+  if (p === 'reply') l.sort(function (a, b) { return matters(b.items[0]) - matters(a.items[0]) || Date.parse(b.items[0].received_at) - Date.parse(a.items[0].received_at); });
   if (p === 'promise') l.sort(function (a, b) { var x = promDue(a.items[0]), y = promDue(b.items[0]); return (x ? x.d : 99) - (y ? y.d : 99) || Date.parse(a.items[0].received_at) - Date.parse(b.items[0].received_at); });
   else if (p === 'chase') l.sort(function (a, b) { return Date.parse(a.items[0].received_at) - Date.parse(b.items[0].received_at); });
   return l;
@@ -1239,11 +1247,13 @@ function inboxStrip() {
 // ---- Ask your inbox ----
 function askBar() {
   var a = S.ask || {};
-  var h = '<form class="ask" onsubmit="event.preventDefault();askIt(this.q.value)">' + I.spark + '<input name="q" id="askq" placeholder="Ask, or tell me to do something… (chase Simon about the invoice, remind me Tuesday, what do I owe The Grace?)" value="' + esc(a.q || '') + '" autocomplete="off"><kbd>⌘K</kbd><button class="btn pri sm">' + (a.busy ? 'Working…' : 'Go') + '</button></form>';
+  var h = '<form class="ask" onsubmit="event.preventDefault();askIt(this.q.value)">' + I.spark + '<input name="q" id="askq" placeholder="Ask, find, or tell me to do something… (find the Lakehouse invoice, chase Simon, remind me Tuesday)" value="' + esc(a.q || '') + '" autocomplete="off"><kbd>⌘K</kbd><button class="btn pri sm">' + (a.busy ? 'Working…' : 'Go') + '</button></form>';
   if (a.r && a.r.type === 'email') h += '<div class="answer"><div class="ansh">' + I.pen + '<b>To ' + esc(a.r.toName && a.r.toName !== a.r.to ? a.r.toName + ' <' + a.r.to + '>' : a.r.to) + '</b>' + acctTag(a.r.account) + '<span class="l3">on "' + esc(a.r.subject.replace(/^re:\s*/i, '')) + '", last ' + esc(a.r.when) + '</span><span style="flex:1"></span><button class="iconbtn" onclick="S.ask={};render()">✕</button></div>'
     + '<textarea id="dlgdraft" class="dlgdraft">' + esc(a.r.draft) + '</textarea><div class="cf"><button class="btn pri" onclick="delegateSend()">' + I.send + 'Send</button><button class="btn ghost" onclick="S.ask={};render()">Discard</button><span class="l3">Nothing goes until you press Send. 5 seconds to undo.</span></div></div>';
   if (a.r && a.r.type === 'reminder') h += '<div class="answer"><div class="ansh">' + I.check + '<b>Reminder: ' + esc(a.r.text) + (a.r.due ? ', ' + esc(new Date(a.r.due + 'T12:00:00').toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' })) : '') + '</b><span style="flex:1"></span><button class="btn sm pri" onclick="addRem(S.ask.r.text,S.ask.r.due);S.ask={};render()">Add to Reminders</button><button class="iconbtn" onclick="S.ask={};render()">✕</button></div></div>';
   if (a.r && a.r.type === 'sticky') h += '<div class="answer"><div class="ansh">' + I.sticky + '<b>Put it on the ' + esc(a.r.name) + ' sticky?</b><span style="flex:1"></span><button class="btn sm pri" onclick="stickyAdd(S.ask.r.sticky,{text:S.ask.r.text});S.ask={};render()">Add</button><button class="iconbtn" onclick="S.ask={};render()">✕</button></div></div>';
+  if (a.r && a.r.type === 'search') h += '<div class="answer"><div class="ansh">' + I.search + '<b>' + esc(a.r.answer || (a.r.hits.length ? 'Here is what I found' : 'Nothing found')) + '</b><span style="flex:1"></span><button class="iconbtn" onclick="S.ask={};render()">✕</button></div>'
+    + a.r.hits.map(function (x) { var tag = x.src === 'whatsapp' ? WA_TAG : x.src === 'slack' ? { label:'Slack', color:'#a35bd6' } : ACCOUNTS[x.src] || ACCOUNTS.personal; return '<div class="mini"' + (x.url ? ' onclick="window.open(\'' + esc(gmailHref(x.url)) + '\',\'_blank\')"' : '') + '><div style="min-width:0"><div class="t"><span class="acct" style="--c:' + tag.color + '">' + tag.label + '</span> ' + esc(x.title) + '</div><div class="l3">' + esc(x.who) + ' · ' + esc(new Date(x.at).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'2-digit' })) + ' · ' + esc(x.text) + '</div></div></div>'; }).join('') + '</div>';
   if (a.r && a.r.type === 'notfound') h += '<div class="answer"><div class="ansh">' + I.spark + '<b>' + esc(a.r.text) + '</b><span style="flex:1"></span><button class="iconbtn" onclick="S.ask={};render()">✕</button></div></div>';
   if (a.answer) h += '<div class="answer"><div class="ansh">' + I.spark + '<b>Answer</b><span style="flex:1"></span><button class="iconbtn" onclick="S.ask={};render()">✕</button></div><div class="anst">' + linkify(a.answer) + '</div></div>';
   return h;
@@ -1341,6 +1351,7 @@ function snoozeAt(kind) {
   else if (kind === 'days3') { d = L(9); d.setDate(d.getDate() + 3); }
   else if (kind === 'weekend') { d = L(10); d.setDate(d.getDate() + ((6 - d.getDay() + 7) % 7 || 7)); }
   else if (kind === 'nextweek') { d = L(9); d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); }
+  else if (kind === 'noreply1' || kind === 'noreply2') { d = L(9); d.setDate(d.getDate() + (kind === 'noreply1' ? 7 : 14)); }
   if (kind === 'later' && d < new Date()) d = new Date(Date.now() + 3 * 3600000);
   return d;
 }
@@ -1348,8 +1359,8 @@ function snooze(kind) {
   if (!kind) return; var g = current(); if (!g) return;
   var until = snoozeAt(kind), ids = g.items.map(function (e) { return e.id; });
   S.data.emails = S.data.emails.filter(function (e) { return ids.indexOf(e.id) < 0; });
-  afterChange('Back at the top ' + until.toLocaleString('en-GB', { weekday:'short', hour:'2-digit', minute:'2-digit' }));
-  api('snooze', { ids:ids, until:until.toISOString() }).catch(fail);
+  afterChange((/^noreply/.test(kind) ? 'Back in Chase if no reply, ' : 'Back at the top ') + until.toLocaleString('en-GB', { weekday:'short', hour:'2-digit', minute:'2-digit' }));
+  api('snooze', { ids:ids, until:until.toISOString(), noReply:/^noreply/.test(kind) }).catch(fail);
 }
 
 // ---- Slack, looking and working like Slack (lazygecko workspace, sends as Owen) ----
@@ -1567,6 +1578,7 @@ function personView() {
   h += '<div class="hgrid" style="grid-template-columns:minmax(0,1fr) minmax(0,1.6fr)"><div class="hcol">';
   h += '<div class="box"><h3>' + I.inbox + 'On your list now<span class="badge">' + p.open.length + '</span></h3>' + (p.open.length ? p.open.map(function (e) {
     var pl = pileOf(e.category || 'new'); return '<div class="mini" onclick="openEmail(\'' + esc(e.id) + '\')"><span class="dot" style="background:' + pl.color + ';margin-top:6px"></span><div style="min-width:0"><div class="t">' + esc(e.subject) + '</div><div class="l3">' + pl.title + (e.why ? ' · ' + esc(e.why) : '') + '</div></div><div class="s">' + ago(e.received_at) + '</div></div>'; }).join('') : '<div class="empty" style="padding:16px">Nothing open with them.</div>') + '</div>';
+  if (p.wa) h += '<div class="box"><h3>' + I.wa + 'WhatsApp<span style="flex:1"></span><button class="btn sm ghost" onclick="S.view=\'whatsapp\';waOpen(\'' + esc(p.wa.chat) + '\')">Open chat</button></h3>' + (p.wa.messages || []).map(function (m) { return '<div class="mini"><div style="min-width:0"><div class="l3">' + (m.from_me ? 'You' : esc(p.wa.name)) + ' · ' + ago(m.ts) + ' ago</div><div class="t" style="font-weight:400">' + esc(String(m.text).slice(0, 160)) + '</div></div></div>'; }).join('') + '</div>';
   if (p.slack) h += '<div class="box"><h3>' + I.slack + 'Slack</h3><div class="mini" onclick="slackDm(\'' + esc(p.slack.id) + '\')"><div style="min-width:0"><div class="t">Message ' + esc(p.slack.name) + ' on lazygecko</div><div class="l3">Opens your DM with them</div></div></div></div>';
   var hb = p.habit, rule = p.rule;
   h += '<div class="box"><h3>' + I.check + 'What you do with their emails</h3><div class="l3" style="line-height:1.7">' + (hb ? [hb.reply ? 'replied ' + hb.reply + '×' : '', hb.read ? 'marked ' + hb.read + ' read' : '', hb.bin ? 'binned ' + hb.bin : '', Object.keys(hb.chat || {}).length ? 'sent to ' + Object.keys(hb.chat).join(', ') : ''].filter(Boolean).join(' · ') || 'Nothing yet.' : 'Nothing yet.') + '</div>'
@@ -1897,7 +1909,7 @@ function mailDetail(g) {
     + (slack || e.account === 'whatsapp' ? '' : '<button class="btn ghost" title="Copy the whole email, pictures and formatting, to paste into Claude" onclick="copyEmail(\'' + e.id + '\')">' + I.copy + 'Copy</button>')
     + '<span style="flex:1"></span>'
     + (e.gmail_url ? '<a class="btn ghost sm" target="_blank" href="' + esc(gmailHref(e.gmail_url)) + '">' + I.gmail + (slack ? 'Open in Slack' : e.account === 'whatsapp' ? 'Open in WhatsApp' : 'Open in Gmail') + '</a>' : '')
-    + '<select class="sel" onchange="snooze(this.value)" title="Hide it and bring it back to the top later"><option value="">⏰ Later…</option><option value="later">In 3 hours</option><option value="tomorrow">Tomorrow 9am</option><option value="days3">In 3 days</option><option value="weekend">This weekend</option><option value="nextweek">Next week</option></select>'
+    + '<select class="sel" onchange="snooze(this.value)" title="Hide it and bring it back to the top later"><option value="">⏰ Later…</option><option value="later">In 3 hours</option><option value="tomorrow">Tomorrow 9am</option><option value="days3">In 3 days</option><option value="weekend">This weekend</option><option value="nextweek">Next week</option><option value="noreply1">If no reply in 1 week</option><option value="noreply2">If no reply in 2 weeks</option></select>'
     + '<button class="iconbtn" title="Add to Reminders" onclick="taskFromEmail()">' + PILE_ICON.learn + '</button>'
     + '<select class="sel" onchange="movePile(this.value)" title="Move to another pile"><option value="">Move</option>' + PILES.filter(function (x) { return x.key !== 'new' && x.key !== g.pile; }).map(function (x) { return '<option value="' + x.key + '">' + x.title + '</option>'; }).join('') + '</select>'
     + (slack || e.account === 'whatsapp' ? '' : '<button class="iconbtn" title="Bin" onclick="binOne()">' + I.bin + '</button>') + '</div><div class="dbody">';
