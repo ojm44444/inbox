@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794094840">
+<html lang="en" data-build="b1794095270">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1035,6 +1035,8 @@ function copyRich(p) {
 function sendOne(id) { var g = groups().filter(function (x) { return x.items.some(function (e) { return e.id === id; }); })[0]; if (g) sendToChat(g.id); }
 // One chip per inbox with its unread count; tap to see only that inbox everywhere.
 // Opens the exact thread in the right Gmail account, even after it leaves the inbox.
+// Security audit 7 Nov 2026: only real web, mail and WhatsApp links are ever clickable (never javascript:).
+function safeUrl(u) { u = String(u || ''); return /^(https?:|mailto:|whatsapp:)/i.test(u) ? u : '#'; }
 function gmailHref(u) {
   u = String(u || '');
   if (u.indexOf('mail.google.com') < 0) return u;
@@ -1154,7 +1156,7 @@ function hubCard(c, pos, total) {
   if (c.pics && c.pics.length) h += '<div class="hubpics' + (c.pics.length === 1 ? ' one' : '') + '">' + c.pics.map(function (p, n) { return hubPic(p, n, key); }).join('') + '</div>';
   if (c.detail && c.detail !== c.what) h += '<details class="hubmore"><summary>More detail</summary><p>' + esc(c.detail) + '</p></details>';
   if (c.own) h += '<p class="hubown">' + esc(c.own) + '</p>';
-  var links = (c.links || []).map(function (l) { return '<a class="hubbtn ghost" target="_blank" rel="noopener" href="' + esc(l.href) + '">' + esc(l.label) + ' ↗</a>'; }).join('');
+  var links = (c.links || []).map(function (l) { return '<a class="hubbtn ghost" target="_blank" rel="noopener" href="' + esc(safeUrl(l.href)) + '">' + esc(l.label) + ' ↗</a>'; }).join('');
   if (c.try) links += '<button class="hubbtn ghost" onclick="reviewTry(\'' + esc(c.try) + '\')">Try it</button>';
   if (links) h += '<div class="hublinks">' + links + '</div>';
   var noting = S.rvNote === key;
@@ -1164,7 +1166,7 @@ function hubCard(c, pos, total) {
       : '<button class="hubbtn yes" onclick="hubDecide(' + js + ',\'approved\')">Approve</button>')
     + (c.typed ? '' : '<button class="hubbtn" onclick="S.rvNote=S.rvNote===' + js + '?null:' + js + ';render()">' + (c.options ? 'Something else' : 'Change') + '</button>')
     + '<button class="hubbtn ghost" onclick="hubSkip(' + js + ')">Ask me later</button>'
-    + (page ? '<a class="hubbtn ghost" target="_blank" rel="noopener" href="' + esc(page) + '">Open in ' + esc(src.name) + ' ↗</a>' : '')
+    + (page ? '<a class="hubbtn ghost" target="_blank" rel="noopener" href="' + esc(safeUrl(page)) + '">Open in ' + esc(src.name) + ' ↗</a>' : '')
     + '</div>';
   if (noting) h += '<div class="hubnote"><textarea id="rvtext" placeholder="' + (c.typed ? 'Your answer' : 'What should change?') + '"></textarea><button class="hubbtn yes" onclick="hubDecide(' + js + ',\'change\')">Send</button></div>';
   return h + '</article>';
@@ -1211,7 +1213,7 @@ function reviewView() {
   } else if (HUB.at || !S.token) h += '<article class="hubcard empty"><h2 class="hubtitle">All caught up</h2><p>Nothing waits on you' + (f === 'all' ? '' : ' in ' + esc(HUB_SRC[f].name)) + '. New cards land here as each chat finishes work.</p></article>';
   // Things to do inside a tool (Moon's Approve page, the section test): a link each.
   var extra = hubPids().filter(function (p) { return f === 'all' || f === p; }).reduce(function (a, p) { return a.concat(((HUB.p[p] || {}).extra || []).map(function (x) { x.pid = p; return x; })); }, []);
-  if (extra.length) h += '<div class="hubsec"><div class="hublab">To do inside the tools</div>' + extra.map(function (x) { return '<a class="hubrow" target="_blank" rel="noopener" href="' + esc(x.href || '#') + '"><span class="hubdot" style="--c:' + HUB_SRC[x.pid].color + '"></span><span class="t">' + esc(x.title) + '<small>' + esc((x.lines || []).join(' · ')) + '</small></span><span class="m">' + esc(x.button || 'Open') + ' ↗</span></a>'; }).join('') + '</div>';
+  if (extra.length) h += '<div class="hubsec"><div class="hublab">To do inside the tools</div>' + extra.map(function (x) { return '<a class="hubrow" target="_blank" rel="noopener" href="' + esc(safeUrl(x.href)) + '"><span class="hubdot" style="--c:' + HUB_SRC[x.pid].color + '"></span><span class="t">' + esc(x.title) + '<small>' + esc((x.lines || []).join(' · ')) + '</small></span><span class="m">' + esc(x.button || 'Open') + ' ↗</span></a>'; }).join('') + '</div>';
   var ans = hubPids().filter(function (p) { return f === 'all' || f === p; }).reduce(function (a, p) {
     if (p === 'inbox') { var r = reviewData(); return a.concat(r.items.filter(function (i) { return r.decisions[i.id]; }).map(function (i) { var d = r.decisions[i.id]; return { pid:p, title:i.title, decision:d.decision, note:d.note, at:d.at }; })); }
     return a.concat(((HUB.p[p] || {}).answered || []).map(function (x) { x.pid = p; return x; }));
@@ -1484,7 +1486,7 @@ function slackPane(ch, thread, g, c, lit) {
       out += '<div class="slmsg' + (same ? ' cont' : '') + (m.user === h.me ? ' mine' : '') + (hl && m.ts === hl ? ' hl' : '') + '">' + (same ? '<span class="sltime">' + d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' }) + '</span>' : av)
         + '<div class="slbody">' + (same ? '' : '<div class="slwho"><b>' + esc(m.name) + '</b><span class="l3">' + d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' }) + '</span></div>')
         + '<div class="sltext">' + mrkdwn(m.text, h.names) + (m.edited ? ' <span class="l3">(edited)</span>' : '') + '</div>'
-        + (m.files.length ? '<div class="slfiles">' + m.files.map(function (f) { return '<a class="slfile" target="_blank" href="' + esc(f.url) + '">📎 ' + esc(f.name) + '</a>'; }).join('') + '</div>' : '')
+        + (m.files.length ? '<div class="slfiles">' + m.files.map(function (f) { return '<a class="slfile" target="_blank" href="' + esc(safeUrl(f.url)) + '">📎 ' + esc(f.name) + '</a>'; }).join('') + '</div>' : '')
         + (m.reactions.length ? '<div class="slreacts">' + m.reactions.map(function (r) { return '<span class="slreact">' + (EMO[r.name] || ':' + esc(r.name) + ':') + ' ' + r.count + '</span>'; }).join('') + '</div>' : '')
         + (!thread && m.replies ? '<button class="slreplies" onclick="SL.ch=\'' + ch + '\';SL.thread=\'' + m.ts + '\';' + (S.view === 'slack' ? '' : 'go(\'slack\');') + 'render();slackScroll()">' + m.replies + ' repl' + (m.replies === 1 ? 'y' : 'ies') + '</button>' : '')
         + '</div></div>';
@@ -1606,7 +1608,7 @@ function trello() {
   var h = '<main class="tboard" style="background:linear-gradient(rgba(0,0,0,.25),rgba(0,0,0,.35)),' + bg + '">'
     + '<div class="tbar">' + TL.boards.map(function (x) { return '<button class="tchip' + (b && x.id === b.id ? ' on' : '') + '" onclick="openBoard(\'' + x.id + '\')"><span class="tthumb" style="background:' + (x.bg.thumb ? 'url(' + x.bg.thumb + ') center/cover' : x.bg.color) + '"></span>' + esc(x.name.trim()) + '</button>'; }).join('') + '</div>';
   if (!b || TL.loadingBoard) return h + '<div class="empty" style="color:#fff">Loading…</div></main>';
-  h += '<div class="thead"><h2>' + esc(b.name) + '</h2><a class="btn sm" target="_blank" href="' + esc(b.url) + '">Open in Trello</a><button class="btn sm" onclick="openBoard(\'' + b.id + '\')">' + I.refresh + '</button></div><div class="tlists">';
+  h += '<div class="thead"><h2>' + esc(b.name) + '</h2><a class="btn sm" target="_blank" href="' + esc(safeUrl(b.url)) + '">Open in Trello</a><button class="btn sm" onclick="openBoard(\'' + b.id + '\')">' + I.refresh + '</button></div><div class="tlists">';
   b.lists.forEach(function (l) {
     h += '<div class="tlist" ondragover="event.preventDefault();this.classList.add(\'over\')" ondragleave="this.classList.remove(\'over\')" ondrop="dropCard(event,\'' + l.id + '\')"><div class="tlh">' + esc(l.name) + '<span>' + l.cards.length + '</span></div><div class="tcards">';
     l.cards.forEach(function (c) {
@@ -1785,7 +1787,7 @@ function stickyView() {
     + '<div class="stidea"><textarea id="stidea" placeholder="Add an idea or a note for this chat…" onkeydown="if((event.metaKey||event.ctrlKey)&&event.key===\'Enter\')stickyIdea(' + cur.id + ')"></textarea><button class="btn sm" onclick="stickyIdea(' + cur.id + ')">Add</button></div>';
   if (!cur.items.length && !(cards && cards.length)) det += '<div class="empty">Nothing on it yet. Use 📌 Sticky on any email, Slack chat or note, or type an idea above.</div>';
   det += cur.items.map(function (i) { return '<div class="stitem"><div class="sth"><span class="sttag">' + (ST_TAG[i.kind] || i.kind) + '</span><b>' + esc(i.title || '') + '</b><span class="s">' + ago(i.at) + ' ago</span><button class="iconbtn" title="Take it off" onclick="stickyRemove(' + cur.id + ',' + i.id + ')">✕</button></div>' + (String(i.body || '').trim() === String(i.title || '').trim() ? '' : '<div class="stb">' + esc(String(i.body || '').slice(0, 400)) + '</div>') + '</div>'; }).join('');
-  if (cards && cards.length) det += '<div class="sthead">From the Claude Board, ' + esc(cur.name) + ' column</div>' + cards.map(function (k) { return '<div class="stitem"><div class="sth"><span class="sttag">Trello</span><b>' + esc(String(k.name).slice(0, 140)) + '</b>' + (k.pics && k.pics.length ? '<span class="s">' + k.pics.length + ' picture' + (k.pics.length === 1 ? '' : 's') + '</span>' : '') + '<a class="s" target="_blank" href="' + esc(k.url) + '">Open</a></div></div>'; }).join('');
+  if (cards && cards.length) det += '<div class="sthead">From the Claude Board, ' + esc(cur.name) + ' column</div>' + cards.map(function (k) { return '<div class="stitem"><div class="sth"><span class="sttag">Trello</span><b>' + esc(String(k.name).slice(0, 140)) + '</b>' + (k.pics && k.pics.length ? '<span class="s">' + k.pics.length + ' picture' + (k.pics.length === 1 ? '' : 's') + '</span>' : '') + '<a class="s" target="_blank" href="' + esc(safeUrl(k.url)) + '">Open</a></div></div>'; }).join('');
   return list + det + '</div></section>';
 }
 function openOnMac(id) { toast('Opening on your Mac in about a minute'); api('macOpenNote', { id:id }).catch(fail); }
@@ -1908,7 +1910,7 @@ function mailDetail(g) {
     + stickySelect('ids', g.id)
     + (slack || e.account === 'whatsapp' ? '' : '<button class="btn ghost" title="Copy the whole email, pictures and formatting, to paste into Claude" onclick="copyEmail(\'' + e.id + '\')">' + I.copy + 'Copy</button>')
     + '<span style="flex:1"></span>'
-    + (e.gmail_url ? '<a class="btn ghost sm" target="_blank" href="' + esc(gmailHref(e.gmail_url)) + '">' + I.gmail + (slack ? 'Open in Slack' : e.account === 'whatsapp' ? 'Open in WhatsApp' : 'Open in Gmail') + '</a>' : '')
+    + (e.gmail_url ? '<a class="btn ghost sm" target="_blank" href="' + esc(safeUrl(gmailHref(e.gmail_url))) + '">' + I.gmail + (slack ? 'Open in Slack' : e.account === 'whatsapp' ? 'Open in WhatsApp' : 'Open in Gmail') + '</a>' : '')
     + '<select class="sel" onchange="snooze(this.value)" title="Hide it and bring it back to the top later"><option value="">⏰ Later…</option><option value="later">In 3 hours</option><option value="tomorrow">Tomorrow 9am</option><option value="days3">In 3 days</option><option value="weekend">This weekend</option><option value="nextweek">Next week</option><option value="noreply1">If no reply in 1 week</option><option value="noreply2">If no reply in 2 weeks</option></select>'
     + '<button class="iconbtn" title="Add to Reminders" onclick="taskFromEmail()">' + PILE_ICON.learn + '</button>'
     + '<select class="sel" onchange="movePile(this.value)" title="Move to another pile"><option value="">Move</option>' + PILES.filter(function (x) { return x.key !== 'new' && x.key !== g.pile; }).map(function (x) { return '<option value="' + x.key + '">' + x.title + '</option>'; }).join('') + '</select>'
