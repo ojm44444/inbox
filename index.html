@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794086451">
+<html lang="en" data-build="b1794086574">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -135,6 +135,12 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .when { color:var(--faint); font-size:12px; white-space:nowrap; text-align:right; }
 .when .pd { display:block; margin-top:4px; }
 .wait { color:var(--chase); }
+.strow { display:flex; align-items:center; gap:10px; padding:9px 12px; margin:2px 8px; border-radius:10px; cursor:pointer; }
+.strow:hover { background:rgba(127,127,127,.08); }
+.strow.on { background:color-mix(in srgb, var(--accent, #6d6af5) 18%, transparent); }
+.strow .rowav { width:30px; height:30px; flex:none; }
+.strow .t { font-weight:600; font-size:14px; }
+.strow .l3 { font-size:12px; color:var(--faint); }
 .stidea { display:flex; gap:8px; align-items:flex-end; margin-bottom:14px; }
 .stidea textarea { flex:1; min-height:56px; resize:vertical; background:var(--panel2, rgba(127,127,127,.08)); color:inherit; border:1px solid var(--line, rgba(127,127,127,.25)); border-radius:10px; padding:10px; font:inherit; font-size:14px; }
 .stitem { border:1px solid var(--line, rgba(127,127,127,.2)); border-radius:10px; padding:10px 12px; margin-bottom:8px; }
@@ -1645,7 +1651,7 @@ var ST_TAG = { email:'Email', slack:'Slack', note:'Note', idea:'Idea', promise:'
 function stickyView() {
   var l = stickies(), cur = l.filter(function (x) { return x.id == S.stOpen; })[0] || (window.innerWidth > 800 ? l.filter(function (x) { return x.items.length; })[0] || l[0] : null);
   var list = '<section class="list">' + tabs() + '<div class="listhead"><div style="flex:1;min-width:0"><h1>Sticky notes</h1><div class="sub">One per chat. Add things, then paste the lot into Claude.</div></div><button class="btn sm" onclick="stickyNew()">New sticky</button></div><div class="rows">'
-    + l.map(function (x) { return '<div class="row nrow' + (cur && cur.id === x.id ? ' on' : '') + '" onclick="S.stOpen=' + x.id + ';S.phoneOpen=true;render()"><div class="rowav" style="background:' + (x.color || CHAT_COLOURS[x.name] || '#6c6d79') + '">' + esc(initials(x.name)) + '</div><div style="min-width:0;flex:1"><div class="t">' + esc(x.name) + '</div><div class="l3">' + (x.items.length ? x.items.length + ' on it' : 'Empty') + '</div></div>' + (x.items.length ? '<span class="badge">' + x.items.length + '</span>' : '') + '</div>'; }).join('') + '</div></section>';
+    + l.map(function (x) { return '<div class="strow' + (cur && cur.id === x.id ? ' on' : '') + '" onclick="S.stOpen=' + x.id + ';S.phoneOpen=true;render()"><div class="rowav" style="background:' + (x.color || CHAT_COLOURS[x.name] || '#6c6d79') + '">' + esc(initials(x.name)) + '</div><div style="min-width:0;flex:1"><div class="t">' + esc(x.name) + '</div><div class="l3">' + (x.items.length ? x.items.length + ' on it' : 'Empty') + '</div></div>' + (x.items.length ? '<span class="badge">' + x.items.length + '</span>' : '') + '</div>'; }).join('') + '</div></section>';
   var det = '<section class="detail' + (S.phoneOpen && cur ? ' open' : '') + '">';
   if (!cur) return list + det + '<div class="empty" style="margin-top:20vh">Pick a sticky note</div></section>';
   stickyLoadText(cur.id);
@@ -1656,7 +1662,7 @@ function stickyView() {
     + (S.stUndo && S.stUndo.sid === cur.id && Date.now() - S.stUndo.at < 900000 ? '<button class="btn ghost" onclick="stickyUndo()">Undo clear</button>' : '') + '</div></div><div class="dbody">'
     + '<div class="stidea"><textarea id="stidea" placeholder="Add an idea or a note for this chat…" onkeydown="if((event.metaKey||event.ctrlKey)&&event.key===\'Enter\')stickyIdea(' + cur.id + ')"></textarea><button class="btn sm" onclick="stickyIdea(' + cur.id + ')">Add</button></div>';
   if (!cur.items.length && !(cards && cards.length)) det += '<div class="empty">Nothing on it yet. Use 📌 Sticky on any email, Slack chat or note, or type an idea above.</div>';
-  det += cur.items.map(function (i) { return '<div class="stitem"><div class="sth"><span class="sttag">' + (ST_TAG[i.kind] || i.kind) + '</span><b>' + esc(i.title || '') + '</b><span class="s">' + ago(i.at) + ' ago</span><button class="iconbtn" title="Take it off" onclick="stickyRemove(' + cur.id + ',' + i.id + ')">✕</button></div><div class="stb">' + esc(String(i.body || '').slice(0, 400)) + '</div></div>'; }).join('');
+  det += cur.items.map(function (i) { return '<div class="stitem"><div class="sth"><span class="sttag">' + (ST_TAG[i.kind] || i.kind) + '</span><b>' + esc(i.title || '') + '</b><span class="s">' + ago(i.at) + ' ago</span><button class="iconbtn" title="Take it off" onclick="stickyRemove(' + cur.id + ',' + i.id + ')">✕</button></div>' + (String(i.body || '').trim() === String(i.title || '').trim() ? '' : '<div class="stb">' + esc(String(i.body || '').slice(0, 400)) + '</div>') + '</div>'; }).join('');
   if (cards && cards.length) det += '<div class="sthead">From the Claude Board, ' + esc(cur.name) + ' column</div>' + cards.map(function (k) { return '<div class="stitem"><div class="sth"><span class="sttag">Trello</span><b>' + esc(String(k.name).slice(0, 140)) + '</b><a class="s" target="_blank" href="' + esc(k.url) + '">Open</a></div></div>'; }).join('');
   return list + det + '</div></section>';
 }
