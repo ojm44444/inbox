@@ -63,9 +63,16 @@ let lidMap = names.__lid || {}; names.__lid = lidMap;
 function nameOf(jid) {
   if (jid && (jid === me || jid === myLid)) return 'You (notes to self)';
   const real = lidMap[jid];
+  const num = String(real || jid).split('@')[0];
+  if (/@(s\.whatsapp\.net|lid)$/.test(jid) && contactsMap[num]) return contactsMap[num];
   return names[jid] || (real && names[real]) || (/@lid$/.test(jid) ? (real ? '+' + real.split('@')[0] : 'Unknown number') : '+' + String(jid).split('@')[0]);
 }
 let myLid = null;
+// Names from his Mac Contacts (WhatsApp keeps address-book names to the phone). Refreshed every 6 hours.
+const book = require('./contacts');
+let contactsMap = {}; const readBook = () => { try { contactsMap = JSON.parse(fs.readFileSync(book.OUT, 'utf8')); } catch (e) {} };
+const loadBook = () => { readBook(); book.exportContactsAsync((e, n) => { if (e) log('contacts', String(e.message).slice(0, 120)); else { readBook(); log('contacts', n); } }); };
+loadBook(); setInterval(loadBook, 6 * 3600000);
 
 // ---- message text ----
 function unwrap(m) { while (m && (m.ephemeralMessage || m.viewOnceMessage || m.viewOnceMessageV2 || m.documentWithCaptionMessage || m.editedMessage)) m = (m.ephemeralMessage || m.viewOnceMessage || m.viewOnceMessageV2 || m.documentWithCaptionMessage || m.editedMessage).message; return m || {}; }
