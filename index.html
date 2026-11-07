@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794075510">
+<html lang="en" data-build="b1794081874">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -20,7 +20,7 @@
   --bg:#0b0c0f; --side:#0e0f13; --panel:#131419; --raise:#1a1b21; --hover:#1c1d24; --sel:#22233a;
   --line:#202129; --line2:#2b2c35; --text:#ececf1; --dim:#a0a1ad; --faint:#6c6d79;
   --acc:#6d6af5; --acc2:#8b89ff; --accbg:rgba(109,106,245,.14);
-  --fix:#ff6b6b; --reply:#4cc38a; --chase:#f5a524; --learn:#5aa7ff; --noise:#7a7b87;
+  --fix:#ff6b6b; --reply:#4cc38a; --promise:#b48cff; --chase:#f5a524; --learn:#5aa7ff; --noise:#7a7b87;
   --shadow:0 12px 32px rgba(0,0,0,.45); --r:12px;
 }
 :root[data-theme="light"] {
@@ -75,7 +75,7 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .rvhome b { font-size:15px; }
 .hello { font-size:24px; font-weight:700; letter-spacing:-.02em; margin:0; }
 .hellosub { color:var(--dim); margin:4px 0 22px; }
-.tiles { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; margin-bottom:22px; }
+.tiles { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:12px; margin-bottom:22px; }
 .tile { background:var(--panel); border:1px solid var(--line); border-radius:var(--r); padding:14px 16px; cursor:pointer; transition:border-color .15s, transform .15s; }
 .tile:hover { border-color:var(--line2); transform:translateY(-1px); }
 .tile .lab { display:flex; align-items:center; gap:7px; color:var(--dim); font-size:12.5px; }
@@ -135,6 +135,11 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .when { color:var(--faint); font-size:12px; white-space:nowrap; text-align:right; }
 .when .pd { display:block; margin-top:4px; }
 .wait { color:var(--chase); }
+.promisebox { border:1px solid color-mix(in srgb, var(--promise) 35%, transparent); background:color-mix(in srgb, var(--promise) 8%, transparent); border-radius:12px; padding:12px 14px; margin:0 0 14px; }
+.promisebox .pl { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--promise); }
+.promisebox .pl svg { width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:2; }
+.promisebox .pq { font-size:16px; margin:6px 0 4px; }
+.promisebox .pw { font-size:13px; color:var(--faint); }
 .empty { text-align:center; color:var(--faint); padding:60px 20px; }
 .empty b { display:block; color:var(--dim); font-size:15px; margin-bottom:4px; }
 .detail { display:flex; flex-direction:column; min-height:0; background:var(--panel); }
@@ -576,6 +581,7 @@ var PILE_ICON = {
   fix:'<svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg>',
   reply:'<svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 6 6v4"/></svg>',
   chase:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
+  promise:'<svg viewBox="0 0 24 24"><path d="M4 12.5l4.5 4.5L20 6"/><path d="M4 6h7M4 9h4"/></svg>',
   learn:'<svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M8 7h7M8 11h7"/></svg>',
   noise:'<svg viewBox="0 0 24 24"><path d="M4 12h16"/></svg>',
   new:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/></svg>'
@@ -583,12 +589,14 @@ var PILE_ICON = {
 var PILES = [
   { key:'fix', title:'Fix', color:'var(--fix)', help:'Your tools broke. One group per chat.' },
   { key:'reply', title:'Reply', color:'var(--reply)', help:'People waiting on you.' },
+  // 7 Nov 2026: what Owen said he'd do, caught from his sent mail, Slack and meetings, next step ready.
+  { key:'promise', title:'Promised', color:'var(--promise)', help:'You said you\'d. Ready to send.' },
   { key:'chase', title:'Chase', color:'var(--chase)', help:'Waiting on them. Longest first.' },
   { key:'learn', title:'Learn', color:'var(--learn)', help:'Marketing worth reading.' },
   { key:'noise', title:'Noise', color:'var(--noise)', help:'Nothing to do.' },
   { key:'new', title:'Not sorted', color:'var(--faint)', help:'Sorted on the next refresh.' }
 ];
-var ACCOUNTS = { personal:{ label:'Personal', color:'#8b8c96' }, tez:{ label:'TEZ', color:'#e0533d' }, songdrafts:{ label:'songdrafts', color:'#2fa36b' }, omellette:{ label:'Omellette', color:'#d6a23a' }, rt:{ label:'RideTandem', color:'#3a86d8' }, slack:{ label:'lazygecko Slack', color:'#a35bd6' } };
+var ACCOUNTS = { personal:{ label:'Personal', color:'#8b8c96' }, meeting:{ label:'Meeting', color:'#b48cff' }, tez:{ label:'TEZ', color:'#e0533d' }, songdrafts:{ label:'songdrafts', color:'#2fa36b' }, omellette:{ label:'Omellette', color:'#d6a23a' }, rt:{ label:'RideTandem', color:'#3a86d8' }, slack:{ label:'lazygecko Slack', color:'#a35bd6' } };
 function acctTag(a) { var x = ACCOUNTS[a || 'personal'] || ACCOUNTS.personal; return '<span class="acct" style="--c:' + x.color + '">' + x.label + '</span>'; }
 var CHAT_COLOURS = { 'Moon':'#6d6af5', 'songdrafts':'#2fa36b', 'TEZ':'#e0533d', 'FANFLOWY / FAN HUB':'#d2457f', 'CFO':'#c8902c', 'Hormozi / King Kong Skills':'#3a86d8', 'RideTandem':'#2f6fb5', 'General TO DOs':'#6c6d79' };
 var I = {
@@ -690,7 +698,7 @@ function matches(g) {
 }
 function pileList(p) {
   var l = groups().filter(function (g) { return (p === 'all' || g.pile === p) && visible(g) && matches(g); });
-  if (p === 'chase') l.sort(function (a, b) { return Date.parse(a.items[0].received_at) - Date.parse(b.items[0].received_at); });
+  if (p === 'chase' || p === 'promise') l.sort(function (a, b) { return Date.parse(a.items[0].received_at) - Date.parse(b.items[0].received_at); });
   return l;
 }
 function unreadCount(p) { return groups().filter(function (g) { return (p === 'all' || g.pile === p) && (!S.f.acct || g.items.some(function (e) { return (e.account || 'personal') === S.f.acct; })) && (!S.f.plat || g.items.some(function (e) { return (e.account === 'slack') === (S.f.plat === 'slack'); })); }).reduce(function (s, g) { return s + g.unread.length; }, 0); }
@@ -774,7 +782,7 @@ function home() {
   var hi = hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
   var total = unreadCount('all');
   var people = pileList('reply').length, chase = unreadCount('chase'), fixN = groups().filter(function (g) { return g.isChat && g.unread.length; }).length;
-  var bits = []; if (people) bits.push(people + ' ' + (people === 1 ? 'person' : 'people') + ' waiting on you'); if (fixN) bits.push(fixN + ' chat' + (fixN === 1 ? '' : 's') + ' to send broken things to'); if (chase) bits.push(chase + ' to chase');
+  var bits = []; if (people) bits.push(people + ' ' + (people === 1 ? 'person' : 'people') + ' waiting on you'); if (fixN) bits.push(fixN + ' chat' + (fixN === 1 ? '' : 's') + ' to send broken things to'); if (chase) bits.push(chase + ' to chase'); var promN = pileList('promise').length; if (promN) bits.splice(1, 0, promN + ' thing' + (promN === 1 ? '' : 's') + ' you said you\'d do');
   var day = new Date().toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', timeZone:'Europe/London' });
   // Calm Home (5 Nov 2026 overhaul): one line of counts, the brief, then three short columns.
   var h = '<main class="home">' + tabs() + '<div class="hero2"><div style="min-width:0"><div class="day">' + day + '</div><h1 class="hello">' + hi + ', Owen</h1><div class="hellosub">' + (bits.length ? bits.join(' · ') + '.' : 'Inbox clear. Nice.') + '</div></div>'
@@ -784,6 +792,9 @@ function home() {
   var people2 = pileList('reply').slice(0, 7);
   h += '<div class="box"><h3>' + I.pen + 'People waiting on you<span class="badge">' + pileList('reply').length + '</span><span style="flex:1"></span><button class="btn sm ghost" onclick="go(\'reply\')">All</button></h3>'
     + (people2.length ? people2.map(function (g) { var e = g.items[0]; return '<div class="mini" onclick="openFrom(\'reply\',\'' + g.id + '\')"><div class="av" title="Everything with them" style="background:' + hue(e.from_email) + '" onclick="event.stopPropagation();openPerson(\'' + esc(e.from_email || '') + '\')">' + esc(initials(e.from_name || e.from_email)) + '</div><div style="min-width:0"><div class="t">' + esc(e.from_name || e.from_email) + ' ' + acctTag(e.account) + '</div><div class="l3">' + esc(e.subject) + '</div></div><div class="s">' + ago(e.received_at) + '</div></div>'; }).join('') : '<div class="empty" style="padding:20px">No one waiting.</div>') + '</div>';
+  var pr = pileList('promise').slice(0, 6);
+  if (pr.length) h += '<div class="box"><h3><span class="dot" style="background:var(--promise)"></span>You said you\'d<span class="badge">' + pileList('promise').length + '</span><span style="flex:1"></span><button class="btn sm ghost" onclick="go(\'promise\')">All</button></h3>'
+    + pr.map(function (g) { var e = g.items[0]; return '<div class="mini" onclick="openFrom(\'promise\',\'' + g.id + '\')"><div style="min-width:0"><div class="t">' + esc(String(e.why || '').replace(/^You said you'd /, '')) + '</div><div class="l3">' + esc((e.from_name || e.to_email || '') + ' · "' + e.snippet + '"') + '</div></div><div class="s" style="color:var(--promise)">' + ago(e.received_at) + '</div></div>'; }).join('') + '</div>';
   var ch = pileList('chase').slice(0, 6);
   if (ch.length) h += '<div class="box"><h3><span class="dot" style="background:var(--chase)"></span>Waiting on them</h3>'
     + ch.map(function (g) { var e = g.items[0]; return '<div class="mini" onclick="openFrom(\'chase\',\'' + g.id + '\')"><div style="min-width:0"><div class="t">' + esc(e.from_name || e.to_email) + '</div><div class="l3">' + esc(e.subject) + '</div></div><div class="s wait">' + Math.floor((Date.now() - Date.parse(e.received_at)) / 86400000) + 'd</div></div>'; }).join('') + '</div>';
@@ -1611,16 +1622,16 @@ function list() {
   if (!l.length) return h + '<div class="rows"><div class="empty"><b>All clear</b>' + (S.f.unread ? 'No unread here. Tap All to see read ones.' : 'Nothing here.') + '</div></div></section>';
   h += '<div class="rows">';
   l.forEach(function (g) {
-    var e = g.items[0], chase = e.kind === 'chase', read = !g.unread.length;
-    var who = g.isChat ? chatShort(g.chat) + ' chat' : chase ? 'To ' + (e.from_name || e.to_email) : (e.from_name || e.from_email);
-    var l2 = g.isChat ? issues({ items:S.f.unread && g.unread.length ? g.unread : g.items }).map(function (x) { return x.title; }).slice(0, 3).join(' · ') : e.subject;
-    var when = chase ? '<span class="wait">' + Math.floor((Date.now() - Date.parse(e.received_at)) / 86400000) + 'd waiting</span>' : ago(e.received_at);
+    var e = g.items[0], chase = e.kind === 'chase', prom = e.kind === 'promise', read = !g.unread.length;
+    var who = g.isChat ? chatShort(g.chat) + ' chat' : chase || prom ? 'To ' + (e.from_name || e.to_email) : (e.from_name || e.from_email);
+    var l2 = prom ? e.why : g.isChat ? issues({ items:S.f.unread && g.unread.length ? g.unread : g.items }).map(function (x) { return x.title; }).slice(0, 3).join(' · ') : e.subject;
+    var when = chase ? '<span class="wait">' + Math.floor((Date.now() - Date.parse(e.received_at)) / 86400000) + 'd waiting</span>' : prom ? '<span style="color:var(--promise)">said ' + ago(e.received_at) + ' ago</span>' : ago(e.received_at);
     var n = S.f.unread ? g.unread.length : g.items.length;
     h += '<div class="row' + (S.open === g.id ? ' on' : '') + (read ? ' read' : '') + '" onclick="if(event.shiftKey||event.metaKey){event.preventDefault();pick(\'' + g.id + '\',event)}else openG(\'' + g.id + '\')">'
       + '<div class="ck' + (S.sel[g.id] ? ' show' : '') + '" onclick="event.stopPropagation();pick(\'' + g.id + '\',event)"></div>'
       + '<div class="rowav" style="background:' + (g.isChat ? (CHAT_COLOURS[g.chat] || '#6c6d79') : hue(e.from_email)) + '">' + esc(initials(g.isChat ? chatShort(g.chat) : (e.from_name || e.from_email))) + '</div>'
       + '<div style="min-width:0"><div class="who">' + (read ? '' : '<span class="unreaddot"></span>') + esc(who) + (n > 1 ? '<span class="badge">' + n + '</span>' : '') + '</div>'
-      + '<div class="l2">' + esc(l2) + '</div><div class="l3">' + (g.isChat ? '' : acctTag(e.account)) + esc(e.why || e.snippet) + '</div></div>'
+      + '<div class="l2">' + esc(l2) + '</div><div class="l3">' + (g.isChat ? '' : acctTag(e.account)) + esc(prom ? '"' + e.snippet + '"' : (e.why || e.snippet)) + '</div></div>'
       + '<div class="when">' + when + (S.view === 'all' ? '<span class="pd"><span class="dot" style="background:' + pileOf(g.pile).color + '"></span></span>' : '') + '</div></div>';
   });
   return h + '</div></section>';
@@ -1667,21 +1678,21 @@ function chatDetail(g) {
   return h + '</div></section>';
 }
 function mailDetail(g) {
-  var e = g.items[0], p = pileOf(g.pile), chase = e.kind === 'chase', read = !g.unread.length;
-  var many = g.items.length > 1, replyable = !many && g.pile !== 'noise';
+  var e = g.items[0], p = pileOf(g.pile), chase = e.kind === 'chase', prom = e.kind === 'promise', read = !g.unread.length;
+  var many = g.items.length > 1, replyable = !many && g.pile !== 'noise' && e.account !== 'meeting';
   var draft = S.drafts[g.id] != null ? S.drafts[g.id] : (e.draft_text || '');
   var composing = draft || (S.composing && S.composing[g.id]);
   var h = '<section class="detail' + (S.phoneOpen ? ' open' : '') + '"><div class="dhead"><div style="display:flex;gap:8px;align-items:flex-start">'
     + '<button class="iconbtn back" onclick="closeG()">' + I.back + '</button><h2 style="flex:1">' + esc(e.subject) + '</h2></div>'
     + '<div class="meta">' + acctTag(e.account) + '<span class="chip"><span class="dot" style="background:' + p.color + '"></span>' + p.title + '</span>'
     + (e.why ? '<span class="chip">' + I.spark.replace('<svg', '<svg style="width:12px;height:12px"') + esc(e.why) + '</span>' : '') + (g.items.length > 1 ? '<span class="chip">' + g.items.length + ' emails</span>' : '') + '</div></div><div class="bar">';
-  if (replyable && !composing) h += '<button class="btn' + (g.pile === 'reply' || g.pile === 'chase' ? ' pri' : '') + '" onclick="startReply()">' + I.reply + 'Reply<kbd>R</kbd></button>'
+  if (replyable && !composing) h += '<button class="btn' + (g.pile === 'reply' || g.pile === 'chase' || prom ? ' pri' : '') + '" onclick="startReply()">' + I.reply + (prom ? 'Keep it' : 'Reply') + '<kbd>R</kbd></button>'
     + '<button class="btn ghost" onclick="writeD()" ' + (S.busy ? 'disabled' : '') + '>' + I.spark + (S.busy === 'write' ? 'Writing…' : chase ? 'Write a nudge' : 'Write it for me') + '</button>';
-  var slack = e.account === 'slack', toChat = !(g.pile === 'reply' || g.pile === 'chase');
+  var slack = e.account === 'slack', toChat = !(g.pile === 'reply' || g.pile === 'chase' || prom);
   // A button never turns into its opposite under the cursor (6 Nov 2026: opening reads an email, and the
   // Mark read button used to flip to Mark unread, so Owen's click undid it). Read shows a plain tick;
   // Mark unread is its own small button at the end.
-  h += (read ? '<span class="btn ghost" style="cursor:default;opacity:.7">' + I.check + 'Read</span>' : '<button class="btn' + (replyable ? '' : ' pri') + '" title="E" onclick="markRead()">' + I.check + (chase ? 'Dismiss' : 'Mark read') + '</button>') + '<button class="btn ghost" title="Gone from here for good, even from All (D)" onclick="doneWith()">' + I.check + 'Done with</button>' + (g.pile === 'noise' ? '<button class="btn" title="Moves it to Reply, and this sender never goes in Noise again" onclick="movePile(\'reply\')">Not noise</button>' : '') + (read ? '<button class="btn ghost sm" title="U" onclick="markUnread()">Mark unread</button>' : '')
+  h += (read ? '<span class="btn ghost" style="cursor:default;opacity:.7">' + I.check + 'Read</span>' : '<button class="btn' + (replyable ? '' : ' pri') + '" title="E" onclick="markRead()">' + I.check + (chase ? 'Dismiss' : prom ? 'Done' : 'Mark read') + '</button>') + '<button class="btn ghost" title="Gone from here for good, even from All (D)" onclick="doneWith()">' + I.check + 'Done with</button>' + (g.pile === 'noise' ? '<button class="btn" title="Moves it to Reply, and this sender never goes in Noise again" onclick="movePile(\'reply\')">Not noise</button>' : '') + (read ? '<button class="btn ghost sm" title="U" onclick="markUnread()">Mark unread</button>' : '')
     + (toChat ? '<button class="btn ghost" onclick="sendToChat(\'' + g.id + '\')">' + I.send + 'Send to chat</button>' : '')
     + (slack ? '' : '<button class="btn ghost" title="Copy the whole email, pictures and formatting, to paste into Claude" onclick="copyEmail(\'' + e.id + '\')">' + I.copy + 'Copy</button>')
     + '<span style="flex:1"></span>'
@@ -1693,13 +1704,14 @@ function mailDetail(g) {
     + (slack ? '' : '<button class="iconbtn" title="Bin" onclick="binOne()">' + I.bin + '</button>') + '</div><div class="dbody">';
   if (replyable && composing) {
     var saved = e.gmail_draft_id && S.drafts[g.id] == null;
-    h += '<div class="composer"><div class="ch">' + I.pen + (chase ? 'Nudge to ' : 'Reply to ') + esc(chase ? (e.from_name || e.to_email) : (e.from_name || e.from_email)) + '<span style="flex:1"></span>written in your voice</div>'
+    h += '<div class="composer"><div class="ch">' + I.pen + (chase ? 'Nudge to ' : prom ? 'Keeping it, to ' : 'Reply to ') + esc(chase || prom ? (e.from_name || e.to_email) : (e.from_name || e.from_email)) + '<span style="flex:1"></span>written in your voice</div>'
       + '<textarea id="draft">' + esc(draft) + '</textarea><div class="cf">'
       + '<button class="btn pri" onclick="sendD()" ' + (S.busy ? 'disabled' : '') + '>' + I.send + (e.account === 'slack' ? 'Send on Slack' : 'Send') + '<kbd>⌘↵</kbd></button>'
       + (e.account === 'slack' ? '' : '<button class="btn ghost" onclick="saveD()" ' + (S.busy ? 'disabled' : '') + '>' + I.gmail + (S.busy === 'save' ? 'Saving…' : 'Save as draft') + '</button>')
       + '<button class="btn ghost" onclick="writeD()">' + I.spark + (draft ? 'Rewrite for me' : 'Write it for me') + '</button><button class="btn ghost" onclick="cancelReply()">Discard</button><span style="flex:1"></span><span class="saved" id="savedflag" style="' + (saved ? '' : 'display:none') + '">' + I.check + 'In Gmail drafts</span></div></div>';
   }
-  h += aboutSender(g);
+  if (prom) h += '<div class="promisebox"><div class="pl">' + PILE_ICON.promise + 'You said, ' + ago(e.received_at) + ' ago</div><div class="pq">"' + esc(e.snippet) + '"</div><div class="pw">' + esc(e.why) + '</div>' + (e.account === 'meeting' ? '<div class="pw" style="opacity:.7">From a meeting, so nothing to send here. Copy it, or press Done when it is.</div>' : '') + '</div>';
+  h += prom ? '' : aboutSender(g);
   if (!many) return h + messages(e.id, e) + '</div></section>';
   // Several emails from the same sender (e.g. Google Docs comments): one line each, open to read.
   g.items.forEach(function (x, i) {
@@ -1777,7 +1789,7 @@ function openG(id) { S.open = id; S.phoneOpen = true; S.keepOpen = null; render(
 function autoRead(id) {
   setTimeout(function () {
     if (S.open !== id) return;
-    var g = current(); if (!g || g.isChat || /^(reply|chase|fix)$/.test(g.pile)) return;
+    var g = current(); if (!g || g.isChat || /^(reply|chase|fix|promise)$/.test(g.pile)) return;
     var x = g.unread.filter(function (e) { return e.account !== 'slack' && e.kind === 'in'; }).map(function (e) { return e.id; }); if (!x.length) return;
     S.keepOpen = id; setStatus(x, 'done'); render();
     api('markRead', { ids:x }).catch(function (e) { setStatus(x, 'open'); fail(e); });
@@ -1860,7 +1872,7 @@ function binOne() { var g = current(); if (!g) return; var x = g.items.map(funct
 function sendD() {
   var g = current(); if (!g) return; var e = g.items[0];
   var text = (S.drafts[g.id] != null ? S.drafts[g.id] : e.draft_text || '').trim(); if (!text) { toast('Write something first', true); return; }
-  var to = e.account === 'slack' ? (e.from_name || 'them') + ' on Slack' : (e.kind === 'chase' ? e.to_email : e.from_email);
+  var to = e.account === 'slack' ? (e.from_name || 'them') + ' on Slack' : (e.kind === 'chase' || e.kind === 'promise' ? e.to_email : e.from_email);
   setStatus([e.id], 'done'); afterChange();
   var undone = false, u = document.createElement('div'); u.className = 'undo';
   u.innerHTML = '<span>Sending to <b>' + esc(to) + '</b>…</span><button class="btn sm">Undo</button>';
