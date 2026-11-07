@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794095270">
+<html lang="en" data-build="b1794095540">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -221,6 +221,7 @@ kbd { font:11px Inter,sans-serif; color:var(--faint); border:1px solid var(--lin
 @keyframes sh { to { background-position:-200% 0; } }
 .bulk { position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(120px); background:var(--raise); border:1px solid var(--line2); border-radius:12px; box-shadow:var(--shadow); padding:8px; display:flex; gap:6px; align-items:center; transition:transform .2s ease; z-index:20; }
 .bulk.show { transform:translateX(-50%) translateY(0); }
+.bulk:not(.show) { visibility:hidden; pointer-events:none; }
 .bulk b { padding:0 8px; }
 .toast { position:fixed; right:20px; bottom:20px; background:var(--raise); border:1px solid var(--line2); border-radius:10px; padding:10px 14px; box-shadow:var(--shadow); z-index:30; opacity:0; transform:translateY(10px); transition:all .2s; pointer-events:none; max-width:380px; }
 .toast.show { opacity:1; transform:none; }
@@ -770,8 +771,22 @@ function render() {
 function phoneBar() {
   var b = document.getElementById('pbar'); if (!b) { b = document.createElement('nav'); b.id = 'pbar'; b.className = 'pbar'; document.body.appendChild(b); }
   var it = function (v, icon, label, n) { return '<button class="' + (S.view === v ? 'on' : '') + '" onclick="go(\'' + v + '\')">' + icon + '<span>' + label + '</span>' + (n ? '<i>' + n + '</i>' : '') + '</button>'; };
-  b.innerHTML = it('home', I.home, 'Home', 0) + it('all', I.inbox, 'Inbox', unreadCount('all')) + it('slack', I.slack, 'Slack', slackWaiting()) + it('reading', I.book, 'Read', 0) + it('trello', I.board, 'Trello', 0);
+  b.innerHTML = it('home', I.home, 'Home', 0) + it('all', I.inbox, 'Inbox', unreadCount('all')) + it('whatsapp', I.wa, 'WhatsApp', waWaiting()) + it('sticky', I.sticky, 'Sticky', stickyTotal()) + it('trello', I.board, 'Trello', 0);
 }
+// Phone app (Owen, 7 Nov: "if I can swipe to get out of stuff"): swipe right (from the left edge, or across an open
+// email or chat) goes back, like iOS: out of the open item to its list, out of a list to Home. Rows keep their own swipes.
+(function () {
+  var x0 = 0, y0 = 0, t0 = 0, onRow = false;
+  document.addEventListener('touchstart', function (e) { var t = e.touches[0]; x0 = t.clientX; y0 = t.clientY; t0 = Date.now(); onRow = !!(e.target.closest && e.target.closest('.row, .tlists, textarea, input, select, .slmsgs pre')); }, { passive:true });
+  document.addEventListener('touchend', function (e) {
+    if (window.innerWidth > 800) return;
+    var t = e.changedTouches[0], dx = t.clientX - x0, dy = Math.abs(t.clientY - y0);
+    if (dx < 80 || dy > 60 || Date.now() - t0 > 700) return;
+    if (onRow && x0 > 30) return; // a row's own swipe, unless it started at the very edge
+    if (S.phoneOpen) { S.phoneOpen = false; S.noteEdit = null; if (S.view !== 'whatsapp' && S.view !== 'sticky' && S.view !== 'notes' && S.view !== 'slack') S.open = null; render(); }
+    else if (S.view !== 'home') go('home');
+  }, { passive:true });
+})();
 // Swipe a row right to mark read, left to snooze until tomorrow.
 function swipes() {
   document.querySelectorAll('.row').forEach(function (r) {
