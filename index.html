@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794088323">
+<html lang="en" data-build="b1794090470">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -135,6 +135,15 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .when { color:var(--faint); font-size:12px; white-space:nowrap; text-align:right; }
 .when .pd { display:block; margin-top:4px; }
 .wait { color:var(--chase); }
+.wam { max-width:72%; margin:6px 14px; padding:7px 10px; border-radius:10px; background:rgba(127,127,127,.12); font-size:14px; line-height:1.4; white-space:pre-wrap; word-wrap:break-word; }
+.wam.me { margin-left:auto; background:color-mix(in srgb, #25d366 22%, transparent); }
+.wam .was { font-size:12px; font-weight:600; color:#25d366; margin-bottom:2px; }
+.wam .wat { font-size:11px; color:var(--faint); text-align:right; margin-top:2px; }
+.wacomp { display:flex; gap:8px; padding:10px 14px; border-top:1px solid rgba(127,127,127,.2); }
+.wacomp textarea { flex:1; min-height:44px; max-height:160px; resize:vertical; background:rgba(127,127,127,.08); color:inherit; border:1px solid rgba(127,127,127,.25); border-radius:10px; padding:10px; font:inherit; font-size:14px; }
+.seg { display:flex; gap:4px; }
+.seg button { border:1px solid rgba(127,127,127,.25); background:none; color:inherit; border-radius:8px; padding:4px 10px; font-size:12.5px; cursor:pointer; }
+.seg button.on { background:rgba(127,127,127,.18); }
 .dlgdraft { width:100%; min-height:150px; margin:8px 0; background:rgba(127,127,127,.08); color:inherit; border:1px solid rgba(127,127,127,.25); border-radius:10px; padding:10px; font:inherit; font-size:14px; resize:vertical; }
 .answer .cf { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 .clash { border-left:3px solid var(--chase); background:color-mix(in srgb, var(--chase) 9%, transparent); border-radius:8px; padding:8px 10px; margin:0 0 8px; font-size:13px; }
@@ -619,8 +628,8 @@ var PILES = [
   { key:'new', title:'Not sorted', color:'var(--faint)', help:'Sorted on the next refresh.' }
 ];
 var ACCOUNTS = { personal:{ label:'Personal', color:'#8b8c96' }, tez:{ label:'TEZ', color:'#e0533d' }, songdrafts:{ label:'songdrafts', color:'#2fa36b' }, omellette:{ label:'Omellette', color:'#d6a23a' }, rt:{ label:'RideTandem', color:'#3a86d8' }, slack:{ label:'lazygecko Slack', color:'#a35bd6' } };
-var MEETING_TAG = { label:'Meeting', color:'#b48cff' };
-function acctTag(a) { var x = a === 'meeting' ? MEETING_TAG : ACCOUNTS[a || 'personal'] || ACCOUNTS.personal; return '<span class="acct" style="--c:' + x.color + '">' + x.label + '</span>'; }
+var MEETING_TAG = { label:'Meeting', color:'#b48cff' }, WA_TAG = { label:'WhatsApp', color:'#25d366' };
+function acctTag(a) { var x = a === 'meeting' ? MEETING_TAG : a === 'whatsapp' ? WA_TAG : ACCOUNTS[a || 'personal'] || ACCOUNTS.personal; return '<span class="acct" style="--c:' + x.color + '">' + x.label + '</span>'; }
 var CHAT_COLOURS = { 'Moon':'#6d6af5', 'songdrafts':'#2fa36b', 'TEZ':'#e0533d', 'FANFLOWY / FAN HUB':'#d2457f', 'CFO':'#c8902c', 'Hormozi / King Kong Skills':'#3a86d8', 'RideTandem':'#2f6fb5', 'General TO DOs':'#6c6d79' };
 var I = {
   inbox:'<svg viewBox="0 0 24 24"><path d="M4 13h4l2 3h4l2-3h4"/><path d="M5.5 5h13L21 13v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-5z"/></svg>',
@@ -645,6 +654,7 @@ var I = {
   bag:'<svg viewBox="0 0 24 24"><path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>',
   chat:'<svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg>',
   note:'<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 12h7M9 16h5"/></svg>',
+  wa:'<svg viewBox="0 0 24 24"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/><path d="M9 9.5c.3 2.3 2.2 4.2 4.5 4.5l1-1.2 2 .8c-.2 1.3-1.2 1.9-2.5 1.9A6 6 0 0 1 8 9.5c0-1.3.6-2.3 1.9-2.5l.8 2z"/></svg>',
   sticky:'<svg viewBox="0 0 24 24"><path d="M4 4h16v10l-6 6H4z"/><path d="M14 20v-6h6"/></svg>',
   info:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>'
 };
@@ -739,7 +749,7 @@ function render() {
   if (!S.token && !S.key) return renderGate();
   var sc = document.querySelector('.rows, .home'), keep = sc ? sc.scrollTop : 0;
   var mail = S.view !== 'home' && S.view !== 'reading' && S.view !== 'trello' && S.view !== 'person' && S.view !== 'review';
-  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'sticky' ? stickyView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : S.view === 'review' ? reviewView() : home()) + '</div>';
+  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'sticky' ? stickyView() : S.view === 'whatsapp' ? waView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : S.view === 'review' ? reviewView() : home()) + '</div>';
   var ns = document.querySelector('.rows, .home'); if (ns) ns.scrollTop = keep;
   bulkBar(); wire(); phoneBar(); swipes();
 }
@@ -792,7 +802,7 @@ function side() {
     var n = unreadCount(p.key); if (p.key === 'new' && !n) return;
     h += '<button class="nav' + (S.view === p.key ? ' on' : '') + '" onclick="go(\'' + p.key + '\')"><span class="dot" style="background:' + p.color + '"></span>' + p.title + '<span class="n">' + (n || '') + '</span></button>';
   });
-  h += '<div class="navlabel">Apps</div>' + nv('slack', I.slack, 'Slack', slackWaiting()) + nv('sticky', I.sticky, 'Sticky notes', stickyTotal()) + nv('trello', I.board, 'Trello') + nv('notes', I.note, 'Notes')
+  h += '<div class="navlabel">Apps</div>' + nv('whatsapp', I.wa, 'WhatsApp', waWaiting()) + nv('slack', I.slack, 'Slack', slackWaiting()) + nv('sticky', I.sticky, 'Sticky notes', stickyTotal()) + nv('trello', I.board, 'Trello') + nv('notes', I.note, 'Notes')
     + '<div class="navlabel">Folders</div><div class="navrow">' + ['sent', 'drafts', 'trash'].map(function (b) { return '<button class="' + (S.view === 'box:' + b ? 'on' : '') + '" onclick="FD.open=null;go(\'box:' + b + '\')">' + BOXES[b] + '</button>'; }).join('') + '</div>';
   var last = S.data && S.data.last && S.data.last.at;
   return h + '<div class="sidefoot"><span style="flex:1">' + (S.stale ? 'Updating…' : last ? 'Synced ' + ago(last) + ' ago' : '') + '</span>'
@@ -1318,6 +1328,44 @@ function snooze(kind) {
 // ---- Slack, looking and working like Slack (lazygecko workspace, sends as Owen) ----
 var SL = { ch:null, busy:false, hist:{}, sending:false };
 var EMO = { grin:'😁', smile:'😄', joy:'😂', heart:'❤️', '+1':'👍', thumbsup:'👍', pray:'🙏', fire:'🔥', tada:'🎉', eyes:'👀', white_check_mark:'✅', heavy_check_mark:'✔️', x:'❌', warning:'⚠️', rocket:'🚀', raised_hands:'🙌', clap:'👏', sweat_smile:'😅', slightly_smiling_face:'🙂', wink:'😉', thinking_face:'🤔', sob:'😭', cry:'😢', muscle:'💪', ok_hand:'👌', star:'⭐', sparkles:'✨', iphone:'📱', spiral_calendar_pad:'🗓️', speech_balloon:'💬', memo:'📝', bell:'🔔', rotating_light:'🚨', chart_with_upwards_trend:'📈', moneybag:'💰', sunglasses:'😎', partying_face:'🥳', hugging_face:'🤗', blush:'😊', laughing:'😆', upside_down_face:'🙃', heart_eyes:'😍', point_right:'👉', wave:'👋', 100:'💯', zap:'⚡', bulb:'💡', calendar:'📅', link:'🔗', camera:'📷', movie_camera:'🎥', musical_note:'🎵', headphones:'🎧', microphone:'🎤', guitar:'🎸' };
+// ---- WhatsApp (7 Nov 2026): linked from Owen's Mac like WhatsApp Web, free. Replies go with 5 seconds to undo. ----
+var WA = { list:null, busy:false, hist:{}, chat:null, f:'all' };
+function waWaiting() { return ((S.data && S.data.emails) || []).filter(function (e) { return e.account === 'whatsapp' && !isRead(e); }).length; }
+function waLoad() { if (WA.busy) return; WA.busy = true; if (!WA.list) { try { WA.list = JSON.parse(localStorage.getItem('inbox-wa') || 'null'); } catch (e) {} } api('waChats').then(function (r) { WA.list = r; WA.busy = false; try { localStorage.setItem('inbox-wa', JSON.stringify(r)); } catch (e) {} render(); }).catch(function (e) { WA.busy = false; WA.err = e.message; render(); }); }
+function waOpen(id) { WA.chat = id; S.phoneOpen = true; waHist(id); var c = (WA.list.chats || []).filter(function (x) { return x.id === id; })[0]; if (c && c.unread) { setTimeout(function () { if (WA.chat !== id) return; c.unread = 0; var row = waRow(id); if (row) setStatus([row], 'done'); api('waRead', { chat:id, row:row || '' }).catch(function () {}); render(); }, 1500); } render(); }
+function waRow(jid) { var m = String(jid).match(/^([0-9-]+)@(s\.whatsapp\.net|g\.us|lid)$/); return m ? 'wa:' + (m[2] === 'g.us' ? 'g' : m[2] === 'lid' ? 'l' : '') + m[1] : ''; }
+function waHist(id) { api('waHistory', { chat:id }).then(function (r) { WA.hist[id] = r.messages; render(); var b = document.querySelector('.slmsgs'); if (b) b.scrollTop = b.scrollHeight; }).catch(function () {}); }
+function waSendIt() {
+  var t = document.getElementById('waText'), id = WA.chat; if (!t || !t.value.trim() || !id) return; var text = t.value.trim(); t.value = '';
+  var undone = false, u = document.createElement('div'); u.className = 'toast show'; u.innerHTML = 'Sending on WhatsApp… <button class="btn sm">Undo</button>';
+  u.querySelector('button').onclick = function () { undone = true; u.remove(); var tt = document.getElementById('waText'); if (tt) tt.value = text; toast('Not sent'); };
+  document.body.appendChild(u);
+  setTimeout(function () { if (undone) return; u.remove(); (WA.hist[id] = WA.hist[id] || []).push({ from_me:true, sender:'You', text:text, ts:new Date().toISOString() }); render(); api('waSend', { chat:id, text:text }).then(function () { toast('Sent'); var row = waRow(id); if (row) setStatus([row], 'done'); setTimeout(function () { waHist(id); }, 6000); }).catch(fail); }, 5000);
+}
+// Every 4s while linking (the code changes every 20s), every 16s once linked.
+WA.tick = 0; setInterval(function () { if (S.view !== 'whatsapp' || document.hidden) return; var linked = WA.list && WA.list.status && WA.list.status.state === 'open'; if (linked && (WA.tick++ % 4)) return; waLoad(); if (WA.chat && linked) waHist(WA.chat); }, 4000);
+function waView() {
+  if (!WA.list && !WA.busy) waLoad();
+  var L = WA.list || {}, st = L.status || {}, chats = (L.chats || []).filter(function (c) { return WA.f === 'all' || (WA.f === 'people' ? !c.is_group : WA.f === 'groups' ? c.is_group : c.unread > 0); });
+  var list = '<section class="list">' + tabs() + '<div class="listhead"><div style="flex:1;min-width:0"><h1>WhatsApp</h1><div class="sub">' + (st.state === 'open' ? 'Linked from your Mac. Free.' : 'Not linked yet') + '</div></div><button class="iconbtn' + (WA.busy ? ' spin' : '') + '" onclick="waLoad()">' + I.refresh + '</button></div>'
+    + '<div class="filters"><div class="seg">' + [['all','All'],['unread','Unread'],['people','People'],['groups','Groups']].map(function (x) { return '<button class="' + (WA.f === x[0] ? 'on' : '') + '" onclick="WA.f=\'' + x[0] + '\';render()">' + x[1] + '</button>'; }).join('') + '</div></div><div class="rows">'
+    + (!WA.list ? '<div class="skel" style="height:300px;margin:12px"></div>' : chats.length ? chats.map(function (c) { return '<div class="strow' + (WA.chat === c.id ? ' on' : '') + '" onclick="waOpen(\'' + c.id + '\')"><div class="rowav" style="background:' + (c.is_group ? '#1f8f5f' : hue(c.id)) + '">' + esc(initials(c.name || '?')) + '</div><div style="min-width:0;flex:1"><div class="t">' + esc(c.name || '') + '</div><div class="l3" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (c.last_from_me ? 'You: ' : c.is_group && c.last_sender ? esc(c.last_sender) + ': ' : '') + esc(c.last_text || '') + '</div></div><div style="text-align:right"><div class="l3">' + ago(c.last_ts) + '</div>' + (c.unread ? '<span class="badge" style="background:#25d366;color:#04210f">' + c.unread + '</span>' : '') + '</div></div>'; }).join('') : '<div class="empty">' + (st.state === 'open' ? 'Nothing here yet. New messages show up as they come in.' : '') + '</div>') + '</div></section>';
+  var det = '<section class="detail sldetail' + (S.phoneOpen && WA.chat ? ' open' : '') + '">';
+  if (st.state !== 'open') {
+    det += '<div class="dbody" style="max-width:520px;margin:6vh auto;text-align:center">' + (st.state === 'qr' && st.qr && Date.now() - Date.parse(st.at) < 60000
+      ? '<h2>Link your WhatsApp</h2><p class="l3">On your phone: WhatsApp > Settings > Linked devices > Link a device. Scan this.</p><img src="' + st.qr + '" style="width:260px;height:260px;border-radius:12px;background:#fff;padding:8px">'
+      : st.state === 'reconnecting' ? '<h2>Reconnecting…</h2><p class="l3">Your Mac is getting back to WhatsApp. Give it a moment.</p>'
+      : '<h2>Waiting for your Mac</h2><p class="l3">The WhatsApp link runs on your Mac. ' + (st.state === 'qr' ? 'A fresh code is coming, this refreshes by itself.' : 'Once it is running, a code to scan shows here.') + '</p>') + '</div></section>';
+    return list + det;
+  }
+  var c = (L.chats || []).filter(function (x) { return x.id === WA.chat; })[0];
+  if (!c) return list + det + '<div class="empty" style="margin-top:20vh">Pick a chat</div></section>';
+  var msgs = WA.hist[c.id];
+  det += '<div class="dhead slhead"><div style="display:flex;gap:10px;align-items:center"><button class="iconbtn back" onclick="S.phoneOpen=false;render()">' + I.back + '</button><h2 style="margin:0;flex:1">' + esc(c.name || '') + '</h2><span class="acct" style="--c:#25d366">WhatsApp</span>' + stickySelect('slack', c.name || 'WhatsApp') + '</div></div><div class="slmsgs">'
+    + (!msgs ? '<div class="skel" style="height:260px;margin:16px"></div>' : msgs.map(function (m) { return '<div class="wam' + (m.from_me ? ' me' : '') + '">' + (c.is_group && !m.from_me ? '<div class="was">' + esc(m.sender) + '</div>' : '') + '<div>' + linkify(m.text || '') + '</div><div class="wat">' + hm(m.ts) + '</div></div>'; }).join(''))
+    + '</div><div class="wacomp"><textarea id="waText" placeholder="Message ' + esc(c.name || '') + '" onkeydown="if((event.metaKey||event.ctrlKey)&&event.key===\'Enter\')waSendIt()"></textarea><button class="btn pri" onclick="waSendIt()">' + I.send + 'Send</button></div></section>';
+  return list + det;
+}
 function slackWaiting() { return ((S.data && S.data.emails) || []).filter(function (e) { return e.account === 'slack' && !isRead(e); }).length; }
 // Slack's own markup to HTML: mentions, channels, links, bold, italics, code, emoji.
 function mrkdwn(t, names) {
@@ -1813,20 +1861,20 @@ function mailDetail(g) {
   // Mark unread is its own small button at the end.
   h += (read ? '<span class="btn ghost" style="cursor:default;opacity:.7">' + I.check + 'Read</span>' : '<button class="btn' + (replyable ? '' : ' pri') + '" title="E" onclick="markRead()">' + I.check + (chase ? 'Dismiss' : prom ? 'Done' : 'Mark read') + '</button>') + '<button class="btn ghost" title="Gone from here for good, even from All (D)" onclick="doneWith()">' + I.check + 'Done with</button>' + (g.pile === 'noise' ? '<button class="btn" title="Moves it to Reply, and this sender never goes in Noise again" onclick="movePile(\'reply\')">Not noise</button>' : '') + (read ? '<button class="btn ghost sm" title="U" onclick="markUnread()">Mark unread</button>' : '')
     + stickySelect('ids', g.id)
-    + (slack ? '' : '<button class="btn ghost" title="Copy the whole email, pictures and formatting, to paste into Claude" onclick="copyEmail(\'' + e.id + '\')">' + I.copy + 'Copy</button>')
+    + (slack || e.account === 'whatsapp' ? '' : '<button class="btn ghost" title="Copy the whole email, pictures and formatting, to paste into Claude" onclick="copyEmail(\'' + e.id + '\')">' + I.copy + 'Copy</button>')
     + '<span style="flex:1"></span>'
-    + (e.gmail_url ? '<a class="btn ghost sm" target="_blank" href="' + esc(gmailHref(e.gmail_url)) + '">' + I.gmail + (slack ? 'Open in Slack' : 'Open in Gmail') + '</a>' : '')
+    + (e.gmail_url ? '<a class="btn ghost sm" target="_blank" href="' + esc(gmailHref(e.gmail_url)) + '">' + I.gmail + (slack ? 'Open in Slack' : e.account === 'whatsapp' ? 'Open in WhatsApp' : 'Open in Gmail') + '</a>' : '')
     + '<select class="sel" onchange="snooze(this.value)" title="Hide it and bring it back to the top later"><option value="">⏰ Later…</option><option value="later">In 3 hours</option><option value="tomorrow">Tomorrow 9am</option><option value="days3">In 3 days</option><option value="weekend">This weekend</option><option value="nextweek">Next week</option></select>'
     + '<button class="iconbtn" title="Add to Reminders" onclick="taskFromEmail()">' + PILE_ICON.learn + '</button>'
     + '<select class="sel" onchange="movePile(this.value)" title="Move to another pile"><option value="">Move</option>' + PILES.filter(function (x) { return x.key !== 'new' && x.key !== g.pile; }).map(function (x) { return '<option value="' + x.key + '">' + x.title + '</option>'; }).join('') + '</select>'
-    + (slack ? '' : '<button class="iconbtn" title="Bin" onclick="binOne()">' + I.bin + '</button>') + '</div><div class="dbody">';
+    + (slack || e.account === 'whatsapp' ? '' : '<button class="iconbtn" title="Bin" onclick="binOne()">' + I.bin + '</button>') + '</div><div class="dbody">';
   if (prom) h += '<div class="promisebox"><div class="pl">' + PILE_ICON.promise + 'You said, ' + ago(e.received_at) + ' ago</div><div class="pq">"' + esc(e.snippet) + '"</div><div class="pw">' + esc(e.why) + '</div>' + (e.account === 'meeting' ? '<div class="pw" style="opacity:.7">From a meeting, so nothing to send here. Copy it, or press Done when it is.</div>' : '') + '</div>';
   if (replyable && composing) {
     var saved = e.gmail_draft_id && S.drafts[g.id] == null;
     h += '<div class="composer"><div class="ch">' + I.pen + (chase ? 'Nudge to ' : prom ? 'Keeping it, to ' : 'Reply to ') + esc(chase || prom ? (e.from_name || e.to_email) : (e.from_name || e.from_email)) + '<span style="flex:1"></span>written in your voice</div>'
       + '<textarea id="draft">' + esc(draft) + '</textarea><div class="cf">'
-      + '<button class="btn pri" onclick="sendD()" ' + (S.busy ? 'disabled' : '') + '>' + I.send + (e.account === 'slack' ? 'Send on Slack' : 'Send') + '<kbd>⌘↵</kbd></button>'
-      + (e.account === 'slack' ? '' : '<button class="btn ghost" onclick="saveD()" ' + (S.busy ? 'disabled' : '') + '>' + I.gmail + (S.busy === 'save' ? 'Saving…' : 'Save as draft') + '</button>')
+      + '<button class="btn pri" onclick="sendD()" ' + (S.busy ? 'disabled' : '') + '>' + I.send + (e.account === 'slack' ? 'Send on Slack' : e.account === 'whatsapp' ? 'Send on WhatsApp' : 'Send') + '<kbd>⌘↵</kbd></button>'
+      + (e.account === 'slack' || e.account === 'whatsapp' ? '' : '<button class="btn ghost" onclick="saveD()" ' + (S.busy ? 'disabled' : '') + '>' + I.gmail + (S.busy === 'save' ? 'Saving…' : 'Save as draft') + '</button>')
       + '<button class="btn ghost" onclick="writeD()">' + I.spark + (draft ? 'Rewrite for me' : 'Write it for me') + '</button><button class="btn ghost" onclick="cancelReply()">Discard</button><span style="flex:1"></span><span class="saved" id="savedflag" style="' + (saved ? '' : 'display:none') + '">' + I.check + 'In Gmail drafts</span></div></div>';
   }
   h += prom ? '' : aboutSender(g);

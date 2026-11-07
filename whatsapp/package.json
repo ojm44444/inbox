@@ -1,0 +1,10 @@
+{
+  "name": "inbox-whatsapp",
+  "private": true,
+  "type": "commonjs",
+  "dependencies": {
+    "@whiskeysockets/baileys": "6.7.24",
+    "pino": "9.6.0",
+    "qrcode": "1.5.4"
+  }
+}
