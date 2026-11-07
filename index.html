@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794086574">
+<html lang="en" data-build="b1794086991">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -135,6 +135,9 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .when { color:var(--faint); font-size:12px; white-space:nowrap; text-align:right; }
 .when .pd { display:block; margin-top:4px; }
 .wait { color:var(--chase); }
+.linkbtn { background:none; border:0; color:var(--accent, #8b87ff); font:inherit; font-size:12px; cursor:pointer; padding:0 4px; }
+.cubox { margin:6px 0 2px; padding:8px 10px; border-radius:8px; background:rgba(127,127,127,.08); font-size:12.5px; line-height:1.45; }
+.cubox div + div { margin-top:4px; }
 .strow { display:flex; align-items:center; gap:10px; padding:9px 12px; margin:2px 8px; border-radius:10px; cursor:pointer; }
 .strow:hover { background:rgba(127,127,127,.08); }
 .strow.on { background:color-mix(in srgb, var(--accent, #6d6af5) 18%, transparent); }
@@ -713,9 +716,15 @@ function matches(g) {
   var q = S.f.q.toLowerCase();
   return g.items.some(function (e) { return (e.from_name + ' ' + e.from_email + ' ' + e.subject + ' ' + e.snippet + ' ' + (e.why || '')).toLowerCase().indexOf(q) >= 0; });
 }
+// "by 2026-11-09" in a promise: when it is due, said plainly.
+function promDue(e) { var m = String(e.why || '').match(/by (\d{4}-\d{2}-\d{2})/); if (!m) return null; var d = Math.round((Date.parse(m[1] + 'T12:00:00') - Date.parse(new Date().toISOString().slice(0, 10) + 'T12:00:00')) / 86400000); return { d:d, label:d < 0 ? 'Overdue' : d === 0 ? 'Due today' : d === 1 ? 'Due tomorrow' : 'Due in ' + d + ' days' }; }
+// They wrote twice since you last did: reply before they chase a third time.
+function chasedTwice(e) { if (e.kind !== 'in' || e.account === 'slack') return false; var parts = String(e.thread_text || '').split(/\n\n=====\n\n/), n = 0; for (var i = parts.length - 1; i >= 0; i--) { var f = (parts[i].match(/^From: .*?<?([^\s<>]+@[^\s<>]+)>?\s*$/m) || [])[1] || ''; if (!f || OWN_RE.test(f)) break; n++; } return n >= 2; }
 function pileList(p) {
   var l = groups().filter(function (g) { return (p === 'all' || g.pile === p) && visible(g) && matches(g); });
-  if (p === 'chase' || p === 'promise') l.sort(function (a, b) { return Date.parse(a.items[0].received_at) - Date.parse(b.items[0].received_at); });
+  if (p === 'reply') l.sort(function (a, b) { return chasedTwice(b.items[0]) - chasedTwice(a.items[0]); });
+  if (p === 'promise') l.sort(function (a, b) { var x = promDue(a.items[0]), y = promDue(b.items[0]); return (x ? x.d : 99) - (y ? y.d : 99) || Date.parse(a.items[0].received_at) - Date.parse(b.items[0].received_at); });
+  else if (p === 'chase') l.sort(function (a, b) { return Date.parse(a.items[0].received_at) - Date.parse(b.items[0].received_at); });
   return l;
 }
 function unreadCount(p) { return groups().filter(function (g) { return (p === 'all' || g.pile === p) && (!S.f.acct || g.items.some(function (e) { return (e.account || 'personal') === S.f.acct; })) && (!S.f.plat || g.items.some(function (e) { return (e.account === 'slack') === (S.f.plat === 'slack'); })); }).reduce(function (s, g) { return s + g.unread.length; }, 0); }
@@ -1670,6 +1679,14 @@ function openOnMac(id) { toast('Opening on your Mac in about a minute'); api('ma
 function doneRem(id) { S.data.reminders = (S.data.reminders || []).filter(function (x) { return x.id !== id; }); render(); toast('Ticked. Gone from Reminders on your Mac and phone within a minute.'); api('macComplete', { id:id }).catch(fail); }
 function addRem(t, d) { t = String(t || '').trim(); if (!t) return; S.data.reminders = [{ id:'new' + Date.now(), title:t, list:'', due:d || null }].concat(S.data.reminders || []); render(); toast('Added. It lands in Reminders within a minute.'); api('macAddReminder', { text:t, due:d || '' }).catch(fail); }
 
+// Before a call (readywhen-style): who it is, where things were left, what you promised. Cached on the server 6h.
+S.cu = {};
+function catchup(ck) {
+  var cu = S.cu[ck]; if (cu === 'busy') return; if (cu) { cu.show = !cu.show; render(); return; }
+  var ev = ((S.data.calendar || {}).events || []).filter(function (e) { return e.title + '|' + e.start === ck; })[0]; if (!ev) return;
+  S.cu[ck] = 'busy'; render();
+  api('catchup', { title:ev.title, emails:ev.guests || [] }).then(function (r) { r.show = true; S.cu[ck] = r; render(); }).catch(function (e) { S.cu[ck] = { show:true, error:e.message }; render(); });
+}
 function timeline() {
   var c = S.data.calendar; if (!c) return '<div class="empty" style="padding:20px">Calendar not available.</div>';
   var nowIso = new Date().toISOString();
@@ -1678,7 +1695,10 @@ function timeline() {
   items.forEach(function (x) {
     var d = dayName(x.t); if (d !== day) { h += (day ? '</div>' : '') + '<div class="dayh">' + d + '</div><div class="tl">'; day = d; }
     if (x.free) h += '<div class="tli free"><span class="tm">' + hm(x.free.start) + '–' + hm(x.free.end) + '</span><div class="tt">Free</div></div>';
-    else h += '<div class="tli' + (x.ev.allDay ? ' allday' : '') + '"><span class="tm">' + (x.ev.allDay ? 'All day' : hm(x.ev.start) + '–' + hm(x.ev.end)) + '</span><div class="tt">' + esc(x.ev.title) + '</div></div>';
+    else { var ck = x.ev.title + '|' + x.ev.start, cu = S.cu[ck];
+      h += '<div class="tli' + (x.ev.allDay ? ' allday' : '') + '"><span class="tm">' + (x.ev.allDay ? 'All day' : hm(x.ev.start) + '–' + hm(x.ev.end)) + '</span><div class="tt">' + esc(x.ev.title)
+        + (x.ev.allDay ? '' : ' <button class="linkbtn" onclick="catchup(' + esc(JSON.stringify(ck)).replace(/"/g, '&quot;') + ')">' + (cu === 'busy' ? 'Getting it…' : cu ? 'Hide' : 'Catch up') + '</button>') + '</div>'
+        + (cu && cu !== 'busy' && cu.show ? '<div class="cubox">' + (cu.lines && cu.lines.length ? cu.lines.map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('') : '<div class="l3">' + esc(cu.error || 'Nothing in your mail or calls about this one yet.') + '</div>') + '</div>' : '') + '</div>'; }
   });
   return h ? h + '</div>' : '<div class="empty" style="padding:20px">Nothing booked.</div>';
 }
@@ -1701,10 +1721,10 @@ function list() {
   if (!l.length) return h + '<div class="rows"><div class="empty"><b>All clear</b>' + (S.f.unread ? 'No unread here. Tap All to see read ones.' : 'Nothing here.') + '</div></div></section>';
   h += '<div class="rows">';
   l.forEach(function (g) {
-    var e = g.items[0], chase = e.kind === 'chase', prom = e.kind === 'promise', read = !g.unread.length;
+    var e = g.items[0], chase = e.kind === 'chase' || e.kind === 'owed', prom = e.kind === 'promise', read = !g.unread.length;
     var who = g.isChat ? chatShort(g.chat) + ' chat' : chase || prom ? 'To ' + (e.from_name || e.to_email) : (e.from_name || e.from_email);
     var l2 = prom ? e.why : g.isChat ? issues({ items:S.f.unread && g.unread.length ? g.unread : g.items }).map(function (x) { return x.title; }).slice(0, 3).join(' · ') : e.subject;
-    var when = chase ? '<span class="wait">' + Math.floor((Date.now() - Date.parse(e.received_at)) / 86400000) + 'd waiting</span>' : prom ? '<span style="color:var(--promise)">said ' + ago(e.received_at) + ' ago</span>' : ago(e.received_at);
+    var when = chase ? '<span class="wait">' + Math.floor((Date.now() - Date.parse(e.received_at)) / 86400000) + 'd waiting</span>' : prom ? (promDue(e) ? '<span style="color:' + (promDue(e).d <= 0 ? 'var(--fix)' : 'var(--promise)') + '">' + promDue(e).label + '</span>' : '<span style="color:var(--promise)">said ' + ago(e.received_at) + ' ago</span>') : chasedTwice(e) ? '<span style="color:var(--fix)">Chased twice</span>' : ago(e.received_at);
     var n = S.f.unread ? g.unread.length : g.items.length;
     h += '<div class="row' + (S.open === g.id ? ' on' : '') + (read ? ' read' : '') + '" onclick="if(event.shiftKey||event.metaKey){event.preventDefault();pick(\'' + g.id + '\',event)}else openG(\'' + g.id + '\')">'
       + '<div class="ck' + (S.sel[g.id] ? ' show' : '') + '" onclick="event.stopPropagation();pick(\'' + g.id + '\',event)"></div>'
@@ -1757,7 +1777,7 @@ function chatDetail(g) {
   return h + '</div></section>';
 }
 function mailDetail(g) {
-  var e = g.items[0], p = pileOf(g.pile), chase = e.kind === 'chase', prom = e.kind === 'promise', read = !g.unread.length;
+  var e = g.items[0], p = pileOf(g.pile), chase = e.kind === 'chase' || e.kind === 'owed', prom = e.kind === 'promise', read = !g.unread.length;
   var many = g.items.length > 1, replyable = !many && g.pile !== 'noise' && e.account !== 'meeting';
   var draft = S.drafts[g.id] != null ? S.drafts[g.id] : (e.draft_text || '');
   var composing = draft || (S.composing && S.composing[g.id]);
@@ -1801,7 +1821,7 @@ function mailDetail(g) {
 }
 // What Owen has done with this sender before, and one tap to make it a rule.
 function aboutSender(g) {
-  var e = g.items[0], k = String(e.from_email || '').toLowerCase(); if (!k || e.kind === 'chase') return '';
+  var e = g.items[0], k = String(e.from_email || '').toLowerCase(); if (!k || e.kind === 'chase' || e.kind === 'owed') return '';
   var hb = (S.data.habits || {})[k], rule = (S.data.rules || {})[k];
   var here = (S.data.emails || []).filter(function (x) { return String(x.from_email || '').toLowerCase() === k; }).length;
   var facts = [here + ' email' + (here === 1 ? '' : 's') + ' from them this week'];
@@ -1950,7 +1970,7 @@ function binOne() { var g = current(); if (!g) return; var x = g.items.map(funct
 function sendD() {
   var g = current(); if (!g) return; var e = g.items[0];
   var text = (S.drafts[g.id] != null ? S.drafts[g.id] : e.draft_text || '').trim(); if (!text) { toast('Write something first', true); return; }
-  var to = e.account === 'slack' ? (e.from_name || 'them') + ' on Slack' : (e.kind === 'chase' || e.kind === 'promise' ? e.to_email : e.from_email);
+  var to = e.account === 'slack' ? (e.from_name || 'them') + ' on Slack' : (e.kind === 'chase' || e.kind === 'owed' || e.kind === 'promise' ? e.to_email : e.from_email);
   setStatus([e.id], 'done'); afterChange();
   var undone = false, u = document.createElement('div'); u.className = 'undo';
   u.innerHTML = '<span>Sending to <b>' + esc(to) + '</b>…</span><button class="btn sm">Undo</button>';
