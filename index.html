@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794086991">
+<html lang="en" data-build="b1794087100">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1697,7 +1697,7 @@ function timeline() {
     if (x.free) h += '<div class="tli free"><span class="tm">' + hm(x.free.start) + '–' + hm(x.free.end) + '</span><div class="tt">Free</div></div>';
     else { var ck = x.ev.title + '|' + x.ev.start, cu = S.cu[ck];
       h += '<div class="tli' + (x.ev.allDay ? ' allday' : '') + '"><span class="tm">' + (x.ev.allDay ? 'All day' : hm(x.ev.start) + '–' + hm(x.ev.end)) + '</span><div class="tt">' + esc(x.ev.title)
-        + (x.ev.allDay ? '' : ' <button class="linkbtn" onclick="catchup(' + esc(JSON.stringify(ck)).replace(/"/g, '&quot;') + ')">' + (cu === 'busy' ? 'Getting it…' : cu ? 'Hide' : 'Catch up') + '</button>') + '</div>'
+        + (x.ev.allDay || !((x.ev.guests && x.ev.guests.length) || /\b[A-Z][a-z]+ [A-Z][a-z]+\b/.test(x.ev.title)) ? '' : ' <button class="linkbtn" onclick="catchup(' + esc(JSON.stringify(ck)).replace(/"/g, '&quot;') + ')">' + (cu === 'busy' ? 'Getting it…' : cu ? 'Hide' : 'Catch up') + '</button>') + '</div>'
         + (cu && cu !== 'busy' && cu.show ? '<div class="cubox">' + (cu.lines && cu.lines.length ? cu.lines.map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('') : '<div class="l3">' + esc(cu.error || 'Nothing in your mail or calls about this one yet.') + '</div>') + '</div>' : '') + '</div>'; }
   });
   return h ? h + '</div>' : '<div class="empty" style="padding:20px">Nothing booked.</div>';
