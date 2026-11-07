@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794093016">
+<html lang="en" data-build="b1794093100">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -135,6 +135,10 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .when { color:var(--faint); font-size:12px; white-space:nowrap; text-align:right; }
 .when .pd { display:block; margin-top:4px; }
 .wait { color:var(--chase); }
+.waitline { margin-top:10px; padding:10px 14px; border-radius:12px; background:color-mix(in srgb, var(--reply) 12%, transparent); border:1px solid color-mix(in srgb, var(--reply) 35%, transparent); cursor:pointer; font-size:15px; line-height:1.4; }
+.waitline .go { color:var(--reply); font-weight:600; white-space:nowrap; }
+.tiles.apps { margin-top:-10px; }
+.morebtn { display:block; margin:18px auto 30px; }
 .wam { width:fit-content; max-width:min(72%, 560px); margin:6px 14px; padding:7px 10px; border-radius:10px; background:rgba(127,127,127,.12); font-size:14px; line-height:1.4; white-space:pre-wrap; word-wrap:break-word; }
 .wam.me { margin-left:auto; background:color-mix(in srgb, #25d366 22%, transparent); }
 .wam .was { font-size:12px; font-weight:600; color:#25d366; margin-bottom:2px; }
@@ -824,11 +828,20 @@ function home() {
   var people = pileList('reply').length, chase = unreadCount('chase'), fixN = groups().filter(function (g) { return g.isChat && g.unread.length; }).length;
   var bits = []; if (people) bits.push(people + ' ' + (people === 1 ? 'person' : 'people') + ' waiting on you'); if (fixN) bits.push(fixN + ' chat' + (fixN === 1 ? '' : 's') + ' to send broken things to'); if (chase) bits.push(chase + ' to chase'); var promN = pileList('promise').length; if (promN) bits.splice(1, 0, promN + ' thing' + (promN === 1 ? '' : 's') + ' you said you\'d do');
   var day = new Date().toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', timeZone:'Europe/London' });
+  // Owen, 7 Nov 2026: "brief me to tell me people are waiting for replies". Names first, every inbox and app together.
+  var waitG = pileList('reply').filter(function (g) { return g.unread.length; }), seenN = {}, waitNames = [];
+  waitG.forEach(function (g) { var n = String(g.items[0].from_name || g.items[0].from_email || '').split(' <')[0].trim(); var k = n.toLowerCase(); if (n && !seenN[k]) { seenN[k] = 1; waitNames.push(n); } });
+  var waitLine = waitNames.length ? '<div class="waitline" onclick="go(\'reply\')"><b>' + waitNames.length + ' ' + (waitNames.length === 1 ? 'person is' : 'people are') + ' waiting for your reply:</b> ' + esc(waitNames.slice(0, 5).join(', ')) + (waitNames.length > 5 ? ' and ' + (waitNames.length - 5) + ' more' : '') + '. <span class="go">Reply →</span></div>' : '';
   // Calm Home (5 Nov 2026 overhaul): one line of counts, the brief, then three short columns.
-  var h = '<main class="home">' + tabs() + '<div class="hero2"><div style="min-width:0"><div class="day">' + day + '</div><h1 class="hello">' + hi + ', Owen</h1><div class="hellosub">' + (bits.length ? bits.join(' · ') + '.' : 'Inbox clear. Nice.') + '</div></div>'
+  var h = '<main class="home">' + tabs() + '<div class="hero2"><div style="min-width:0"><div class="day">' + day + '</div><h1 class="hello">' + hi + ', Owen</h1><div class="hellosub">' + (bits.length ? bits.join(' · ') + '.' : 'Inbox clear. Nice.') + '</div>' + waitLine + '</div>'
     + '</div>'
     + '<div class="tiles">' + PILES.filter(function (p) { return p.key !== 'new'; }).map(function (p) { return '<div class="tile" style="--c:' + p.color + '" onclick="go(\'' + (p.key === 'learn' ? 'reading' : p.key) + '\')"><div class="lab"><span class="pico">' + PILE_ICON[p.key] + '</span>' + p.title + '</div><div class="num">' + unreadCount(p.key) + '</div><div class="hint">' + p.help + '</div></div>'; }).join('') + '</div>' + inboxStrip()
-    + askBar() + briefCard() + reviewHomeCard() + '<div class="hgrid"><div class="hcol">' + tasksBox() + '</div><div class="hcol">';
+    + appTiles()
+    + askBar() + briefCard()
+    // Owen, 7 Nov: "the bits below are a bit overwhelming. I don't really scroll." Folded away, one tap to open.
+    + '<button class="btn ghost morebtn" onclick="S.homeMore=!S.homeMore;render()">' + (S.homeMore ? 'Show less' : 'More: tasks, calendar, notes, ideas, shop') + '</button>';
+  if (!S.homeMore) return h + '</main>';
+  h += reviewHomeCard() + '<div class="hgrid"><div class="hcol">' + tasksBox() + '</div><div class="hcol">';
   var people2 = pileList('reply').slice(0, 7);
   h += '<div class="box"><h3>' + I.pen + 'People waiting on you<span class="badge">' + pileList('reply').length + '</span><span style="flex:1"></span><button class="btn sm ghost" onclick="go(\'reply\')">All</button></h3>'
     + (people2.length ? people2.map(function (g) { var e = g.items[0]; return '<div class="mini" onclick="openFrom(\'reply\',\'' + g.id + '\')"><div class="av" title="Everything with them" style="background:' + hue(e.from_email) + '" onclick="event.stopPropagation();openPerson(\'' + esc(e.from_email || '') + '\')">' + esc(initials(e.from_name || e.from_email)) + '</div><div style="min-width:0"><div class="t">' + esc(e.from_name || e.from_email) + ' ' + acctTag(e.account) + '</div><div class="l3">' + esc(e.subject) + '</div></div><div class="s">' + ago(e.received_at) + '</div></div>'; }).join('') : '<div class="empty" style="padding:20px">No one waiting.</div>') + '</div>';
@@ -1095,6 +1108,20 @@ function hubAll() {
 }
 function reviewData() { return (S.data && S.data.review) || { items:[], decisions:{} }; }
 function reviewNeeds() { return hubPids().reduce(function (a, p) { return a.concat(hubWaiting(p)); }, []); }
+// The other apps as tiles next to the piles (Owen, 7 Nov: "it'd be cool if they could be part of this").
+function appTiles() {
+  var clashes = (S.data.calendar && S.data.calendar.clashes) || [], ev = ((S.data.calendar || {}).events || []).filter(function (e) { return !e.allDay && Date.parse(e.end) > Date.now(); })[0];
+  var t = function (view, color, icon, label, num, hint) { return '<div class="tile" style="--c:' + color + '" onclick="go(\'' + view + '\')"><div class="lab"><span class="pico">' + icon + '</span>' + label + '</div><div class="num">' + num + '</div><div class="hint">' + hint + '</div></div>'; };
+  var stN = stickyTotal(), rvN = reviewNeeds().length;
+  return '<div class="tiles apps">'
+    + t('whatsapp', '#25d366', I.wa, 'WhatsApp', waWaiting(), 'People waiting on WhatsApp.')
+    + t('slack', '#a35bd6', I.slack, 'Slack', slackWaiting(), 'Waiting on lazygecko Slack.')
+    + t('sticky', '#d6a23a', I.sticky, 'Sticky notes', stN, stN ? 'Ready to paste into Claude.' : 'Add things for a Claude chat.')
+    + t('review', '#6d6af5', I.check, 'Review', rvN, 'Things to approve.')
+    + '<div class="tile" style="--c:#3a86d8" onclick="S.homeMore=true;render()"><div class="lab"><span class="pico">' + I.cal + '</span>Calendar</div><div class="num" style="font-size:' + (ev ? '18px' : '') + '">' + (ev ? esc(hm(ev.start)) : '0') + '</div><div class="hint">' + (clashes.length ? '<span style="color:var(--chase)">' + clashes.length + ' clash' + (clashes.length === 1 ? '' : 'es') + '</span> · ' : '') + (ev ? esc(ev.title).slice(0, 40) : 'Nothing booked.') + '</div></div>'
+    + '<div class="tile" style="--c:#8b8c96" onclick="go(\'notes\')"><div class="lab"><span class="pico">' + I.note + '</span>Notes</div><div class="num">' + ((S.data.notes || []).length) + '</div><div class="hint">Your Apple Notes.</div></div>'
+    + '</div>';
+}
 function reviewHomeCard() {
   hubLoad();
   var n = reviewNeeds().length; if (!n) return '';
