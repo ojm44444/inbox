@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794091966">
+<html lang="en" data-build="b1794092347">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1363,7 +1363,7 @@ function waView() {
   var c = (L.chats || []).filter(function (x) { return x.id === WA.chat; })[0];
   if (!c) return list + det + '<div class="empty" style="margin-top:20vh">Pick a chat</div></section>';
   var msgs = WA.hist[c.id];
-  det += '<div class="dhead slhead"><div style="display:flex;gap:10px;align-items:center"><button class="iconbtn back" onclick="S.phoneOpen=false;render()">' + I.back + '</button><h2 style="margin:0;flex:1">' + esc(c.name || '') + '</h2><span class="acct" style="--c:#25d366">WhatsApp</span>' + stickySelect('slack', c.name || 'WhatsApp') + '</div></div><div class="slmsgs">' + (msgs ? '<div style="text-align:center;margin:10px"><button class="btn sm ghost" onclick="waOlder()">' + (WA.olderBusy ? 'Getting older messages…' : 'Load older messages') + '</button></div>' : '')
+  det += '<div class="dhead slhead"><div style="display:flex;gap:10px;align-items:center"><button class="iconbtn back" onclick="S.phoneOpen=false;render()">' + I.back + '</button><h2 style="margin:0;flex:1">' + esc(c.name || '') + '</h2><span class="acct" style="--c:#25d366">WhatsApp</span>' + stickySelect('slack', c.name || 'WhatsApp') + '</div></div><div class="slmsgs">' + (msgs && msgs.length ? '<div class="l3" style="text-align:center;margin:10px">Messages from ' + esc(new Date(msgs[0].ts).toLocaleDateString('en-GB', { day:'numeric', month:'short' })) + '. Older ones are on your phone.</div>' : '')
     + (!msgs ? '<div class="skel" style="height:260px;margin:16px"></div>' : msgs.map(function (m) { return '<div class="wam' + (m.from_me ? ' me' : '') + '">' + (c.is_group && !m.from_me ? '<div class="was">' + esc(m.sender) + '</div>' : '') + '<div>' + linkify(m.text || '') + '</div><div class="wat">' + hm(m.ts) + '</div></div>'; }).join(''))
     + '</div><div class="wacomp"><textarea id="waText" placeholder="Message ' + esc(c.name || '') + '" onkeydown="if((event.metaKey||event.ctrlKey)&&event.key===\'Enter\')waSendIt()"></textarea><button class="btn pri" onclick="waSendIt()">' + I.send + 'Send</button></div></section>';
   return list + det;
