@@ -36,7 +36,7 @@ NOTES_JS = '''
 var N = Application('Notes'), f = {};
 N.folders().forEach(function (d) { var nm = d.name(); d.notes.id().forEach(function (i) { f[i] = nm; }); });
 var ids = N.notes.id(), t = N.notes.name(), b = N.notes.plaintext(), m = N.notes.modificationDate(), a = N.notes.attachments.name(), out = [];
-for (var i = 0; i < ids.length; i++) out.push({ id: ids[i], title: t[i], body: String(b[i] || '').slice(0, 8000), folder: f[ids[i]] || '', modified: m[i].toISOString(), attach: (a[i] || []).length });
+for (var i = 0; i < ids.length; i++) if (f[ids[i]] !== 'Recently Deleted') out.push({ id: ids[i], title: t[i], body: String(b[i] || '').slice(0, 8000), folder: f[ids[i]] || '', modified: m[i].toISOString(), attach: (a[i] || []).length });
 JSON.stringify(out);
 '''
 # Reminders through Apple's EventKit (instant), not AppleScript, which times out on a big
@@ -110,7 +110,7 @@ NEW_JS = "var N = Application('Notes'); var n = N.Note({ body: %s }); N.defaultA
 
 def do_actions():
     for a in q("SELECT id, action, target, text FROM inbox_mac_actions WHERE done_at IS NULL ORDER BY id LIMIT 20") or []:
-        if a['action'] in ('edit', 'note'): state_force_notes[0] = True  # reread notes either way, so the page shows what is really there
+        if a['action'] in ('edit', 'note', 'delete'): state_force_notes[0] = True  # reread notes either way, so the page shows what is really there
         try:
             if a['action'] == 'complete':
                 complete_reminder(a['target'])
@@ -125,6 +125,9 @@ def do_actions():
                 e = json.loads(a['text'])
                 r = osa(EDIT_JS % (json.dumps(a['target']), json.dumps({'html': _html(e['text']), 'base': e.get('base', '')})), 60)
                 x("UPDATE inbox_mac SET title = '%s', modified_at = '%s' WHERE id = '%s'" % (esc(r['title']), esc(r['modified']), esc(a['target'])))
+            elif a['action'] == 'delete':
+                osa("var N = Application('Notes'); N.delete(N.notes.byId(%s)); JSON.stringify('ok')" % json.dumps(a['target']), 60)
+                x("DELETE FROM inbox_mac WHERE id = '%s'" % esc(a['target']))
             elif a['action'] == 'note':
                 osa(NEW_JS % json.dumps(_html(a['text'])), 60)
             res = 'ok'

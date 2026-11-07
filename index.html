@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794000612">
+<html lang="en" data-build="b1794075510">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -316,21 +316,24 @@ body { background:radial-gradient(1200px 600px at 80% -10%, color-mix(in srgb, v
 .thead h2 { margin:0; font-size:18px; flex:1; text-shadow:0 1px 3px rgba(0,0,0,.4); }
 .thead .btn { background:rgba(255,255,255,.18); border-color:transparent; color:#fff; }
 .tlists { display:flex; gap:12px; align-items:flex-start; padding:0 16px; overflow-x:auto; flex:1; }
-.tlist { width:272px; flex:none; background:#101204; color:#b6c2cf; border-radius:12px; padding:8px; max-height:calc(100vh - 170px); display:flex; flex-direction:column; }
+.tlist { width:280px; flex:none; background:rgba(16,18,4,.92); color:#b6c2cf; border-radius:12px; padding:8px; max-height:calc(100vh - 200px); display:flex; flex-direction:column; }
 :root[data-theme="light"] .tlist { background:#f1f2f4; color:#44546f; }
 @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .tlist { background:#f1f2f4; color:#44546f; } }
 .tlist.over { outline:2px solid #579dff; }
 .tlh { font-weight:600; font-size:14px; padding:6px 8px 10px; display:flex; justify-content:space-between; }
 .tlh span { color:#8c9bab; font-weight:500; font-size:12px; }
 .tcards { overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding:0 2px; min-height:8px; }
-.tcard { background:#22272b; color:#b6c2cf; border-radius:8px; box-shadow:0 1px 1px rgba(0,0,0,.3); cursor:pointer; overflow:hidden; }
+.tcard { flex:none; background:#22272b; color:#b6c2cf; border-radius:8px; box-shadow:0 1px 1px rgba(0,0,0,.3); cursor:pointer; overflow:hidden; }
 :root[data-theme="light"] .tcard { background:#fff; color:#172b4d; box-shadow:0 1px 1px rgba(9,30,66,.25); }
 @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .tcard { background:#fff; color:#172b4d; box-shadow:0 1px 1px rgba(9,30,66,.25); } }
 .tcard:hover { outline:2px solid #388bff; }
 .tcover { height:32px; }
 .tlabels { display:flex; gap:4px; flex-wrap:wrap; padding:8px 10px 0; }
 .tlabels span { min-width:40px; height:16px; border-radius:4px; font-size:11px; font-weight:600; color:#1d2125; padding:0 6px; line-height:16px; }
-.tname { padding:8px 10px; font-size:14px; line-height:1.35; }
+.tname { padding:8px 10px; font-size:14px; line-height:1.35; overflow-wrap:anywhere; }
+.tname .tlink { display:flex; align-items:center; gap:6px; color:inherit; }
+.tname .tlink img { width:16px; height:16px; border-radius:3px; flex:none; }
+.tname .tlink small { display:block; color:#8c9bab; font-size:12px; }
 .tbadges { display:flex; gap:10px; padding:0 10px 8px; font-size:12px; color:#8c9bab; }
 .tbadges .tlate { color:#fff; background:#c9372c; border-radius:3px; padding:0 4px; }
 .tbadges .tdone { color:#fff; background:#1f845a; border-radius:3px; padding:0 4px; }
@@ -1279,14 +1282,14 @@ function mrkdwn(t, names) {
   return h.replace(/\n/g, '<br>');
 }
 function slackChannels(force) {
-  if (SL.busy) return; SL.busy = true; render();
-  api('slackChannels', { force:!!force }).then(function (r) { SL.list = r; SL.busy = false; if (!SL.ch && r.channels.length && window.innerWidth > 800) SL.ch = r.channels[0].id; render(); })
+  if (SL.busy) return; SL.busy = true; if (!SL.list) SL.list = tlRead('slack'); render();
+  api('slackChannels', { force:!!force }).then(function (r) { SL.list = r; tlSave('slack', r); SL.busy = false; if (!SL.ch && r.channels.length && window.innerWidth > 800) SL.ch = r.channels[0].id; render(); })
     .catch(function (e) { SL.busy = false; SL.err = e.message; render(); });
 }
 function slackLoad(ch, thread) {
   var k = ch + (thread ? ':' + thread : '');
-  if (slackLoad.p[k]) return; slackLoad.p[k] = true;
-  api('slackHistory', { channel:ch, thread:thread || '' }).then(function (r) { SL.hist[k] = r; slackLoad.p[k] = false; render(); slackScroll(); })
+  if (slackLoad.p[k]) return; slackLoad.p[k] = true; if (!SL.hist[k]) { var c = tlRead('sh-' + k); if (c) { SL.hist[k] = c; render(); slackScroll(); } }
+  api('slackHistory', { channel:ch, thread:thread || '' }).then(function (r) { SL.hist[k] = r; if (!r.error) tlSave('sh-' + k, r); slackLoad.p[k] = false; render(); slackScroll(); })
     .catch(function (e) { SL.hist[k] = { error:e.message }; slackLoad.p[k] = false; render(); });
 }
 slackLoad.p = {};
@@ -1447,7 +1450,8 @@ function slackDm(uid) {
 var TL = { boards:null, board:null, busy:false, id:null };
 var LABEL_COL = { green:'#4bce97', yellow:'#f5cd47', orange:'#fea362', red:'#f87168', purple:'#9f8fef', blue:'#579dff', sky:'#6cc3e0', lime:'#94c748', pink:'#e774bb', black:'#8c9bab' };
 function trello() {
-  if (!TL.boards) { if (!TL.busy && !TL.err) { TL.busy = true; api('trelloBoards').then(function (b) { TL.boards = b; TL.busy = false; var last = ''; try { last = localStorage.getItem('inbox-board') || ''; } catch (e) {} openBoard(b.some(function (x) { return x.id === last; }) ? last : (b.filter(function (x) { return x.name === 'Life'; })[0] || b[0]).id); }).catch(function (e) { TL.busy = false; TL.err = e.message; render(); }); }
+  if (!TL.boards && !TL.busy && tlRead('boards')) { TL.boards = tlRead('boards'); var lb = ''; try { lb = localStorage.getItem('inbox-board') || ''; } catch (e) {} TL.board = tlRead('b-' + lb) || null; api('trelloBoards').then(function (b) { TL.boards = b; tlSave('boards', b); render(); }).catch(function () {}); if (TL.board) openBoard(TL.board.id); else if (TL.boards[0]) openBoard((TL.boards.filter(function (x) { return x.name === 'Life'; })[0] || TL.boards[0]).id); }
+  if (!TL.boards) { if (!TL.busy && !TL.err) { TL.busy = true; api('trelloBoards').then(function (b) { TL.boards = b; tlSave('boards', b); TL.busy = false; var last = ''; try { last = localStorage.getItem('inbox-board') || ''; } catch (e) {} openBoard(b.some(function (x) { return x.id === last; }) ? last : (b.filter(function (x) { return x.name === 'Life'; })[0] || b[0]).id); }).catch(function (e) { TL.busy = false; TL.err = e.message; render(); }); }
     if (TL.err) return '<main class="tboard"><div class="empty"><b>Trello did not load</b>' + esc(TL.err) + '<div style="margin-top:10px"><button class="btn sm pri" onclick="TL.err=null;render()">Try again</button></div></div></main>';
     return '<main class="tboard"><div class="empty">Loading your boards…</div></main>'; }
   var b = TL.board, bg = b && b.bg ? (b.bg.image ? 'url(' + b.bg.image + ') center/cover' : b.bg.color) : '#0079BF';
@@ -1462,7 +1466,7 @@ function trello() {
       h += '<div class="tcard" draggable="true" ondragstart="event.dataTransfer.setData(\'text\',\'' + c.id + '\')" onclick="window.open(\'' + esc(c.url) + '\',\'_blank\')">'
         + (c.cover ? '<div class="tcover" style="background:' + (LABEL_COL[c.cover] || c.cover) + '"></div>' : '')
         + (c.labels.length ? '<div class="tlabels">' + c.labels.map(function (x) { return '<span style="background:' + (LABEL_COL[x.color] || '#8c9bab') + '">' + esc(x.name || '') + '</span>'; }).join('') + '</div>' : '')
-        + '<div class="tname">' + esc(c.name) + '</div>'
+        + '<div class="tname" title="' + esc(c.name) + '">' + cardName(c.name) + '</div>'
         + ((due || c.comments || c.checks || c.attach || c.desc) ? '<div class="tbadges">' + (due ? '<span class="' + (c.done ? 'tdone' : late ? 'tlate' : '') + '">🕒 ' + due.toLocaleDateString('en-GB', { day:'numeric', month:'short' }) + '</span>' : '') + (c.desc ? '<span>≡</span>' : '') + (c.comments ? '<span>💬 ' + c.comments + '</span>' : '') + (c.attach ? '<span>📎 ' + c.attach + '</span>' : '') + (c.checks ? '<span>☑ ' + c.checks + '</span>' : '') + '</div>' : '')
         + '</div>';
     });
@@ -1470,7 +1474,17 @@ function trello() {
   });
   return h + '</div></main>';
 }
-function openBoard(id) { TL.loadingBoard = true; try { localStorage.setItem('inbox-board', id); } catch (e) {} if (TL.board && TL.board.id !== id) TL.board = { id:id, bg:(TL.boards.filter(function (x) { return x.id === id; })[0] || {}).bg }; render(); api('trelloBoard', { id:id }).then(function (b) { TL.board = b; TL.loadingBoard = false; render(); }).catch(function (e) { TL.loadingBoard = false; render(); toast(e.message, true); }); }
+function cardName(n) {
+  var m = String(n || '').trim().match(/^(.*?)\s*-?\s*(https?:\/\/\S+)$/);
+  if (!m) return esc(n);
+  var u; try { u = new URL(m[2]); } catch (e) { return esc(n); }
+  var host = u.hostname.replace(/^www\./, ''), path = decodeURIComponent(u.pathname).replace(/\/$/, '').split('/').filter(Boolean).slice(-1)[0] || '';
+  return '<span class="tlink"><img src="https://www.google.com/s2/favicons?domain=' + esc(u.hostname) + '&sz=32" alt=""><span>' + esc(m[1] || host) + (m[1] || path ? '<small>' + esc(m[1] ? host : path.slice(0, 40)) + '</small>' : '') + '</span></span>';
+}
+// Boards open instantly from what this browser saw last time, then update.
+function tlSave(k, v) { try { localStorage.setItem('inbox-tl-' + k, JSON.stringify(v)); } catch (e) {} }
+function tlRead(k) { try { return JSON.parse(localStorage.getItem('inbox-tl-' + k) || 'null'); } catch (e) { return null; } }
+function openBoard(id) { var c = tlRead('b-' + id); TL.loadingBoard = !c; try { localStorage.setItem('inbox-board', id); } catch (e) {} if (c) TL.board = c; else if (!TL.board || TL.board.id !== id) TL.board = { id:id, bg:(TL.boards.filter(function (x) { return x.id === id; })[0] || {}).bg }; render(); api('trelloBoard', { id:id }).then(function (b) { tlSave('b-' + id, b); if (TL.board && TL.board.id !== id) return; TL.board = b; TL.loadingBoard = false; render(); }).catch(function (e) { TL.loadingBoard = false; render(); toast(e.message, true); }); }
 function dropCard(ev, listId) {
   ev.preventDefault(); ev.currentTarget.classList.remove('over'); var id = ev.dataTransfer.getData('text'); if (!id) return;
   var card = null; TL.board.lists.forEach(function (l) { l.cards = l.cards.filter(function (c) { if (c.id === id) { card = c; return false; } return true; }); });
@@ -1540,7 +1554,7 @@ function notesView() {
     var editing = S.noteEdit === cur.id, ro = cur.attach > 0;
     det += '<div class="dhead"><div style="display:flex;gap:10px;align-items:center"><button class="iconbtn back" onclick="S.phoneOpen=false;S.noteId=null;S.noteEdit=null;render()">' + I.back + '</button><h2 style="margin:0;flex:1">' + esc(cur.title) + '</h2></div><div class="l3">' + esc(cur.list || '') + (cur.modified_at ? ' · edited ' + ago(cur.modified_at) + ' ago' : '') + ' · ' + macStatus() + '</div>'
       + '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">' + (editing ? '<button class="btn pri" onclick="saveNote(\'' + esc(cur.id) + '\')">Save to Notes</button><button class="btn ghost" onclick="S.noteEdit=null;render()">Cancel</button>'
-        : (ro ? '' : '<button class="btn" onclick="S.noteEdit=\'' + esc(cur.id) + '\';render();setTimeout(function(){var t=document.getElementById(\'noteed\');if(t)t.focus()},30)">Edit</button>') + '<button class="btn ghost" onclick="copyText(' + esc(JSON.stringify(cur.body || '')) + ',\'Note copied\')">Copy</button><button class="btn ghost" onclick="openOnMac(\'' + esc(cur.id) + '\')">Open in Notes</button>')
+        : (ro ? '' : '<button class="btn" onclick="S.noteEdit=\'' + esc(cur.id) + '\';render();setTimeout(function(){var t=document.getElementById(\'noteed\');if(t)t.focus()},30)">Edit</button>') + '<button class="btn ghost" onclick="copyText(' + esc(JSON.stringify(cur.body || '')) + ',\'Note copied\')">Copy</button><button class="btn ghost" onclick="openOnMac(\'' + esc(cur.id) + '\')">Open in Notes</button><button class="btn ghost" onclick="delNote(\'' + esc(cur.id) + '\')">Delete</button>')
       + '</div>' + (ro && !editing ? '<div class="l3" style="margin-top:6px">Has pictures or files, so edit this one in Notes.</div>' : '') + '</div>'
       + '<div class="dbody">' + (editing ? '<textarea id="noteed" class="noteed">' + esc(cur.body || '') + '</textarea>' : '<div class="notebody">' + linkify(esc(cur.body || '')) + '</div>') + '</div>';
   }
@@ -1555,6 +1569,13 @@ function saveNote(id) {
 }
 function linkify(h) { return h.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" onclick="event.stopPropagation()">$1</a>'); }
 function load_(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
+// Delete goes to Recently Deleted in Apple Notes (back for 30 days), same on his phone.
+function delNote(id) {
+  if (!confirm('Delete this note? It goes to Recently Deleted in Apple Notes, back for 30 days.')) return;
+  var drop = function (l) { return (l || []).filter(function (n) { return n.id !== id; }); };
+  S.data.notes = drop(S.data.notes); if (S.noteHits) S.noteHits = drop(S.noteHits); S.noteId = null; S.noteEdit = null; S.phoneOpen = false; render();
+  toast('Deleted. Gone from Notes on your Mac and phone within a minute.'); api('macDeleteNote', { id:id }).catch(fail);
+}
 function openOnMac(id) { toast('Opening on your Mac in about a minute'); api('macOpenNote', { id:id }).catch(fail); }
 function doneRem(id) { S.data.reminders = (S.data.reminders || []).filter(function (x) { return x.id !== id; }); render(); toast('Ticked. Gone from Reminders on your Mac and phone within a minute.'); api('macComplete', { id:id }).catch(fail); }
 function addRem(t, d) { t = String(t || '').trim(); if (!t) return; S.data.reminders = [{ id:'new' + Date.now(), title:t, list:'', due:d || null }].concat(S.data.reminders || []); render(); toast('Added. It lands in Reminders within a minute.'); api('macAddReminder', { text:t, due:d || '' }).catch(fail); }
@@ -1778,19 +1799,26 @@ function setStatus(ids, st) { S.data.emails.forEach(function (e) { if (ids.index
 // What Owen just did wins over a reload that started before the server caught up (6 Nov 2026:
 // "I keep marking stuff as read and it keeps coming back"). Kept 30 minutes, this browser only.
 function remember(ids, st) {
-  S.local = S.local || {}; var t = Date.now(); ids.forEach(function (id) { S.local[id] = { st:st, at:t }; });
+  S.local = mergeLocal(S.local || {}); var t = Date.now(); ids.forEach(function (id) { S.local[id] = { st:st, at:t }; });
   // Kept across closing the page too, and the saved copy updated, so reopening never shows what was just dealt with.
   try { localStorage.setItem('inbox-local', JSON.stringify(S.local)); } catch (e) {}
   setTimeout(function () { if (S.data) saveCache(applyLocal(S.data)); }, 0);
 }
+// Two Inbox tabs open: each keeps the other's marks instead of writing over them.
+function mergeLocal(L) {
+  var o = {}; try { o = JSON.parse(localStorage.getItem('inbox-local') || '{}'); } catch (e) {}
+  Object.keys(o).forEach(function (id) { if (!L[id] || o[id].at > L[id].at) L[id] = o[id]; }); return L;
+}
+window.addEventListener('storage', function (ev) { if (ev.key === 'inbox-local' && S.data) { S.local = mergeLocal(S.local || {}); applyLocal(S.data); render(); } });
 function rememberCat(ids, cat) { S.localCat = S.localCat || {}; var t = Date.now(); ids.forEach(function (id) { S.localCat[id] = { cat:cat, at:t }; }); }
-function applyLocal(d) {
+// sent = when that request left. A reply asked for before a mark can't know about it, so it never clears or undoes it.
+function applyLocal(d, sent) {
   var C = S.localCat || {}, tc = Date.now();
   if (d && d.emails) d.emails.forEach(function (e) { var c = C[e.id]; if (!c) return; if (tc - c.at > 600000 || e.category === c.cat) delete C[e.id]; else { e.category = c.cat; S.needRegroup = true; } });
   var L = S.local || {}, t = Date.now(); if (!d || !d.emails) return d;
   // A mark only needs holding until the server agrees; "unread" ones only briefly, so reading it in Gmail still wins.
   var srv = {}; d.emails.forEach(function (e) { srv[e.id] = e.status; });
-  Object.keys(L).forEach(function (id) { if (t - L[id].at > (L[id].st === 'open' ? 180000 : 1800000) || (srv[id] && srv[id] === L[id].st)) delete L[id]; });
+  Object.keys(L).forEach(function (id) { if (t - L[id].at > (L[id].st === 'open' ? 180000 : 1800000) || (sent && sent > L[id].at + 3000 && srv[id] && srv[id] === L[id].st)) delete L[id]; });
   d.emails = d.emails.filter(function (e) { var l = L[e.id]; return !(l && l.st === 'gone'); });
   d.emails.forEach(function (e) { var l = L[e.id]; if (l && l.st !== 'gone') e.status = l.st; });
   return d;
@@ -1936,7 +1964,8 @@ function theme() { var r = document.documentElement, now = r.dataset.theme || (m
 
 function load(op) {
   if (op === 'refresh') S.refreshing = true; render();
-  return api(op || 'load').then(function (d) { S.data = applyLocal(d); if (S.needRegroup) { S.needRegroup = false; reGroup(); } slackNames(); S.loading = false; S.refreshing = false; S.stale = false; saveCache(d); render(); })
+  var sent = Date.now();
+  return api(op || 'load').then(function (d) { if (sent < (S.dataSent || 0)) { S.loading = false; S.refreshing = false; render(); return; } S.dataSent = sent; S.data = applyLocal(d, sent); if (S.needRegroup) { S.needRegroup = false; reGroup(); } slackNames(); S.loading = false; S.refreshing = false; S.stale = false; saveCache(d); render(); })
     .catch(function (e) {
       S.loading = false; S.refreshing = false;
       if (/sign in again/i.test(e.message)) { S.token = ''; S.key = ''; try { localStorage.removeItem('inbox-id'); } catch (x) {} }
@@ -1986,7 +2015,8 @@ function quickSync() {
   if (document.hidden || !S.data || S.refreshing || quickSync.busy) return;
   var a = document.activeElement; if (a && /^(INPUT|TEXTAREA)$/.test(a.tagName)) return;
   quickSync.busy = true;
-  api('sync', { fp:S.data.fp || '' }).then(function (d) { quickSync.busy = false; if (!d || d.same || !d.emails) return; S.data = applyLocal(d); if (S.needRegroup) { S.needRegroup = false; reGroup(); } slackNames(); saveCache(d); render(); })
+  var sent = Date.now();
+  api('sync', { fp:S.data.fp || '' }).then(function (d) { quickSync.busy = false; if (!d || d.same || !d.emails || sent < (S.dataSent || 0)) return; S.dataSent = sent; S.data = applyLocal(d, sent); if (S.needRegroup) { S.needRegroup = false; reGroup(); } slackNames(); saveCache(d); render(); })
     .catch(function () { quickSync.busy = false; });
 }
 setInterval(quickSync, 120000);
