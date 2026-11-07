@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794081874">
+<html lang="en" data-build="b1794081974">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -596,8 +596,9 @@ var PILES = [
   { key:'noise', title:'Noise', color:'var(--noise)', help:'Nothing to do.' },
   { key:'new', title:'Not sorted', color:'var(--faint)', help:'Sorted on the next refresh.' }
 ];
-var ACCOUNTS = { personal:{ label:'Personal', color:'#8b8c96' }, meeting:{ label:'Meeting', color:'#b48cff' }, tez:{ label:'TEZ', color:'#e0533d' }, songdrafts:{ label:'songdrafts', color:'#2fa36b' }, omellette:{ label:'Omellette', color:'#d6a23a' }, rt:{ label:'RideTandem', color:'#3a86d8' }, slack:{ label:'lazygecko Slack', color:'#a35bd6' } };
-function acctTag(a) { var x = ACCOUNTS[a || 'personal'] || ACCOUNTS.personal; return '<span class="acct" style="--c:' + x.color + '">' + x.label + '</span>'; }
+var ACCOUNTS = { personal:{ label:'Personal', color:'#8b8c96' }, tez:{ label:'TEZ', color:'#e0533d' }, songdrafts:{ label:'songdrafts', color:'#2fa36b' }, omellette:{ label:'Omellette', color:'#d6a23a' }, rt:{ label:'RideTandem', color:'#3a86d8' }, slack:{ label:'lazygecko Slack', color:'#a35bd6' } };
+var MEETING_TAG = { label:'Meeting', color:'#b48cff' };
+function acctTag(a) { var x = a === 'meeting' ? MEETING_TAG : ACCOUNTS[a || 'personal'] || ACCOUNTS.personal; return '<span class="acct" style="--c:' + x.color + '">' + x.label + '</span>'; }
 var CHAT_COLOURS = { 'Moon':'#6d6af5', 'songdrafts':'#2fa36b', 'TEZ':'#e0533d', 'FANFLOWY / FAN HUB':'#d2457f', 'CFO':'#c8902c', 'Hormozi / King Kong Skills':'#3a86d8', 'RideTandem':'#2f6fb5', 'General TO DOs':'#6c6d79' };
 var I = {
   inbox:'<svg viewBox="0 0 24 24"><path d="M4 13h4l2 3h4l2-3h4"/><path d="M5.5 5h13L21 13v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-5z"/></svg>',
