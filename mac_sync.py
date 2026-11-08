@@ -79,7 +79,13 @@ def complete_reminder(rid):
 def add_reminder(text, due=''):
     import EventKit, Foundation
     st = _store(); r = EventKit.EKReminder.reminderWithEventStore_(st)
-    r.setTitle_(text); r.setCalendar_(st.defaultCalendarForNewReminders())
+    # First line is the reminder; anything after is its note, and a link opens the email it came from.
+    lines = str(text).split('\n'); title, rest = lines[0], '\n'.join(lines[1:]).strip()
+    r.setTitle_(title); r.setCalendar_(st.defaultCalendarForNewReminders())
+    if rest:
+        r.setNotes_(rest)
+        m = re.search(r'https?://\S+', rest)
+        if m: r.setURL_(Foundation.NSURL.URLWithString_(m.group(0)))
     if due:
         y, m, d = (int(v) for v in due.split('-'))
         dc = Foundation.NSDateComponents.alloc().init(); dc.setYear_(y); dc.setMonth_(m); dc.setDay_(d)

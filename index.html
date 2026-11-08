@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794096606">
+<html lang="en" data-build="b1794096704">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -825,6 +825,7 @@ function sortSticky(sel) {
   if (v === 'new') { var nm = prompt('Name the new sticky note'); if (!nm || !nm.trim()) return; api('stickyCreate', { name:nm }).then(function (r) { S.data.stickies = r.stickies; sortAct('sticky', r.id); }).catch(fail); return; }
   sortAct('sticky', Number(v));
 }
+function sortTodo() { var g = sortDeck()[0]; emailTodo(g, function () { sortAct('keep'); toast('Added to your Reminders, email marked read'); }); }
 function sortUndo() { var a = SORT.last; if (!a || !SORT.pending) { toast('Nothing to undo'); return; } clearTimeout(SORT.pending); SORT.pending = null; delete SORT.done[a.g.id]; SORT.last = null; toast('Undone'); render(); }
 function sortView() {
   var deck = sortDeck(), g = deck[0], total = deck.length + Object.keys(SORT.done).length, n = Object.keys(SORT.done).length + 1;
@@ -835,8 +836,8 @@ function sortView() {
   h += '<div class="sortcard" id="sortcard"><div class="sortstamp keep">👍</div><div class="sortstamp bin">🗑</div><div class="sortstamp sticky">📌</div><div class="sortstamp reply">↩︎</div>'
     + '<div class="sorthead"><div class="rowav" style="background:' + hue(e.from_email) + '">' + esc(initials(e.from_name || e.from_email)) + '</div><div style="min-width:0"><div class="t">' + esc(e.from_name || e.from_email) + '</div><div class="l3">' + acctTag(e.account) + ' ' + ago(e.received_at) + ' ago' + (g.unread.length > 1 ? ' · ' + g.unread.length + ' emails' : '') + '</div></div></div>'
     + '<h2 class="sortsubj">' + esc(e.subject || '') + '</h2>' + (e.why ? '<div class="sortwhy">' + esc(e.why) + '</div>' : '') + '<div class="sortbody">' + esc(body) + '</div></div>'
-    + '<div class="sorthint"><span>← Bin</span><span>↑ Sticky · ↓ Reply</span><span>Keep →</span></div>'
-    + '<div class="sortbtns"><button onclick="sortAct(\'reply\')">' + I.reply + '<span>Needs reply</span></button><button onclick="sortAct(\'sticky\',' + (st.id || 0) + ')">' + I.sticky + '<span>' + esc(st.name || 'Sticky') + '</span></button><label class="sortpick">' + I.sticky + '<span>Other sticky…</span><select onchange="sortSticky(this)"><option value="">Pick a sticky</option>' + stickies().map(function (x) { return '<option value="' + x.id + '">' + esc(x.name) + '</option>'; }).join('') + '<option value="new">+ New sticky…</option></select></label><button onclick="S.view=\'all\';openG(\'' + g.id + '\')">' + I.inbox + '<span>Open</span></button></div>'
+    + '<div class="sorthint"><span>← Bin</span><span>↑ Sticky · ↓ Needs your reply</span><span>Keep →</span></div>'
+    + '<div class="sortbtns"><button onclick="sortAct(\'reply\')">' + I.reply + '<span>Needs reply</span></button><button onclick="sortAct(\'sticky\',' + (st.id || 0) + ')">' + I.sticky + '<span>' + esc(st.name || 'Sticky') + '</span></button><label class="sortpick">' + I.sticky + '<span>Other sticky…</span><select onchange="sortSticky(this)"><option value="">Pick a sticky</option>' + stickies().map(function (x) { return '<option value="' + x.id + '">' + esc(x.name) + '</option>'; }).join('') + '<option value="new">+ New sticky…</option></select></label><button onclick="sortTodo()">' + PILE_ICON.promise + '<span>To do</span></button><button onclick="S.view=\'all\';openG(\'' + g.id + '\')">' + I.inbox + '<span>Open</span></button></div>'
     + '<div class="sortfoot"><button class="sortundo" onclick="sortUndo()" title="Undo">↶</button><div class="sortnext">' + deck.slice(1, 6).map(function (x) { return '<span class="rowav" style="background:' + hue(x.items[0].from_email) + '">' + esc(initials(x.items[0].from_name || x.items[0].from_email)) + '</span>'; }).join('') + '</div><div class="l3">' + n + ' of ' + total + '</div></div></main>';
   setTimeout(sortWire, 0);
   return h;
@@ -865,7 +866,7 @@ function sortWire() {
 }
 document.addEventListener('keydown', function (e) {
   if (S.view !== 'sort' || /INPUT|TEXTAREA|SELECT/.test((document.activeElement || {}).tagName)) return;
-  var m = { ArrowRight:'keep', ArrowLeft:'bin', ArrowUp:'sticky', ArrowDown:'reply' }[e.key]; if (e.key === 'z' || e.key === 'u') { sortUndo(); return; }
+  var m = { ArrowRight:'keep', ArrowLeft:'bin', ArrowUp:'sticky', ArrowDown:'reply' }[e.key]; if (e.key === 'z' || e.key === 'u') { sortUndo(); return; } if (e.key === 't') { sortTodo(); return; }
   if (!m) return; e.preventDefault(); var st = document.querySelector('.sortbtns button:nth-child(2)'); sortAct(m, m === 'sticky' && st ? Number((st.getAttribute('onclick').match(/,(\d+)\)/) || [])[1]) : undefined);
 });
 // Phone app (Owen, 7 Nov: "if I can swipe to get out of stuff"): swipe right (from the left edge, or across an open
@@ -1454,7 +1455,15 @@ function taskRow(x) {
 }
 function addTask(t, d) { t = String(t || '').trim(); if (!t) return; S.data.tasks = [{ id:0, text:t, due:d || null, done:false }].concat(S.data.tasks || []); render(); api('taskAdd', { text:t, due:d }).then(function () { load('load'); }).catch(fail); }
 function doneTask(id, done) { (S.data.tasks || []).forEach(function (x) { if (x.id === id) x.done = done; }); render(); if (done) toast('Done'); api('taskDone', { id:id, done:done }).catch(fail); }
-function taskFromEmail() { var g = current(); if (!g) return; var t = prompt('Add to your Reminders:', g.items[0].subject); if (t) addRem(t); }
+// Some emails are jobs (Owen, 8 Nov: "Joe sends me a link to a festival ... I need to apply"). To do = an Apple
+// Reminder in his words, with the email's link in its note, so he can do it when he's ready. The email is then read.
+function emailTodo(g, after) {
+  if (!g) return false; var e = g.items[0];
+  var t = prompt('To do (goes in your Reminders):', e.subject || ''); if (!t || !t.trim()) return false;
+  addRem(t.trim() + '\nFrom ' + (e.from_name || e.from_email || '') + ': ' + (e.subject || '') + (e.gmail_url ? '\n' + gmailHref(e.gmail_url) : ''));
+  if (after) after(); return true;
+}
+function taskFromEmail() { var g = current(); emailTodo(g, function () { markRead(); }); }
 
 // ---- Snooze ----
 function snoozeAt(kind) {
@@ -2022,7 +2031,7 @@ function mailDetail(g) {
     + '<span style="flex:1"></span>'
     + (e.gmail_url ? '<a class="btn ghost sm" target="_blank" href="' + esc(safeUrl(gmailHref(e.gmail_url))) + '">' + I.gmail + (slack ? 'Open in Slack' : e.account === 'whatsapp' ? 'Open in WhatsApp' : 'Open in Gmail') + '</a>' : '')
     + '<select class="sel" onchange="snooze(this.value)" title="Hide it and bring it back to the top later"><option value="">⏰ Later…</option><option value="later">In 3 hours</option><option value="tomorrow">Tomorrow 9am</option><option value="days3">In 3 days</option><option value="weekend">This weekend</option><option value="nextweek">Next week</option><option value="noreply1">If no reply in 1 week</option><option value="noreply2">If no reply in 2 weeks</option></select>'
-    + '<button class="iconbtn" title="Add to Reminders" onclick="taskFromEmail()">' + PILE_ICON.learn + '</button>'
+    + '<button class="btn ghost" title="A job to do later: goes in your Reminders with a link back here (T)" onclick="taskFromEmail()">' + PILE_ICON.promise + 'To do</button>'
     + '<select class="sel" onchange="movePile(this.value)" title="Move to another pile"><option value="">Move</option>' + PILES.filter(function (x) { return x.key !== 'new' && x.key !== g.pile; }).map(function (x) { return '<option value="' + x.key + '">' + x.title + '</option>'; }).join('') + '</select>'
     + (slack || e.account === 'whatsapp' ? '' : '<button class="iconbtn" title="Bin" onclick="binOne()">' + I.bin + '</button>') + '</div><div class="dbody">';
   if (prom) h += '<div class="promisebox"><div class="pl">' + PILE_ICON.promise + 'You said, ' + ago(e.received_at) + ' ago</div><div class="pq">"' + esc(e.snippet) + '"</div><div class="pw">' + esc(e.why) + '</div>' + (e.account === 'meeting' ? '<div class="pw" style="opacity:.7">From a meeting, so nothing to send here. Copy it, or press Done when it is.</div>' : '') + '</div>';
@@ -2340,6 +2349,7 @@ document.addEventListener('keydown', function (ev) {
   else if (k === 'd' && S.open && S.view !== 'notes') doneWith();
   else if (k === 'w' && S.open) writeD();
   else if (k === 'x' && S.open) pick(S.open);
+  else if (k === 't' && S.open && S.view !== 'sort') taskFromEmail();
   else if (k === 'r') { if (S.open && current() && !current().isChat) startReply(); else refresh(); }
   else if (k === '/') { var q = document.getElementById('q') || document.getElementById('nq'); if (q) { q.focus(); ev.preventDefault(); } }
   else if (ev.key === 'Escape') { S.open = null; S.sel = {}; render(); }
