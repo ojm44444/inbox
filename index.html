@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794096704">
+<html lang="en" data-build="b1794096887">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -141,7 +141,8 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .sorthead .t { font-weight:700; font-size:16px; }
 .sortsubj { font-size:21px; margin:16px 0 8px; line-height:1.25; }
 .sortwhy { font-size:13px; color:var(--promise); margin-bottom:10px; }
-.sortbody { font-size:15px; line-height:1.5; color:var(--dim, #b8b9c4); white-space:pre-wrap; max-height:42vh; overflow:hidden; mask-image:linear-gradient(#000 75%, transparent); }
+.sortbody { font-size:15px; line-height:1.5; color:var(--dim, #b8b9c4); white-space:pre-wrap; max-height:46vh; overflow:auto; touch-action:pan-y; overscroll-behavior:contain; }
+.sortbody a { color:var(--accent, #8b87ff); text-decoration:underline; word-break:break-all; }
 .sortstamp { position:absolute; font-size:84px; opacity:0; pointer-events:none; z-index:2; filter:drop-shadow(0 4px 12px rgba(0,0,0,.5)); }
 .sortstamp.keep { left:22px; bottom:22px; } .sortstamp.bin { right:22px; bottom:22px; } .sortstamp.sticky { left:50%; top:30%; transform:translateX(-50%); } .sortstamp.reply { left:50%; bottom:22px; transform:translateX(-50%); }
 .sorthint { display:flex; justify-content:space-between; font-size:12px; color:var(--faint); margin:10px 4px; }
@@ -640,6 +641,7 @@ var PILE_ICON = {
   fix:'<svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg>',
   reply:'<svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 6 6v4"/></svg>',
   chase:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
+  todo:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12l3 3 5-6"/></svg>',
   promise:'<svg viewBox="0 0 24 24"><path d="M4 12.5l4.5 4.5L20 6"/><path d="M4 6h7M4 9h4"/></svg>',
   learn:'<svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M8 7h7M8 11h7"/></svg>',
   noise:'<svg viewBox="0 0 24 24"><path d="M4 12h16"/></svg>',
@@ -650,6 +652,8 @@ var PILES = [
   { key:'reply', title:'Reply', color:'var(--reply)', help:'People waiting on you.' },
   // 7 Nov 2026: what Owen said he'd do, caught from his sent mail, Slack and meetings, next step ready.
   { key:'promise', title:'Promised', color:'var(--promise)', help:'You said you\'d. Ready to send.' },
+  // 8 Nov 2026: emails that are jobs (apply for Joe's festival, pay an invoice). They stay here until Done.
+  { key:'todo', title:'To do', color:'#ff9f43', help:'Jobs from emails. Stay until done.' },
   { key:'chase', title:'Chase', color:'var(--chase)', help:'Waiting on them. Longest first.' },
   { key:'learn', title:'Learn', color:'var(--learn)', help:'Marketing worth reading.' },
   { key:'noise', title:'Noise', color:'var(--noise)', help:'Nothing to do.' },
@@ -800,7 +804,7 @@ function phoneBar() {
 // Every swipe waits 5 seconds before it happens, so Undo always works. Nothing is ever sent.
 var SORT = { done:{}, last:null, pending:null };
 function sortDeck() {
-  var l = groups().filter(function (g) { return g.unread.length && !g.isChat && !SORT.done[g.id]; });
+  var l = groups().filter(function (g) { return g.unread.length && !g.isChat && g.pile !== 'todo' && !SORT.done[g.id]; });
   return l.sort(function (a, b) { return (b.pile === 'reply') - (a.pile === 'reply') || matters(b.items[0]) - matters(a.items[0]) || Date.parse(b.items[0].received_at) - Date.parse(a.items[0].received_at); });
 }
 function sortAct(kind, sid) {
@@ -810,7 +814,7 @@ function sortAct(kind, sid) {
   SORT.done[g.id] = kind; SORT.last = { g:g, kind:kind, ids:ids, sid:sid };
   SORT.pending = setTimeout(sortCommit, 5000);
   var st = sid ? stickies().filter(function (x) { return x.id == sid; })[0] : null;
-  toast({ keep:'Kept, marked read', bin:'Binned (back for 30 days in Gmail)', sticky:'On the ' + (st ? st.name : '') + ' sticky', reply:'In Reply' }[kind] + '. Undo for 5 seconds.');
+  toast({ keep:'Kept, marked read', bin:'Binned (back for 30 days in Gmail)', sticky:'On the ' + (st ? st.name : '') + ' sticky', reply:'In Reply', todo:'In To do' }[kind] + '. Undo for 5 seconds.');
   render();
 }
 function sortCommit() {
@@ -818,6 +822,7 @@ function sortCommit() {
   if (a.kind === 'keep') { setStatus(a.ids, 'done'); api('markRead', { ids:a.ids }).catch(fail); }
   else if (a.kind === 'bin') { remember(a.ids, 'gone'); S.data.emails = S.data.emails.filter(function (e) { return a.ids.indexOf(e.id) < 0; }); api('bin', { ids:a.ids }).catch(fail); }
   else if (a.kind === 'sticky') stickyAddIds(a.sid, a.ids);
+  else if (a.kind === 'todo') { rememberCat(a.ids, 'todo'); S.data.emails.forEach(function (e) { if (a.ids.indexOf(e.id) >= 0) { e.category = 'todo'; e.kind = 'todo'; } }); reGroup(); api('setPile', { ids:a.ids, pile:'todo' }).catch(fail); }
   else if (a.kind === 'reply') { rememberCat(a.ids, 'reply'); S.data.emails.forEach(function (e) { if (a.ids.indexOf(e.id) >= 0) e.category = 'reply'; }); reGroup(); api('setPile', { ids:a.ids, pile:'reply' }).catch(fail); }
 }
 function sortSticky(sel) {
@@ -825,19 +830,29 @@ function sortSticky(sel) {
   if (v === 'new') { var nm = prompt('Name the new sticky note'); if (!nm || !nm.trim()) return; api('stickyCreate', { name:nm }).then(function (r) { S.data.stickies = r.stickies; sortAct('sticky', r.id); }).catch(fail); return; }
   sortAct('sticky', Number(v));
 }
-function sortTodo() { var g = sortDeck()[0]; emailTodo(g, function () { sortAct('keep'); toast('Added to your Reminders, email marked read'); }); }
+// Unsubscribe on his press: one-click where the sender allows, else their page opens, else their unsubscribe email goes.
+function unsub(gid, inSort) {
+  var g = groups().filter(function (x) { return x.id === gid; })[0]; if (!g) return; var e = g.items[0], ids = g.items.map(function (x) { return x.id; });
+  var win = window.open('', '_blank'); // opened now so the browser allows it, filled if the sender needs their page
+  toast('Unsubscribing from ' + (e.from_name || e.from_email) + '…');
+  api('unsubscribe', { id:e.id }).then(function (r) {
+    if (r.how === 'page' && r.url && win) { win.location = r.url; toast('Their page is open: press their unsubscribe button there'); } else { if (win) win.close(); toast(r.how === 'email' ? 'Unsubscribe email sent to them' : 'Unsubscribed'); }
+    remember(ids, 'gone'); S.data.emails = S.data.emails.filter(function (x) { return ids.indexOf(x.id) < 0; }); if (inSort) SORT.done[gid] = 'unsub'; afterChange();
+  }).catch(function (err) { if (win) win.close(); fail(err); });
+}
+function sortTodo() { sortAct('todo'); }
 function sortUndo() { var a = SORT.last; if (!a || !SORT.pending) { toast('Nothing to undo'); return; } clearTimeout(SORT.pending); SORT.pending = null; delete SORT.done[a.g.id]; SORT.last = null; toast('Undone'); render(); }
 function sortView() {
   var deck = sortDeck(), g = deck[0], total = deck.length + Object.keys(SORT.done).length, n = Object.keys(SORT.done).length + 1;
   var h = '<main class="sortv">' + tabs();
   if (!g) return h + '<div class="sortempty"><div style="font-size:54px">🎉</div><h2>All sorted</h2><p class="l3">Nothing unread left.</p><button class="btn pri" onclick="go(\'home\')">Home</button></div></main>';
   var e = g.items[0], st = stickyFor(e.project || (e.account === 'tez' ? 'TEZ' : e.account === 'songdrafts' ? 'songdrafts' : e.account === 'rt' ? 'RideTandem' : ''));
-  var body = String(e.thread_text || e.snippet || '').split(/\n\n=====\n\n/).pop().replace(/^From:.*\n(Date:.*\n)?\n?/, '').slice(0, 900);
+  var body = String(e.thread_text || e.snippet || '').split(/\n\n=====\n\n/).pop().replace(/^From:.*\n(Date:.*\n)?\n?/, '');
   h += '<div class="sortcard" id="sortcard"><div class="sortstamp keep">👍</div><div class="sortstamp bin">🗑</div><div class="sortstamp sticky">📌</div><div class="sortstamp reply">↩︎</div>'
     + '<div class="sorthead"><div class="rowav" style="background:' + hue(e.from_email) + '">' + esc(initials(e.from_name || e.from_email)) + '</div><div style="min-width:0"><div class="t">' + esc(e.from_name || e.from_email) + '</div><div class="l3">' + acctTag(e.account) + ' ' + ago(e.received_at) + ' ago' + (g.unread.length > 1 ? ' · ' + g.unread.length + ' emails' : '') + '</div></div></div>'
-    + '<h2 class="sortsubj">' + esc(e.subject || '') + '</h2>' + (e.why ? '<div class="sortwhy">' + esc(e.why) + '</div>' : '') + '<div class="sortbody">' + esc(body) + '</div></div>'
+    + '<h2 class="sortsubj">' + esc(e.subject || '') + '</h2>' + (e.why ? '<div class="sortwhy">' + esc(e.why) + '</div>' : '') + '<div class="sortbody">' + linkify(body) + '</div></div>'
     + '<div class="sorthint"><span>← Bin</span><span>↑ Sticky · ↓ Needs your reply</span><span>Keep →</span></div>'
-    + '<div class="sortbtns"><button onclick="sortAct(\'reply\')">' + I.reply + '<span>Needs reply</span></button><button onclick="sortAct(\'sticky\',' + (st.id || 0) + ')">' + I.sticky + '<span>' + esc(st.name || 'Sticky') + '</span></button><label class="sortpick">' + I.sticky + '<span>Other sticky…</span><select onchange="sortSticky(this)"><option value="">Pick a sticky</option>' + stickies().map(function (x) { return '<option value="' + x.id + '">' + esc(x.name) + '</option>'; }).join('') + '<option value="new">+ New sticky…</option></select></label><button onclick="sortTodo()">' + PILE_ICON.promise + '<span>To do</span></button><button onclick="S.view=\'all\';openG(\'' + g.id + '\')">' + I.inbox + '<span>Open</span></button></div>'
+    + '<div class="sortbtns"><button onclick="sortAct(\'reply\')">' + I.reply + '<span>Needs reply</span></button><button onclick="sortAct(\'sticky\',' + (st.id || 0) + ')">' + I.sticky + '<span>' + esc(st.name || 'Sticky') + '</span></button><label class="sortpick">' + I.sticky + '<span>Other sticky…</span><select onchange="sortSticky(this)"><option value="">Pick a sticky</option>' + stickies().map(function (x) { return '<option value="' + x.id + '">' + esc(x.name) + '</option>'; }).join('') + '<option value="new">+ New sticky…</option></select></label><button onclick="sortTodo()">' + PILE_ICON.todo + '<span>To do</span></button>' + (/^(learn|noise|new)$/.test(g.pile) && e.kind === 'in' && e.account !== 'slack' && e.account !== 'whatsapp' ? '<button onclick="unsub(\'' + g.id + '\',true)">' + I.bin + '<span>Unsubscribe</span></button>' : '') + '<button onclick="S.view=\'all\';openG(\'' + g.id + '\')">' + I.inbox + '<span>Open</span></button></div>'
     + '<div class="sortfoot"><button class="sortundo" onclick="sortUndo()" title="Undo">↶</button><div class="sortnext">' + deck.slice(1, 6).map(function (x) { return '<span class="rowav" style="background:' + hue(x.items[0].from_email) + '">' + esc(initials(x.items[0].from_name || x.items[0].from_email)) + '</span>'; }).join('') + '</div><div class="l3">' + n + ' of ' + total + '</div></div></main>';
   setTimeout(sortWire, 0);
   return h;
@@ -847,8 +862,9 @@ function sortWire() {
   var c = document.getElementById('sortcard'); if (!c || c.wired) return; c.wired = true;
   var x0 = 0, y0 = 0, dx = 0, dy = 0, on = false;
   var show = function () { var k = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'keep' : 'bin') : (dy < 0 ? 'sticky' : 'reply'), p = Math.min(Math.max(Math.abs(dx), Math.abs(dy)) / 110, 1); c.querySelectorAll('.sortstamp').forEach(function (s) { s.style.opacity = s.classList.contains(k) ? p : 0; }); c.style.transform = 'translate(' + dx + 'px,' + dy + 'px) rotate(' + dx / 18 + 'deg)'; c.style.background = 'color-mix(in srgb, ' + ({ keep:'#25d366', bin:'#ff4d4d', sticky:'#d6a23a', reply:'#4cc38a' })[k] + ' ' + Math.round(p * 28) + '%, var(--raise, #17181d))'; };
-  var start = function (x, y) { on = true; x0 = x; y0 = y; dx = dy = 0; c.style.transition = 'none'; };
-  var move = function (x, y) { if (!on) return; dx = x - x0; dy = y - y0; show(); };
+  var inText = false;
+  var start = function (x, y, t) { if (t && t.closest && t.closest('a, select, label')) return; inText = !!(t && t.closest && t.closest('.sortbody')); on = true; x0 = x; y0 = y; dx = dy = 0; c.style.transition = 'none'; };
+  var move = function (x, y) { if (!on) return; dx = x - x0; dy = inText ? 0 : y - y0; if (inText && Math.abs(y - y0) > Math.abs(dx)) { on = false; c.style.transform = ''; return; } show(); };
   var end = function () {
     if (!on) return; on = false; c.style.transition = 'transform .25s, opacity .25s';
     var ax = Math.abs(dx), ay = Math.abs(dy), k = ax > 110 && ax > ay ? (dx > 0 ? 'keep' : 'bin') : ay > 110 ? (dy < 0 ? 'sticky' : 'reply') : '';
@@ -857,10 +873,10 @@ function sortWire() {
     var st = document.querySelector('.sortbtns button:nth-child(2)'), sid = st ? Number((st.getAttribute('onclick').match(/,(\d+)\)/) || [])[1]) : 0;
     setTimeout(function () { sortAct(k, k === 'sticky' ? sid : undefined); }, 180);
   };
-  c.addEventListener('touchstart', function (e) { start(e.touches[0].clientX, e.touches[0].clientY); }, { passive:true });
-  c.addEventListener('touchmove', function (e) { move(e.touches[0].clientX, e.touches[0].clientY); if (on) e.preventDefault(); }, { passive:false });
+  c.addEventListener('touchstart', function (e) { start(e.touches[0].clientX, e.touches[0].clientY, e.target); }, { passive:true });
+  c.addEventListener('touchmove', function (e) { move(e.touches[0].clientX, e.touches[0].clientY); if (on && !inText) e.preventDefault(); }, { passive:false });
   c.addEventListener('touchend', end);
-  c.addEventListener('mousedown', function (e) { start(e.clientX, e.clientY); });
+  c.addEventListener('mousedown', function (e) { start(e.clientX, e.clientY, e.target); });
   window.addEventListener('mousemove', function (e) { move(e.clientX, e.clientY); });
   window.addEventListener('mouseup', end);
 }
@@ -955,7 +971,7 @@ function home() {
   // Calm Home (5 Nov 2026 overhaul): one line of counts, the brief, then three short columns.
   var h = '<main class="home">' + tabs() + '<div class="hero2"><div style="min-width:0"><div class="day">' + day + '</div><h1 class="hello">' + hi + ', Owen</h1><div class="hellosub">' + (bits.length ? bits.join(' · ') + '.' : 'Inbox clear. Nice.') + '</div>' + waitLine + '</div>'
     + '</div>'
-    + '<div class="tiles">' + PILES.filter(function (p) { return p.key !== 'new'; }).map(function (p) { return '<div class="tile" style="--c:' + p.color + '" onclick="go(\'' + (p.key === 'learn' ? 'reading' : p.key) + '\')"><div class="lab"><span class="pico">' + PILE_ICON[p.key] + '</span>' + p.title + '</div><div class="num">' + unreadCount(p.key) + '</div><div class="hint">' + p.help + '</div></div>'; }).join('') + '</div>' + appTiles() + inboxStrip()
+    + '<div class="tiles">' + PILES.filter(function (p) { return p.key !== 'new' && p.key !== 'noise'; }).map(function (p) { return '<div class="tile" style="--c:' + p.color + '" onclick="go(\'' + (p.key === 'learn' ? 'reading' : p.key) + '\')"><div class="lab"><span class="pico">' + PILE_ICON[p.key] + '</span>' + p.title + '</div><div class="num">' + unreadCount(p.key) + '</div><div class="hint">' + p.help + '</div></div>'; }).join('') + '</div>' + appTiles() + inboxStrip()
     + askBar() + briefCard()
     // Owen, 7 Nov: "the bits below are a bit overwhelming. I don't really scroll." Folded away, one tap to open.
     + '<button class="btn ghost morebtn" onclick="S.homeMore=!S.homeMore;render()">' + (S.homeMore ? 'Show less' : 'More: tasks, calendar, notes, ideas, shop') + '</button>';
@@ -1457,13 +1473,7 @@ function addTask(t, d) { t = String(t || '').trim(); if (!t) return; S.data.task
 function doneTask(id, done) { (S.data.tasks || []).forEach(function (x) { if (x.id === id) x.done = done; }); render(); if (done) toast('Done'); api('taskDone', { id:id, done:done }).catch(fail); }
 // Some emails are jobs (Owen, 8 Nov: "Joe sends me a link to a festival ... I need to apply"). To do = an Apple
 // Reminder in his words, with the email's link in its note, so he can do it when he's ready. The email is then read.
-function emailTodo(g, after) {
-  if (!g) return false; var e = g.items[0];
-  var t = prompt('To do (goes in your Reminders):', e.subject || ''); if (!t || !t.trim()) return false;
-  addRem(t.trim() + '\nFrom ' + (e.from_name || e.from_email || '') + ': ' + (e.subject || '') + (e.gmail_url ? '\n' + gmailHref(e.gmail_url) : ''));
-  if (after) after(); return true;
-}
-function taskFromEmail() { var g = current(); emailTodo(g, function () { markRead(); }); }
+function taskFromEmail() { var g = current(); if (!g) return; movePile('todo'); toast('In To do. It stays there until you press Done.'); }
 
 // ---- Snooze ----
 function snoozeAt(kind) {
@@ -2025,13 +2035,13 @@ function mailDetail(g) {
   // A button never turns into its opposite under the cursor (6 Nov 2026: opening reads an email, and the
   // Mark read button used to flip to Mark unread, so Owen's click undid it). Read shows a plain tick;
   // Mark unread is its own small button at the end.
-  h += (read ? '<span class="btn ghost" style="cursor:default;opacity:.7">' + I.check + 'Read</span>' : '<button class="btn' + (replyable ? '' : ' pri') + '" title="E" onclick="markRead()">' + I.check + (chase ? 'Dismiss' : prom ? 'Done' : 'Mark read') + '</button>') + '<button class="btn ghost" title="Gone from here for good, even from All (D)" onclick="doneWith()">' + I.check + 'Done with</button>' + (g.pile === 'noise' ? '<button class="btn" title="Moves it to Reply, and this sender never goes in Noise again" onclick="movePile(\'reply\')">Not noise</button>' : '') + (read ? '<button class="btn ghost sm" title="U" onclick="markUnread()">Mark unread</button>' : '')
+  h += (read ? '<span class="btn ghost" style="cursor:default;opacity:.7">' + I.check + 'Read</span>' : '<button class="btn' + (replyable ? '' : ' pri') + '" title="E" onclick="markRead()">' + I.check + (chase ? 'Dismiss' : prom || e.kind === 'todo' ? 'Done' : 'Mark read') + '</button>') + '<button class="btn ghost" title="Gone from here for good, even from All (D)" onclick="doneWith()">' + I.check + 'Done with</button>' + (g.pile === 'noise' ? '<button class="btn" title="Moves it to Reply, and this sender never goes in Noise again" onclick="movePile(\'reply\')">Not noise</button>' : '') + (read ? '<button class="btn ghost sm" title="U" onclick="markUnread()">Mark unread</button>' : '')
     + stickySelect('ids', g.id)
     + (slack || e.account === 'whatsapp' ? '' : '<button class="btn ghost" title="Copy the whole email, pictures and formatting, to paste into Claude" onclick="copyEmail(\'' + e.id + '\')">' + I.copy + 'Copy</button>')
     + '<span style="flex:1"></span>'
     + (e.gmail_url ? '<a class="btn ghost sm" target="_blank" href="' + esc(safeUrl(gmailHref(e.gmail_url))) + '">' + I.gmail + (slack ? 'Open in Slack' : e.account === 'whatsapp' ? 'Open in WhatsApp' : 'Open in Gmail') + '</a>' : '')
     + '<select class="sel" onchange="snooze(this.value)" title="Hide it and bring it back to the top later"><option value="">⏰ Later…</option><option value="later">In 3 hours</option><option value="tomorrow">Tomorrow 9am</option><option value="days3">In 3 days</option><option value="weekend">This weekend</option><option value="nextweek">Next week</option><option value="noreply1">If no reply in 1 week</option><option value="noreply2">If no reply in 2 weeks</option></select>'
-    + '<button class="btn ghost" title="A job to do later: goes in your Reminders with a link back here (T)" onclick="taskFromEmail()">' + PILE_ICON.promise + 'To do</button>'
+    + '<button class="btn ghost" title="A job to do later: stays in To do until you press Done (T)" onclick="taskFromEmail()">' + PILE_ICON.todo + 'To do</button>' + (/^(learn|noise|new)$/.test(g.pile) && e.kind === 'in' && !slack && e.account !== 'whatsapp' ? '<button class="btn ghost" onclick="unsub(\'' + g.id + '\')">Unsubscribe</button>' : '')
     + '<select class="sel" onchange="movePile(this.value)" title="Move to another pile"><option value="">Move</option>' + PILES.filter(function (x) { return x.key !== 'new' && x.key !== g.pile; }).map(function (x) { return '<option value="' + x.key + '">' + x.title + '</option>'; }).join('') + '</select>'
     + (slack || e.account === 'whatsapp' ? '' : '<button class="iconbtn" title="Bin" onclick="binOne()">' + I.bin + '</button>') + '</div><div class="dbody">';
   if (prom) h += '<div class="promisebox"><div class="pl">' + PILE_ICON.promise + 'You said, ' + ago(e.received_at) + ' ago</div><div class="pq">"' + esc(e.snippet) + '"</div><div class="pw">' + esc(e.why) + '</div>' + (e.account === 'meeting' ? '<div class="pw" style="opacity:.7">From a meeting, so nothing to send here. Copy it, or press Done when it is.</div>' : '') + '</div>';
