@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794096219">
+<html lang="en" data-build="b1794096301">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1232,7 +1232,6 @@ function appTiles() {
     + t('sticky', '#d6a23a', I.sticky, 'Sticky notes', stN, stN ? 'Ready to paste into Claude.' : 'Add things for a Claude chat.')
     + t('review', '#6d6af5', I.check, 'Review', rvN, 'Things to approve.')
     + '<div class="tile" style="--c:#3a86d8" onclick="S.homeMore=true;render()"><div class="lab"><span class="pico">' + I.cal + '</span>Calendar</div><div class="num" style="font-size:' + (ev ? '18px' : '') + '">' + (ev ? esc(hm(ev.start)) : '0') + '</div><div class="hint">' + (clashes.length ? '<span style="color:var(--chase)">' + clashes.length + ' clash' + (clashes.length === 1 ? '' : 'es') + '</span> · ' : '') + (ev ? esc(ev.title).slice(0, 40) : 'Nothing booked.') + '</div></div>'
-    + '<div class="tile" style="--c:#8b8c96" onclick="go(\'notes\')"><div class="lab"><span class="pico">' + I.note + '</span>Notes</div><div class="num">' + ((S.data.notes || []).length) + '</div><div class="hint">Your Apple Notes.</div></div>'
     + '</div>';
 }
 function reviewHomeCard() {
