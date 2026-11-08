@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794096887">
+<html lang="en" data-build="b1794097256">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -146,13 +146,15 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .sortstamp { position:absolute; font-size:84px; opacity:0; pointer-events:none; z-index:2; filter:drop-shadow(0 4px 12px rgba(0,0,0,.5)); }
 .sortstamp.keep { left:22px; bottom:22px; } .sortstamp.bin { right:22px; bottom:22px; } .sortstamp.sticky { left:50%; top:30%; transform:translateX(-50%); } .sortstamp.reply { left:50%; bottom:22px; transform:translateX(-50%); }
 .sorthint { display:flex; justify-content:space-between; font-size:12px; color:var(--faint); margin:10px 4px; }
-.sortbtns { display:flex; justify-content:center; gap:28px; margin:6px 0 12px; }
+.sortbtns { display:grid; grid-template-columns:repeat(auto-fit, minmax(84px, 1fr)); gap:10px 8px; margin:6px 0 12px; }
+.sorttodo { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; margin:4px 0 10px; padding:14px; border:0; border-radius:14px; background:#ff9f43; color:#1d1203; font:inherit; font-size:17px; font-weight:700; cursor:pointer; }
+.sorttodo svg { width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:2.2; }
 .sortbtns button { background:none; border:0; color:inherit; display:flex; flex-direction:column; align-items:center; gap:6px; font:inherit; font-size:13px; cursor:pointer; max-width:110px; }
 .sortbtns button svg { width:26px; height:26px; stroke:currentColor; fill:none; stroke-width:1.8; }
 .sortpick { position:relative; display:flex; flex-direction:column; align-items:center; gap:6px; font-size:13px; cursor:pointer; }
 .sortpick svg { width:26px; height:26px; stroke:currentColor; fill:none; stroke-width:1.8; }
 .sortpick select { position:absolute; inset:0; opacity:0; cursor:pointer; }
-.sortbtns span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:110px; }
+.sortbtns span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
 .sortfoot { display:flex; align-items:center; gap:12px; justify-content:space-between; padding-bottom:calc(70px + env(safe-area-inset-bottom)); }
 .sortundo { width:52px; height:52px; border-radius:50%; border:0; background:rgba(127,127,127,.18); color:inherit; font-size:24px; cursor:pointer; }
 .sortnext { display:flex; gap:6px; } .sortnext .rowav { width:30px; height:30px; font-size:11px; }
@@ -852,7 +854,7 @@ function sortView() {
     + '<div class="sorthead"><div class="rowav" style="background:' + hue(e.from_email) + '">' + esc(initials(e.from_name || e.from_email)) + '</div><div style="min-width:0"><div class="t">' + esc(e.from_name || e.from_email) + '</div><div class="l3">' + acctTag(e.account) + ' ' + ago(e.received_at) + ' ago' + (g.unread.length > 1 ? ' · ' + g.unread.length + ' emails' : '') + '</div></div></div>'
     + '<h2 class="sortsubj">' + esc(e.subject || '') + '</h2>' + (e.why ? '<div class="sortwhy">' + esc(e.why) + '</div>' : '') + '<div class="sortbody">' + linkify(body) + '</div></div>'
     + '<div class="sorthint"><span>← Bin</span><span>↑ Sticky · ↓ Needs your reply</span><span>Keep →</span></div>'
-    + '<div class="sortbtns"><button onclick="sortAct(\'reply\')">' + I.reply + '<span>Needs reply</span></button><button onclick="sortAct(\'sticky\',' + (st.id || 0) + ')">' + I.sticky + '<span>' + esc(st.name || 'Sticky') + '</span></button><label class="sortpick">' + I.sticky + '<span>Other sticky…</span><select onchange="sortSticky(this)"><option value="">Pick a sticky</option>' + stickies().map(function (x) { return '<option value="' + x.id + '">' + esc(x.name) + '</option>'; }).join('') + '<option value="new">+ New sticky…</option></select></label><button onclick="sortTodo()">' + PILE_ICON.todo + '<span>To do</span></button>' + (/^(learn|noise|new)$/.test(g.pile) && e.kind === 'in' && e.account !== 'slack' && e.account !== 'whatsapp' ? '<button onclick="unsub(\'' + g.id + '\',true)">' + I.bin + '<span>Unsubscribe</span></button>' : '') + '<button onclick="S.view=\'all\';openG(\'' + g.id + '\')">' + I.inbox + '<span>Open</span></button></div>'
+    + '<button class="sorttodo" onclick="sortTodo()">' + PILE_ICON.todo + 'To do</button><div class="sortbtns"><button onclick="sortAct(\'reply\')">' + I.reply + '<span>Needs reply</span></button><button onclick="sortAct(\'sticky\',' + (st.id || 0) + ')">' + I.sticky + '<span>' + esc(st.name || 'Sticky') + '</span></button><label class="sortpick">' + I.sticky + '<span>Other sticky…</span><select onchange="sortSticky(this)"><option value="">Pick a sticky</option>' + stickies().map(function (x) { return '<option value="' + x.id + '">' + esc(x.name) + '</option>'; }).join('') + '<option value="new">+ New sticky…</option></select></label>' + (/^(learn|noise|new)$/.test(g.pile) && e.kind === 'in' && e.account !== 'slack' && e.account !== 'whatsapp' ? '<button onclick="unsub(\'' + g.id + '\',true)">' + I.bin + '<span>Unsubscribe</span></button>' : '') + '<button onclick="S.view=\'all\';openG(\'' + g.id + '\')">' + I.inbox + '<span>Open</span></button></div>'
     + '<div class="sortfoot"><button class="sortundo" onclick="sortUndo()" title="Undo">↶</button><div class="sortnext">' + deck.slice(1, 6).map(function (x) { return '<span class="rowav" style="background:' + hue(x.items[0].from_email) + '">' + esc(initials(x.items[0].from_name || x.items[0].from_email)) + '</span>'; }).join('') + '</div><div class="l3">' + n + ' of ' + total + '</div></div></main>';
   setTimeout(sortWire, 0);
   return h;
