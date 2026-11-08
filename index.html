@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794097256">
+<html lang="en" data-build="b1794099955">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -2392,8 +2392,8 @@ setInterval(function () {
   // ?k= is Claude's test key from Owen's Mac: this tab only, never stored.
   // ?view=review opens straight on the Review page (the one link for all reviews).
   var vw = new URLSearchParams(location.search).get('view'); if (vw === 'review') S.view = 'review';
-  var q = new URLSearchParams(location.search).get('k');
-  if (q) { S.key = q; history.replaceState(null, '', location.pathname); }
+  // Security audit 8 Nov 2026: no key in the address bar any more; Google sign-in only. Strip any old ?k= link.
+  if (new URLSearchParams(location.search).get('k')) history.replaceState(null, '', location.pathname);
   try { var tok = localStorage.getItem('inbox-id') || ''; if (tok && tokenExp(tok) > Date.now() + 60000) S.token = tok; } catch (e) {}
   try { S.local = JSON.parse(localStorage.getItem('inbox-local') || '{}'); } catch (e) { S.local = {}; }
   setInterval(function () { hubLoad(); }, 600000);
