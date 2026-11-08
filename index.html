@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794095540">
+<html lang="en" data-build="b1794096219">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -135,6 +135,25 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .when { color:var(--faint); font-size:12px; white-space:nowrap; text-align:right; }
 .when .pd { display:block; margin-top:4px; }
 .wait { color:var(--chase); }
+.sortv { max-width:560px; margin:0 auto; padding:16px; display:flex; flex-direction:column; min-height:calc(100dvh - 40px); }
+.sortcard { position:relative; flex:1; min-height:52vh; background:var(--raise, #17181d); border:1px solid rgba(127,127,127,.25); border-radius:22px; padding:20px; touch-action:none; user-select:none; cursor:grab; overflow:hidden; box-shadow:0 10px 40px rgba(0,0,0,.35); }
+.sorthead { display:flex; gap:10px; align-items:center; }
+.sorthead .t { font-weight:700; font-size:16px; }
+.sortsubj { font-size:21px; margin:16px 0 8px; line-height:1.25; }
+.sortwhy { font-size:13px; color:var(--promise); margin-bottom:10px; }
+.sortbody { font-size:15px; line-height:1.5; color:var(--dim, #b8b9c4); white-space:pre-wrap; max-height:42vh; overflow:hidden; mask-image:linear-gradient(#000 75%, transparent); }
+.sortstamp { position:absolute; font-size:84px; opacity:0; pointer-events:none; z-index:2; filter:drop-shadow(0 4px 12px rgba(0,0,0,.5)); }
+.sortstamp.keep { left:22px; bottom:22px; } .sortstamp.bin { right:22px; bottom:22px; } .sortstamp.sticky { left:50%; top:30%; transform:translateX(-50%); } .sortstamp.reply { left:50%; bottom:22px; transform:translateX(-50%); }
+.sorthint { display:flex; justify-content:space-between; font-size:12px; color:var(--faint); margin:10px 4px; }
+.sortbtns { display:flex; justify-content:center; gap:28px; margin:6px 0 12px; }
+.sortbtns button { background:none; border:0; color:inherit; display:flex; flex-direction:column; align-items:center; gap:6px; font:inherit; font-size:13px; cursor:pointer; max-width:110px; }
+.sortbtns button svg { width:26px; height:26px; stroke:currentColor; fill:none; stroke-width:1.8; }
+.sortbtns span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:110px; }
+.sortfoot { display:flex; align-items:center; gap:12px; justify-content:space-between; padding-bottom:calc(70px + env(safe-area-inset-bottom)); }
+.sortundo { width:52px; height:52px; border-radius:50%; border:0; background:rgba(127,127,127,.18); color:inherit; font-size:24px; cursor:pointer; }
+.sortnext { display:flex; gap:6px; } .sortnext .rowav { width:30px; height:30px; font-size:11px; }
+.sortempty { text-align:center; margin-top:20vh; }
+@media (min-width:801px) { .sortfoot { padding-bottom:20px; } }
 .waitline { margin-top:10px; padding:10px 14px; border-radius:12px; background:color-mix(in srgb, var(--reply) 12%, transparent); border:1px solid color-mix(in srgb, var(--reply) 35%, transparent); cursor:pointer; font-size:15px; line-height:1.4; }
 .waitline .go { color:var(--reply); font-weight:600; white-space:nowrap; }
 .tiles.apps { margin-top:-10px; }
@@ -762,8 +781,8 @@ function pileOf(k) { return PILES.filter(function (p) { return p.key === k; })[0
 function render() {
   if (!S.token && !S.key) return renderGate();
   var sc = document.querySelector('.rows, .home'), keep = sc ? sc.scrollTop : 0;
-  var mail = S.view !== 'home' && S.view !== 'reading' && S.view !== 'trello' && S.view !== 'person' && S.view !== 'review';
-  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'sticky' ? stickyView() : S.view === 'whatsapp' ? waView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : S.view === 'review' ? reviewView() : home()) + '</div>';
+  var mail = S.view !== 'sort' && S.view !== 'home' && S.view !== 'reading' && S.view !== 'trello' && S.view !== 'person' && S.view !== 'review';
+  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'sort' ? sortView() : S.view === 'sticky' ? stickyView() : S.view === 'whatsapp' ? waView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : S.view === 'review' ? reviewView() : home()) + '</div>';
   var ns = document.querySelector('.rows, .home'); if (ns) ns.scrollTop = keep;
   bulkBar(); wire(); phoneBar(); swipes();
 }
@@ -771,8 +790,76 @@ function render() {
 function phoneBar() {
   var b = document.getElementById('pbar'); if (!b) { b = document.createElement('nav'); b.id = 'pbar'; b.className = 'pbar'; document.body.appendChild(b); }
   var it = function (v, icon, label, n) { return '<button class="' + (S.view === v ? 'on' : '') + '" onclick="go(\'' + v + '\')">' + icon + '<span>' + label + '</span>' + (n ? '<i>' + n + '</i>' : '') + '</button>'; };
-  b.innerHTML = it('home', I.home, 'Home', 0) + it('all', I.inbox, 'Inbox', unreadCount('all')) + it('whatsapp', I.wa, 'WhatsApp', waWaiting()) + it('sticky', I.sticky, 'Sticky', stickyTotal()) + it('trello', I.board, 'Trello', 0);
+  b.innerHTML = it('home', I.home, 'Home', 0) + it('all', I.inbox, 'Inbox', unreadCount('all')) + it('sort', I.spark, 'Sort', sortDeck().length) + it('whatsapp', I.wa, 'WhatsApp', waWaiting()) + it('sticky', I.sticky, 'Sticky', stickyTotal()) + it('trello', I.board, 'Trello', 0);
 }
+// ---- Quick sort (Owen, 8 Nov: "like Picnic ... so we could boss through stuff"). One unread email at a time:
+// swipe right = keep (read), left = bin (Gmail bin, back for 30 days), up = sticky note, down = needs a reply.
+// Every swipe waits 5 seconds before it happens, so Undo always works. Nothing is ever sent.
+var SORT = { done:{}, last:null, pending:null };
+function sortDeck() {
+  var l = groups().filter(function (g) { return g.unread.length && !g.isChat && !SORT.done[g.id]; });
+  return l.sort(function (a, b) { return (b.pile === 'reply') - (a.pile === 'reply') || matters(b.items[0]) - matters(a.items[0]) || Date.parse(b.items[0].received_at) - Date.parse(a.items[0].received_at); });
+}
+function sortAct(kind, sid) {
+  var g = sortDeck()[0]; if (!g) return;
+  sortCommit();
+  var ids = g.unread.map(function (e) { return e.id; });
+  SORT.done[g.id] = kind; SORT.last = { g:g, kind:kind, ids:ids, sid:sid };
+  SORT.pending = setTimeout(sortCommit, 5000);
+  var st = sid ? stickies().filter(function (x) { return x.id == sid; })[0] : null;
+  toast({ keep:'Kept, marked read', bin:'Binned (back for 30 days in Gmail)', sticky:'On the ' + (st ? st.name : '') + ' sticky', reply:'In Reply' }[kind] + '. Undo for 5 seconds.');
+  render();
+}
+function sortCommit() {
+  var a = SORT.last; if (!a || !SORT.pending) return; clearTimeout(SORT.pending); SORT.pending = null;
+  if (a.kind === 'keep') { setStatus(a.ids, 'done'); api('markRead', { ids:a.ids }).catch(fail); }
+  else if (a.kind === 'bin') { remember(a.ids, 'gone'); S.data.emails = S.data.emails.filter(function (e) { return a.ids.indexOf(e.id) < 0; }); api('bin', { ids:a.ids }).catch(fail); }
+  else if (a.kind === 'sticky') stickyAddIds(a.sid, a.ids);
+  else if (a.kind === 'reply') { rememberCat(a.ids, 'reply'); S.data.emails.forEach(function (e) { if (a.ids.indexOf(e.id) >= 0) e.category = 'reply'; }); reGroup(); api('setPile', { ids:a.ids, pile:'reply' }).catch(fail); }
+}
+function sortUndo() { var a = SORT.last; if (!a || !SORT.pending) { toast('Nothing to undo'); return; } clearTimeout(SORT.pending); SORT.pending = null; delete SORT.done[a.g.id]; SORT.last = null; toast('Undone'); render(); }
+function sortView() {
+  var deck = sortDeck(), g = deck[0], total = deck.length + Object.keys(SORT.done).length, n = Object.keys(SORT.done).length + 1;
+  var h = '<main class="sortv">' + tabs();
+  if (!g) return h + '<div class="sortempty"><div style="font-size:54px">🎉</div><h2>All sorted</h2><p class="l3">Nothing unread left.</p><button class="btn pri" onclick="go(\'home\')">Home</button></div></main>';
+  var e = g.items[0], st = stickyFor(e.project || (e.account === 'tez' ? 'TEZ' : e.account === 'songdrafts' ? 'songdrafts' : e.account === 'rt' ? 'RideTandem' : ''));
+  var body = String(e.thread_text || e.snippet || '').split(/\n\n=====\n\n/).pop().replace(/^From:.*\n(Date:.*\n)?\n?/, '').slice(0, 900);
+  h += '<div class="sortcard" id="sortcard"><div class="sortstamp keep">👍</div><div class="sortstamp bin">🗑</div><div class="sortstamp sticky">📌</div><div class="sortstamp reply">↩︎</div>'
+    + '<div class="sorthead"><div class="rowav" style="background:' + hue(e.from_email) + '">' + esc(initials(e.from_name || e.from_email)) + '</div><div style="min-width:0"><div class="t">' + esc(e.from_name || e.from_email) + '</div><div class="l3">' + acctTag(e.account) + ' ' + ago(e.received_at) + ' ago' + (g.unread.length > 1 ? ' · ' + g.unread.length + ' emails' : '') + '</div></div></div>'
+    + '<h2 class="sortsubj">' + esc(e.subject || '') + '</h2>' + (e.why ? '<div class="sortwhy">' + esc(e.why) + '</div>' : '') + '<div class="sortbody">' + esc(body) + '</div></div>'
+    + '<div class="sorthint"><span>← Bin</span><span>↑ Sticky · ↓ Reply</span><span>Keep →</span></div>'
+    + '<div class="sortbtns"><button onclick="sortAct(\'reply\')">' + I.reply + '<span>Needs reply</span></button><button onclick="sortAct(\'sticky\',' + (st.id || 0) + ')">' + I.sticky + '<span>' + esc(st.name || 'Sticky') + '</span></button><button onclick="S.view=\'all\';openG(\'' + g.id + '\')">' + I.inbox + '<span>Open</span></button></div>'
+    + '<div class="sortfoot"><button class="sortundo" onclick="sortUndo()" title="Undo">↶</button><div class="sortnext">' + deck.slice(1, 6).map(function (x) { return '<span class="rowav" style="background:' + hue(x.items[0].from_email) + '">' + esc(initials(x.items[0].from_name || x.items[0].from_email)) + '</span>'; }).join('') + '</div><div class="l3">' + n + ' of ' + total + '</div></div></main>';
+  setTimeout(sortWire, 0);
+  return h;
+}
+// Drag the card: it tilts and shows 👍 / 🗑 / 📌 / ↩︎; let go past the line and it happens. Arrow keys on a computer.
+function sortWire() {
+  var c = document.getElementById('sortcard'); if (!c || c.wired) return; c.wired = true;
+  var x0 = 0, y0 = 0, dx = 0, dy = 0, on = false;
+  var show = function () { var k = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'keep' : 'bin') : (dy < 0 ? 'sticky' : 'reply'), p = Math.min(Math.max(Math.abs(dx), Math.abs(dy)) / 110, 1); c.querySelectorAll('.sortstamp').forEach(function (s) { s.style.opacity = s.classList.contains(k) ? p : 0; }); c.style.transform = 'translate(' + dx + 'px,' + dy + 'px) rotate(' + dx / 18 + 'deg)'; };
+  var start = function (x, y) { on = true; x0 = x; y0 = y; dx = dy = 0; c.style.transition = 'none'; };
+  var move = function (x, y) { if (!on) return; dx = x - x0; dy = y - y0; show(); };
+  var end = function () {
+    if (!on) return; on = false; c.style.transition = 'transform .25s, opacity .25s';
+    var ax = Math.abs(dx), ay = Math.abs(dy), k = ax > 110 && ax > ay ? (dx > 0 ? 'keep' : 'bin') : ay > 110 ? (dy < 0 ? 'sticky' : 'reply') : '';
+    if (!k) { c.style.transform = ''; c.querySelectorAll('.sortstamp').forEach(function (s) { s.style.opacity = 0; }); return; }
+    c.style.transform = 'translate(' + dx * 3 + 'px,' + dy * 3 + 'px) rotate(' + dx / 10 + 'deg)'; c.style.opacity = 0;
+    var st = document.querySelector('.sortbtns button:nth-child(2)'), sid = st ? Number((st.getAttribute('onclick').match(/,(\d+)\)/) || [])[1]) : 0;
+    setTimeout(function () { sortAct(k, k === 'sticky' ? sid : undefined); }, 180);
+  };
+  c.addEventListener('touchstart', function (e) { start(e.touches[0].clientX, e.touches[0].clientY); }, { passive:true });
+  c.addEventListener('touchmove', function (e) { move(e.touches[0].clientX, e.touches[0].clientY); if (on) e.preventDefault(); }, { passive:false });
+  c.addEventListener('touchend', end);
+  c.addEventListener('mousedown', function (e) { start(e.clientX, e.clientY); });
+  window.addEventListener('mousemove', function (e) { move(e.clientX, e.clientY); });
+  window.addEventListener('mouseup', end);
+}
+document.addEventListener('keydown', function (e) {
+  if (S.view !== 'sort' || /INPUT|TEXTAREA|SELECT/.test((document.activeElement || {}).tagName)) return;
+  var m = { ArrowRight:'keep', ArrowLeft:'bin', ArrowUp:'sticky', ArrowDown:'reply' }[e.key]; if (e.key === 'z' || e.key === 'u') { sortUndo(); return; }
+  if (!m) return; e.preventDefault(); var st = document.querySelector('.sortbtns button:nth-child(2)'); sortAct(m, m === 'sticky' && st ? Number((st.getAttribute('onclick').match(/,(\d+)\)/) || [])[1]) : undefined);
+});
 // Phone app (Owen, 7 Nov: "if I can swipe to get out of stuff"): swipe right (from the left edge, or across an open
 // email or chat) goes back, like iOS: out of the open item to its list, out of a list to Home. Rows keep their own swipes.
 (function () {
@@ -1139,6 +1226,7 @@ function appTiles() {
   var t = function (view, color, icon, label, num, hint) { return '<div class="tile" style="--c:' + color + '" onclick="go(\'' + view + '\')"><div class="lab"><span class="pico">' + icon + '</span>' + label + '</div><div class="num">' + num + '</div><div class="hint">' + hint + '</div></div>'; };
   var stN = stickyTotal(), rvN = reviewNeeds().length;
   return '<div class="tiles apps">'
+    + t('sort', '#ff6b9a', I.spark, 'Quick sort', sortDeck().length, 'Swipe through unread, one at a time.')
     + t('whatsapp', '#25d366', I.wa, 'WhatsApp', waWaiting(), 'Unread chats with people.')
     + t('slack', '#a35bd6', I.slack, 'Slack', slackWaiting(), 'Waiting on lazygecko Slack.')
     + t('sticky', '#d6a23a', I.sticky, 'Sticky notes', stN, stN ? 'Ready to paste into Claude.' : 'Add things for a Claude chat.')
