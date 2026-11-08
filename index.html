@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794096314">
+<html lang="en" data-build="b1794096606">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -148,6 +148,9 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .sortbtns { display:flex; justify-content:center; gap:28px; margin:6px 0 12px; }
 .sortbtns button { background:none; border:0; color:inherit; display:flex; flex-direction:column; align-items:center; gap:6px; font:inherit; font-size:13px; cursor:pointer; max-width:110px; }
 .sortbtns button svg { width:26px; height:26px; stroke:currentColor; fill:none; stroke-width:1.8; }
+.sortpick { position:relative; display:flex; flex-direction:column; align-items:center; gap:6px; font-size:13px; cursor:pointer; }
+.sortpick svg { width:26px; height:26px; stroke:currentColor; fill:none; stroke-width:1.8; }
+.sortpick select { position:absolute; inset:0; opacity:0; cursor:pointer; }
 .sortbtns span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:110px; }
 .sortfoot { display:flex; align-items:center; gap:12px; justify-content:space-between; padding-bottom:calc(70px + env(safe-area-inset-bottom)); }
 .sortundo { width:52px; height:52px; border-radius:50%; border:0; background:rgba(127,127,127,.18); color:inherit; font-size:24px; cursor:pointer; }
@@ -817,6 +820,11 @@ function sortCommit() {
   else if (a.kind === 'sticky') stickyAddIds(a.sid, a.ids);
   else if (a.kind === 'reply') { rememberCat(a.ids, 'reply'); S.data.emails.forEach(function (e) { if (a.ids.indexOf(e.id) >= 0) e.category = 'reply'; }); reGroup(); api('setPile', { ids:a.ids, pile:'reply' }).catch(fail); }
 }
+function sortSticky(sel) {
+  var v = sel.value; sel.value = ''; if (!v) return;
+  if (v === 'new') { var nm = prompt('Name the new sticky note'); if (!nm || !nm.trim()) return; api('stickyCreate', { name:nm }).then(function (r) { S.data.stickies = r.stickies; sortAct('sticky', r.id); }).catch(fail); return; }
+  sortAct('sticky', Number(v));
+}
 function sortUndo() { var a = SORT.last; if (!a || !SORT.pending) { toast('Nothing to undo'); return; } clearTimeout(SORT.pending); SORT.pending = null; delete SORT.done[a.g.id]; SORT.last = null; toast('Undone'); render(); }
 function sortView() {
   var deck = sortDeck(), g = deck[0], total = deck.length + Object.keys(SORT.done).length, n = Object.keys(SORT.done).length + 1;
@@ -828,7 +836,7 @@ function sortView() {
     + '<div class="sorthead"><div class="rowav" style="background:' + hue(e.from_email) + '">' + esc(initials(e.from_name || e.from_email)) + '</div><div style="min-width:0"><div class="t">' + esc(e.from_name || e.from_email) + '</div><div class="l3">' + acctTag(e.account) + ' ' + ago(e.received_at) + ' ago' + (g.unread.length > 1 ? ' · ' + g.unread.length + ' emails' : '') + '</div></div></div>'
     + '<h2 class="sortsubj">' + esc(e.subject || '') + '</h2>' + (e.why ? '<div class="sortwhy">' + esc(e.why) + '</div>' : '') + '<div class="sortbody">' + esc(body) + '</div></div>'
     + '<div class="sorthint"><span>← Bin</span><span>↑ Sticky · ↓ Reply</span><span>Keep →</span></div>'
-    + '<div class="sortbtns"><button onclick="sortAct(\'reply\')">' + I.reply + '<span>Needs reply</span></button><button onclick="sortAct(\'sticky\',' + (st.id || 0) + ')">' + I.sticky + '<span>' + esc(st.name || 'Sticky') + '</span></button><button onclick="S.view=\'all\';openG(\'' + g.id + '\')">' + I.inbox + '<span>Open</span></button></div>'
+    + '<div class="sortbtns"><button onclick="sortAct(\'reply\')">' + I.reply + '<span>Needs reply</span></button><button onclick="sortAct(\'sticky\',' + (st.id || 0) + ')">' + I.sticky + '<span>' + esc(st.name || 'Sticky') + '</span></button><label class="sortpick">' + I.sticky + '<span>Other sticky…</span><select onchange="sortSticky(this)"><option value="">Pick a sticky</option>' + stickies().map(function (x) { return '<option value="' + x.id + '">' + esc(x.name) + '</option>'; }).join('') + '<option value="new">+ New sticky…</option></select></label><button onclick="S.view=\'all\';openG(\'' + g.id + '\')">' + I.inbox + '<span>Open</span></button></div>'
     + '<div class="sortfoot"><button class="sortundo" onclick="sortUndo()" title="Undo">↶</button><div class="sortnext">' + deck.slice(1, 6).map(function (x) { return '<span class="rowav" style="background:' + hue(x.items[0].from_email) + '">' + esc(initials(x.items[0].from_name || x.items[0].from_email)) + '</span>'; }).join('') + '</div><div class="l3">' + n + ' of ' + total + '</div></div></main>';
   setTimeout(sortWire, 0);
   return h;
@@ -837,13 +845,13 @@ function sortView() {
 function sortWire() {
   var c = document.getElementById('sortcard'); if (!c || c.wired) return; c.wired = true;
   var x0 = 0, y0 = 0, dx = 0, dy = 0, on = false;
-  var show = function () { var k = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'keep' : 'bin') : (dy < 0 ? 'sticky' : 'reply'), p = Math.min(Math.max(Math.abs(dx), Math.abs(dy)) / 110, 1); c.querySelectorAll('.sortstamp').forEach(function (s) { s.style.opacity = s.classList.contains(k) ? p : 0; }); c.style.transform = 'translate(' + dx + 'px,' + dy + 'px) rotate(' + dx / 18 + 'deg)'; };
+  var show = function () { var k = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'keep' : 'bin') : (dy < 0 ? 'sticky' : 'reply'), p = Math.min(Math.max(Math.abs(dx), Math.abs(dy)) / 110, 1); c.querySelectorAll('.sortstamp').forEach(function (s) { s.style.opacity = s.classList.contains(k) ? p : 0; }); c.style.transform = 'translate(' + dx + 'px,' + dy + 'px) rotate(' + dx / 18 + 'deg)'; c.style.background = 'color-mix(in srgb, ' + ({ keep:'#25d366', bin:'#ff4d4d', sticky:'#d6a23a', reply:'#4cc38a' })[k] + ' ' + Math.round(p * 28) + '%, var(--raise, #17181d))'; };
   var start = function (x, y) { on = true; x0 = x; y0 = y; dx = dy = 0; c.style.transition = 'none'; };
   var move = function (x, y) { if (!on) return; dx = x - x0; dy = y - y0; show(); };
   var end = function () {
     if (!on) return; on = false; c.style.transition = 'transform .25s, opacity .25s';
     var ax = Math.abs(dx), ay = Math.abs(dy), k = ax > 110 && ax > ay ? (dx > 0 ? 'keep' : 'bin') : ay > 110 ? (dy < 0 ? 'sticky' : 'reply') : '';
-    if (!k) { c.style.transform = ''; c.querySelectorAll('.sortstamp').forEach(function (s) { s.style.opacity = 0; }); return; }
+    if (!k) { c.style.transform = ''; c.style.background = ''; c.querySelectorAll('.sortstamp').forEach(function (s) { s.style.opacity = 0; }); return; }
     c.style.transform = 'translate(' + dx * 3 + 'px,' + dy * 3 + 'px) rotate(' + dx / 10 + 'deg)'; c.style.opacity = 0;
     var st = document.querySelector('.sortbtns button:nth-child(2)'), sid = st ? Number((st.getAttribute('onclick').match(/,(\d+)\)/) || [])[1]) : 0;
     setTimeout(function () { sortAct(k, k === 'sticky' ? sid : undefined); }, 180);
