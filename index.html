@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794253299">
+<html lang="en" data-build="b1794253759">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -154,7 +154,7 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .mhead { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap; margin-bottom:18px; } .mlinks { display:flex; gap:8px; }
 .mbig { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:14px; margin-bottom:16px; }
 .mnum { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:18px; display:flex; flex-direction:column; gap:6px; }
-.mnum span { font-size:13px; color:var(--faint); } .mnum.short { border-color:color-mix(in srgb, var(--fix) 45%, transparent); } .mnum.short b { color:var(--fix); font-size:28px; } .mnum b { font-size:34px; letter-spacing:-.02em; } .mnum i { font-style:normal; font-size:12.5px; color:var(--dim); }
+.mnum span { font-size:13px; color:var(--faint); } .adsb { width:84px; background:var(--bg); border:1px solid var(--line2); color:var(--text); border-radius:8px; padding:3px 6px; font:inherit; font-size:13px; text-align:right; } .mredbg { background:color-mix(in srgb, var(--fix) 22%, transparent) !important; color:var(--fix) !important; } .mnum.short { border-color:color-mix(in srgb, var(--fix) 45%, transparent); } .mnum.short b { color:var(--fix); font-size:28px; } .mnum b { font-size:34px; letter-spacing:-.02em; } .mnum i { font-style:normal; font-size:12.5px; color:var(--dim); }
 .mins { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:10px; margin-bottom:18px; }
 .minsc { padding:12px 14px; border-radius:12px; background:var(--panel); border:1px solid var(--line); font-size:14px; line-height:1.45; } .minsc.red { border-color:color-mix(in srgb, var(--fix) 40%, transparent); background:color-mix(in srgb, var(--fix) 8%, var(--panel)); }
 .mtabs { display:flex; gap:6px; margin-bottom:14px; overflow-x:auto; } .mtabs button { border:1px solid var(--line2); background:none; color:inherit; font:inherit; font-size:14px; padding:8px 16px; border-radius:20px; cursor:pointer; white-space:nowrap; } .mtabs button.on { background:var(--text); color:var(--bg); border-color:var(--text); }
@@ -1352,7 +1352,7 @@ function moneyView() {
   var notes = (o.flags || []).map(function (x) { return { t:x, red:true }; }).concat((o.insights || []).map(function (x) { return { t:x }; }));
   if (notes.length) h += '<div class="mins">' + notes.slice(0, 6).map(function (n) { return '<div class="minsc' + (n.red ? ' red' : '') + '">' + esc(n.t) + '</div>'; }).join('') + '</div>';
   var tab = S.mtab || 'me';
-  h += '<div class="mtabs">' + [['me', 'Me'], ['up', 'Coming up'], ['biz', 'Business'], ['tez', 'TEZ']].map(function (x) { return '<button class="' + (tab === x[0] ? 'on' : '') + '" onclick="S.mtab=\'' + x[0] + '\';render()">' + x[1] + '</button>'; }).join('') + '</div>';
+  h += '<div class="mtabs">' + [['me', 'Me'], ['ads', 'Ads'], ['up', 'Coming up'], ['biz', 'Business'], ['tez', 'TEZ']].map(function (x) { return '<button class="' + (tab === x[0] ? 'on' : '') + '" onclick="S.mtab=\'' + x[0] + '\';render()">' + x[1] + '</button>'; }).join('') + '</div>';
   var row = function (l, v, cls) { return '<div class="mrow"><span>' + l + '</span><b' + (cls ? ' class="' + cls + '"' : '') + '>' + v + '</b></div>'; };
   if (tab === 'me') {
     var bva = o.budget_vs_actual || [];
@@ -1365,14 +1365,11 @@ function moneyView() {
       + '<div class="box"><h3>You owe</h3>' + ((o.i_owe || []).map(function (r) { return row(esc(r.who || '') + (r.note ? ' <i class="l3">' + esc(r.note) + '</i>' : ''), mny(r.amount)); }).join('') || '<div class="l3">Nothing.</div>') + '</div></div>';
   }
   if (tab === 'up') h += moneyUpcomingView(o, payday);
+  if (tab === 'ads') h += adsView();
   if (tab === 'biz') {
     var sd = o.songdrafts || {};
     h += '<div class="box"><h3>songdrafts</h3><div class="mchips">' + [['Stripe balance', sd.stripe_balance], ['Sales in October', sd.sales_oct], ['Sales in November', sd.sales_nov], ['Paid out in October', sd.paid_out_oct], ['Running costs a month', sd.running_costs_month]].filter(function (x) { return x[1] !== undefined; }).map(function (x) { return '<div><span>' + x[0] + '</span><b>' + mny(x[1]) + '</b></div>'; }).join('') + '</div>' + (sd.note || sd.apple_developer_bought ? '<div class="l3" style="margin-top:10px">' + esc([sd.note, sd.apple_developer_bought ? 'Apple Developer bought ' + sd.apple_developer_bought : ''].filter(Boolean).join(' · ')) + '</div>' : '') + '</div>';
-    var ads = o.ads_running || [], at = o.ads_total || {};
-    h += '<div class="box"><h3>Ads running' + (at.per_day != null ? ' <span class="l3">· ' + mny(at.per_day) + ' a day' + (at.to_5_dec != null ? ', ' + mny(at.to_5_dec) + ' more by 5 Dec' : '') + '</span>' : '') + '</h3>'
-      + (ads.length ? ads.map(function (a) { return '<div class="mad"><div><b>' + esc(a.name || '') + '</b><div class="l3">' + esc(a.account || '') + (a.ends ? ' · ends ' + esc(niceDay(a.ends)) : '') + '</div></div><div style="text-align:right"><b>' + mny(a.per_day) + '/day</b><div class="l3">' + mny(a.spent_this_month) + ' this month</div></div></div>'; }).join('') : '<div class="l3">No ads running.</div>')
-      + (at.note ? '<div class="l3" style="margin-top:8px">' + esc(at.note) + '</div>' : '')
-      + (o.meta_billing_note ? '<div class="mnote">' + esc(o.meta_billing_note) + ' <a target="_blank" rel="noopener" href="https://business.facebook.com/billing_hub">Meta billing ↗</a></div>' : '') + '</div>';
+    h += '<div class="box"><div class="mrow"><span>Ads, budgets and what you owe Meta</span><b><button class="btn sm ghost" onclick="S.mtab=\'ads\';render()">Open Ads</button></b></div></div>';
   }
   if (tab === 'tez') {
     var tz = o.tez || {};
@@ -1383,6 +1380,40 @@ function moneyView() {
   var mc = ((S.data.review && S.data.review.items) || []).filter(function (i) { return i.area === 'money'; });
   if (mc.length) h += '<div class="box"><h3>Money things to decide<span style="flex:1"></span><button class="btn sm ghost" onclick="go(\'review\')">Open Review</button></h3>' + mc.slice(0, 6).map(function (i) { return '<div class="mrow"><span>' + esc(i.title || '') + '</span></div>'; }).join('') + '</div>';
   return h + '</main>';
+}
+// Ads this month (Owen, 9 Nov: "I overspend ... I don't know what I've got left ... sometimes I owe them money").
+// Live from Meta (10 min cache). Budgets are his, typed here, in £. Nothing on Meta changes from this page.
+S.ads = null;
+function adsLoad(force) { if (S.adsBusy) return; S.adsBusy = true; api('adsBudget', force ? { force:true } : {}).then(function (r) { S.ads = r; S.adsBusy = false; render(); }).catch(function (e) { S.adsBusy = false; S.ads = { err:e.message }; render(); }); }
+function adsSet(id, el) { var v = String(el.value).trim(); toast('Saving budget…'); api('adsSetBudget', { id:id, amount:v }).then(function (r) { S.ads = r; render(); toast('Budget saved'); }).catch(fail); }
+function adsView() {
+  if (!S.ads) { adsLoad(); return '<div class="box"><div class="skel" style="height:220px"></div></div>'; }
+  var A = S.ads; if (A.err) return '<div class="box"><div class="l3">Could not read Meta: ' + esc(A.err) + '</div><button class="btn sm" onclick="S.ads=null;adsLoad(true)">Try again</button></div>';
+  var T = A.total, sym = { USD:'$', GBP:'£', CAD:'CA$', EUR:'€' }, cur = function (r, v) { return v == null ? '—' : (sym[r.currency] || '') + Number(v).toFixed(2); };
+  var g = function (r, v) { return v == null ? null : v * (r.fx || 1); };
+  var hasBudget = T.budget > 0, left = T.budget - T.spent, endLeft = T.budget - T.monthEnd;
+  var h = '<div class="mbig">'
+    + '<div class="mnum' + (hasBudget && left < 0 ? ' short' : '') + '"><span>' + (hasBudget ? (left < 0 ? 'Over budget' : 'Left in the ad budget') : 'Spent on ads this month') + '</span><b>' + (hasBudget ? money(Math.abs(left)) : money(T.spent)) + '</b><i>' + (hasBudget ? money(T.spent) + ' spent of ' + money(T.budget) : 'Set a budget per account below') + '</i></div>'
+    + '<div class="mnum' + (hasBudget && endLeft < 0 ? ' short' : '') + '"><span>By the end of the month</span><b>' + money(T.monthEnd) + '</b><i>' + (hasBudget ? (endLeft < 0 ? money(-endLeft) + ' over at this pace' : money(endLeft) + ' spare at this pace') : 'If what is on keeps running') + ', ' + money(T.perDay) + ' a day</i></div>'
+    + '<div class="mnum' + (T.owed > 0.5 ? ' short' : '') + '"><span>You owe Meta now</span><b>' + money(T.owed) + '</b><i>Not charged to your card yet</i></div></div>';
+  var warn = [];
+  A.rows.forEach(function (r) {
+    if (r.error) warn.push(r.label + ': could not read it (' + r.error + ')');
+    else if (r.status === 'unsettled' || r.status === 'disabled') warn.push(r.label + ': ads are stopped, a payment failed. Pay ' + cur(r, r.owed) + ' in Meta billing to switch them back on.');
+    else if (r.capLeft != null && r.perDayOn > 0 && r.capLeft < r.perDayOn * 2) warn.push(r.label + ': only ' + cur(r, r.capLeft) + ' left before the account spending limit, so ads stop ' + (r.capLeft < r.perDayOn ? 'today' : 'tomorrow') + '.');
+    if (r.budget && r.monthEnd != null && g(r, r.monthEnd) > r.budget) warn.push(r.label + ': heading for ' + money(g(r, r.monthEnd)) + ' this month, budget ' + money(r.budget) + '.');
+  });
+  if (warn.length) h += '<div class="mins">' + warn.map(function (w) { return '<div class="minsc red">' + esc(w) + '</div>'; }).join('') + '</div>';
+  h += '<div class="box"><h3>Each account<span style="flex:1"></span><span class="l3">' + A.daysLeft + ' days left · checked ' + ago(A.at) + ' ago</span><button class="iconbtn" title="Check Meta now" onclick="adsLoad(true)">' + I.refresh + '</button></h3>'
+    + A.rows.map(function (r) {
+      var sp = g(r, r.spent), end = g(r, r.monthEnd), w = r.budget ? Math.min(100, Math.round((sp || 0) / r.budget * 100)) : 0, over = r.budget && end > r.budget;
+      var st = r.error ? '<span class="mst">Not readable</span>' : r.status !== 'active' ? '<span class="mst mredbg">Stopped: payment failed</span>' : r.perDayOn ? '<span class="mst">On, ' + cur(r, r.perDayOn) + '/day</span>' : '<span class="mst">Nothing running</span>';
+      return '<div class="mbva"><div class="mbvt"><span><b>' + esc(r.label) + '</b> ' + st + '</span><b' + (over ? ' class="mred"' : '') + '>' + (sp == null ? '—' : money(sp)) + ' <i>of</i> <input class="adsb" type="number" min="0" step="5" placeholder="budget £" value="' + (r.budget != null ? r.budget : '') + '" onchange="adsSet(\'' + r.id + '\',this)"></b></div>'
+        + (r.budget ? '<div class="mbar"><span style="width:' + w + '%;background:' + (over ? 'var(--fix)' : '#2fa36b') + '"></span></div>' : '')
+        + '<div class="l3">' + [r.spent != null ? cur(r, r.spent) + ' spent' : '', r.monthEnd != null && r.monthEnd > r.spent ? 'about ' + money(end) + ' by month end' : '', r.owed ? 'owes ' + cur(r, r.owed) : '', r.funds != null ? cur(r, r.funds) + ' prepaid left' : '', r.capLeft != null ? cur(r, r.capLeft) + ' before the spending limit' : '', r.payWith ? 'pays with ' + r.payWith : ''].filter(Boolean).join(' · ') + '</div></div>';
+    }).join('')
+    + '<div class="mnote">Budgets are in £ and only live here. Nothing changes on Meta. <a target="_blank" rel="noopener" href="https://business.facebook.com/billing_hub">Meta billing ↗</a></div></div>';
+  return h;
 }
 function niceDay(d) { if (!d) return ''; var x = new Date(String(d).slice(0, 10) + 'T12:00:00'); return isNaN(x) ? String(d) : x.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' }); }
 // Coming up: the UPCOMING tab of his budget sheet (read through the server, a few minutes old at most). Log it adds a row there.
