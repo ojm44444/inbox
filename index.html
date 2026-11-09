@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794231412">
+<html lang="en" data-build="b1794231508">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1004,11 +1004,13 @@ function home() {
   // Calm Home (5 Nov 2026 overhaul): one line of counts, the brief, then three short columns.
   var h = '<main class="home">' + tabs() + '<div class="hero2"><div style="min-width:0"><div class="day">' + day + '</div><h1 class="hello">' + hi + ', Owen</h1><div class="hellosub">' + (bits.length ? bits.join(' · ') + '.' : 'Inbox clear. Nice.') + '</div>' + waitLine + '</div>'
     + '</div>'
-    + '<div class="tiles">' + PILES.filter(function (p) { return p.key !== 'new' && p.key !== 'noise'; }).map(function (p) { return '<div class="tile" style="--c:' + p.color + '" onclick="go(\'' + (p.key === 'learn' ? 'reading' : p.key) + '\')"><div class="lab"><span class="pico">' + PILE_ICON[p.key] + '</span>' + p.title + '</div><div class="num">' + unreadCount(p.key) + '</div><div class="hint">' + p.help + '</div></div>'; }).join('') + '</div>' + appTiles() + inboxStrip()
+    // Owen, 9 Nov: "so much stuff ... overwhelming". One row of the six he uses; the rest under More.
+    + '<div class="tiles">' + ['reply', 'todo', 'sort', 'whatsapp', 'promise', 'review'].map(homeTile).join('') + '</div>'
     + askBar() + briefCard()
     // Owen, 7 Nov: "the bits below are a bit overwhelming. I don't really scroll." Folded away, one tap to open.
-    + '<button class="btn ghost morebtn" onclick="S.homeMore=!S.homeMore;render()">' + (S.homeMore ? 'Show less' : 'More: tasks, calendar, notes, ideas, shop') + '</button>';
+    + '<button class="btn ghost morebtn" onclick="S.homeMore=!S.homeMore;render()">' + (S.homeMore ? 'Show less' : 'More: Fix, Chase, Learn, Slack, Sticky notes, calendar, inboxes') + '</button>';
   if (!S.homeMore) return h + '</main>';
+  h += '<div class="tiles">' + ['fix', 'chase', 'learn', 'slack', 'sticky', 'calendar'].map(homeTile).join('') + '</div>' + inboxStrip();
   h += reviewHomeCard() + '<div class="hgrid"><div class="hcol">' + tasksBox() + '</div><div class="hcol">';
   var people2 = pileList('reply').slice(0, 7);
   h += '<div class="box"><h3>' + I.pen + 'People waiting on you<span class="badge">' + pileList('reply').length + '</span><span style="flex:1"></span><button class="btn sm ghost" onclick="go(\'reply\')">All</button></h3>'
@@ -1279,6 +1281,19 @@ function hubAll() {
 function reviewData() { return (S.data && S.data.review) || { items:[], decisions:{} }; }
 function reviewNeeds() { return hubPids().reduce(function (a, p) { return a.concat(hubWaiting(p)); }, []); }
 // The other apps as tiles next to the piles (Owen, 7 Nov: "it'd be cool if they could be part of this").
+function homeTile(k) {
+  var p = PILES.filter(function (x) { return x.key === k; })[0];
+  if (p) return '<div class="tile" style="--c:' + p.color + '" onclick="go(\'' + (k === 'learn' ? 'reading' : k) + '\')"><div class="lab"><span class="pico">' + PILE_ICON[k] + '</span>' + p.title + '</div><div class="num">' + unreadCount(k) + '</div><div class="hint">' + p.help + '</div></div>';
+  var t = function (view, color, icon, label, num, hint) { return '<div class="tile" style="--c:' + color + '" onclick="go(\'' + view + '\')"><div class="lab"><span class="pico">' + icon + '</span>' + label + '</div><div class="num">' + num + '</div><div class="hint">' + hint + '</div></div>'; };
+  if (k === 'sort') return t('sort', '#ff6b9a', I.spark, 'Quick sort', sortDeck().length, 'Swipe through unread, one at a time.');
+  if (k === 'whatsapp') return t('whatsapp', '#25d366', I.wa, 'WhatsApp', waWaiting(), 'Unread chats with people.');
+  if (k === 'slack') return t('slack', '#a35bd6', I.slack, 'Slack', slackWaiting(), 'Waiting on lazygecko Slack.');
+  if (k === 'sticky') { var n = stickyTotal(); return t('sticky', '#d6a23a', I.sticky, 'Sticky notes', n, n ? 'Ready to paste into Claude.' : 'Add things for a Claude chat.'); }
+  if (k === 'review') return t('review', '#6d6af5', I.check, 'Review', reviewNeeds().length, 'Things to approve.');
+  if (k === 'calendar') { var clashes = (S.data.calendar && S.data.calendar.clashes) || [], ev = ((S.data.calendar || {}).events || []).filter(function (e) { return !e.allDay && Date.parse(e.end) > Date.now(); })[0];
+    return '<div class="tile" style="--c:#3a86d8"><div class="lab"><span class="pico">' + I.cal + '</span>Calendar</div><div class="num" style="font-size:' + (ev ? '18px' : '') + '">' + (ev ? esc(hm(ev.start)) : '0') + '</div><div class="hint">' + (clashes.length ? '<span style="color:var(--chase)">' + clashes.length + ' clash' + (clashes.length === 1 ? '' : 'es') + '</span> · ' : '') + (ev ? esc(ev.title).slice(0, 40) : 'Nothing booked.') + '</div></div>'; }
+  return '';
+}
 function appTiles() {
   var clashes = (S.data.calendar && S.data.calendar.clashes) || [], ev = ((S.data.calendar || {}).events || []).filter(function (e) { return !e.allDay && Date.parse(e.end) > Date.now(); })[0];
   var t = function (view, color, icon, label, num, hint) { return '<div class="tile" style="--c:' + color + '" onclick="go(\'' + view + '\')"><div class="lab"><span class="pico">' + icon + '</span>' + label + '</div><div class="num">' + num + '</div><div class="hint">' + hint + '</div></div>'; };
