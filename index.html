@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794244929">
+<html lang="en" data-build="b1794245119">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -154,7 +154,7 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .mhead { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap; margin-bottom:18px; } .mlinks { display:flex; gap:8px; }
 .mbig { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:14px; margin-bottom:16px; }
 .mnum { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:18px; display:flex; flex-direction:column; gap:6px; }
-.mnum span { font-size:13px; color:var(--faint); } .mnum b { font-size:34px; letter-spacing:-.02em; } .mnum i { font-style:normal; font-size:12.5px; color:var(--dim); }
+.mnum span { font-size:13px; color:var(--faint); } .mnum.short { border-color:color-mix(in srgb, var(--fix) 45%, transparent); } .mnum.short b { color:var(--fix); font-size:28px; } .mnum b { font-size:34px; letter-spacing:-.02em; } .mnum i { font-style:normal; font-size:12.5px; color:var(--dim); }
 .mins { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:10px; margin-bottom:18px; }
 .minsc { padding:12px 14px; border-radius:12px; background:var(--panel); border:1px solid var(--line); font-size:14px; line-height:1.45; } .minsc.red { border-color:color-mix(in srgb, var(--fix) 40%, transparent); background:color-mix(in srgb, var(--fix) 8%, var(--panel)); }
 .mtabs { display:flex; gap:6px; margin-bottom:14px; overflow-x:auto; } .mtabs button { border:1px solid var(--line2); background:none; color:inherit; font:inherit; font-size:14px; padding:8px 16px; border-radius:20px; cursor:pointer; white-space:nowrap; } .mtabs button.on { background:var(--text); color:var(--bg); border-color:var(--text); }
@@ -228,6 +228,12 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .wam.me { margin-left:auto; background:var(--waout) !important; border-top-left-radius:9px; border-top-right-radius:2px; }
 .wam .watx a { color:#53bdeb; } .wam .wat { float:right; margin:6px 0 -4px 10px; font-size:11px; color:var(--wadim) !important; white-space:nowrap; }
 .wam.me .wat { color:#53bdeb !important; }
+.wam { position:relative; cursor:pointer; } .wam.hasrx { margin-bottom:16px; }
+.warx { position:absolute; bottom:-14px; right:8px; background:var(--wain); border:1px solid var(--line2); border-radius:12px; padding:0 5px; font-size:13px; line-height:20px; box-shadow:0 1px 2px rgba(0,0,0,.2); }
+.wam.me .warx { right:auto; left:8px; }
+.wapick { position:absolute; z-index:5; top:-46px; left:0; display:flex; gap:2px; background:var(--wain); border:1px solid var(--line2); border-radius:24px; padding:4px 6px; box-shadow:0 6px 18px rgba(0,0,0,.35); white-space:nowrap; }
+.wam.me .wapick { left:auto; right:0; }
+.wapick button { border:0; background:none; font-size:22px; line-height:1; padding:4px; border-radius:50%; cursor:pointer; } .wapick button:hover, .wapick button.on { background:rgba(127,127,127,.25); }
 .wacomp { display:flex; gap:8px; align-items:flex-end; padding:8px 12px; background:var(--panel); border-top:1px solid var(--line); }
 .wacomp textarea { flex:1; min-height:42px; max-height:140px; resize:none; background:var(--wainput) !important; color:var(--watext); border:1px solid var(--line2) !important; border-radius:21px !important; padding:10px 16px !important; font:inherit; font-size:15px; }
 .wasend { width:42px; height:42px; border-radius:50%; border:0; background:#00a884; color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; flex:none; }
@@ -1337,8 +1343,9 @@ function moneyView() {
   var ef = Number(me.emergency_fund || t.emergency_fund || 0), eg = Number(me.emergency_goal || t.emergency_goal || 0), pc = eg ? Math.min(100, Math.round(ef / eg * 100)) : 0;
   h += '<div class="mhead"><div><h1 class="hello" style="margin:0">Money</h1><div class="l3">Plan from your budget sheet. Spending from Monzo. Updated ' + esc(niceDay(o.as_of || t.as_of)) + '.</div></div>'
     + '<div class="mlinks">' + (o.budget_sheet ? '<a class="btn sm ghost" target="_blank" rel="noopener" href="' + esc(safeUrl(o.budget_sheet)) + '">Budget sheet ↗</a>' : '') + '<button class="btn sm pri" onclick="S.mtab=\'up\';S.mlog=true;render()">+ Log it</button></div></div>';
-  h += '<div class="mbig"><div class="mnum"><span>Left till payday</span><b>' + mny(left) + '</b><i>' + (days != null ? days + ' days, payday ' + esc(niceDay(payday)) : '') + '</i></div>'
-    + '<div class="mnum"><span>That is a day</span><b>' + mny(perDay) + '</b><i>' + esc(sl.note || 'Main + groceries + petrol') + '</i></div>'
+  var short = Number(left) < 0;
+  h += '<div class="mbig"><div class="mnum' + (short ? ' short' : '') + '"><span>' + (short ? 'Short before payday' : 'Left till payday') + '</span><b>' + (short ? 'Short by ' + money(-Number(left)) : mny(left)) + '</b><i>' + (days != null ? days + ' days, payday ' + esc(niceDay(payday)) : '') + '</i></div>'
+    + '<div class="mnum"><span>That is a day</span><b>' + (short ? '£0' : mny(perDay)) + '</b><i>' + esc(sl.note || 'Main + groceries + petrol') + '</i></div>'
     + '<div class="mnum"><span>Emergency Fund</span><b>' + mny(ef) + '</b><div class="mbar"><span style="width:' + pc + '%"></span></div><i>' + pc + '% of ' + mny(eg) + '</i></div></div>';
   var notes = (o.flags || []).map(function (x) { return { t:x, red:true }; }).concat((o.insights || []).map(function (x) { return { t:x }; }));
   if (notes.length) h += '<div class="mins">' + notes.slice(0, 6).map(function (n) { return '<div class="minsc' + (n.red ? ' red' : '') + '">' + esc(n.t) + '</div>'; }).join('') + '</div>';
@@ -1416,7 +1423,7 @@ function homeTile(k) {
   if (k === 'whatsapp') return t('whatsapp', '#25d366', I.wa, 'WhatsApp', waWaiting(), 'Unread chats with people.');
   if (k === 'slack') return t('slack', '#a35bd6', I.slack, 'Slack', slackWaiting(), 'Waiting on lazygecko Slack.');
   if (k === 'sticky') { var n = stickyTotal(); return t('sticky', '#d6a23a', I.sticky, 'Sticky notes', n, n ? 'Ready to paste into Claude.' : 'Add things for a Claude chat.'); }
-  if (k === 'money') { var mt = (S.data.money && S.data.money.tile) || null; return t('money', '#2fa36b', '£', 'Money', mt ? money(mt.spending_left) : '—', mt ? money(mt.per_day) + ' a day for ' + mt.days_to_payday + ' days to payday' : 'From your Money chat.'); }
+  if (k === 'money') { var mt = (S.data.money && S.data.money.tile) || null, sh = mt && Number(mt.spending_left) < 0; return t('money', sh ? '#ff6b6b' : '#2fa36b', '£', 'Money', mt ? (sh ? '<span style="color:var(--fix)">Short by ' + money(-Number(mt.spending_left)) + '</span>' : money(mt.spending_left)) : '—', mt ? (sh ? 'after bills, ' + mt.days_to_payday + ' days to payday' : money(mt.per_day) + ' a day for ' + mt.days_to_payday + ' days to payday') : 'From your Money chat.'); }
   if (k === 'review') return t('review', '#6d6af5', I.check, 'Review', reviewNeeds().length, 'Things to approve.');
   if (k === 'calendar') { var clashes = (S.data.calendar && S.data.calendar.clashes) || [], ev = ((S.data.calendar || {}).events || []).filter(function (e) { return !e.allDay && Date.parse(e.end) > Date.now(); })[0];
     return '<div class="tile" style="--c:#3a86d8"><div class="lab"><span class="pico">' + I.cal + '</span>Calendar</div><div class="num" style="font-size:' + (ev ? '18px' : '') + '">' + (ev ? esc(hm(ev.start)) : '0') + '</div><div class="hint">' + (clashes.length ? '<span style="color:var(--chase)">' + clashes.length + ' clash' + (clashes.length === 1 ? '' : 'es') + '</span> · ' : '') + (ev ? esc(ev.title).slice(0, 40) : 'Nothing booked.') + '</div></div>'; }
@@ -1697,6 +1704,14 @@ function waSendIt() {
 WA.tick = 0; setInterval(function () { if (S.view !== 'whatsapp' || document.hidden) return; var linked = WA.list && WA.list.status && WA.list.status.state === 'open'; if (linked && (WA.tick++ % 4)) return; waLoad(); if (WA.chat && linked) waHist(WA.chat); }, 4000);
 function waWhen(ts) { var d = new Date(ts), n = new Date(); if (d.toDateString() === n.toDateString()) return hm(ts); var y = new Date(n.getTime() - 86400000); if (d.toDateString() === y.toDateString()) return 'Yesterday'; return d.toLocaleDateString('en-GB', Date.now() - d < 6 * 86400000 ? { weekday:'long' } : { day:'numeric', month:'short' }); }
 function waDay(ts) { var w = waWhen(ts); return /:/.test(w) ? 'Today' : w; }
+// React to a message (Owen, 9 Nov: "like heart them"). Tap a message, pick one; tap the same one again to take it back.
+function waReactOpen(ev, id) { if (ev.target.closest && ev.target.closest('a')) return; WA.rxFor = WA.rxFor === id ? null : id; render(); }
+function waReact(id, emoji) {
+  var msgs = WA.hist[WA.chat] || [], m = msgs.filter(function (x) { return x.id === id; })[0]; if (!m) return;
+  var rx = m.reactions = (m.reactions && typeof m.reactions === 'object') ? m.reactions : {}, take = rx.You === emoji;
+  if (take) delete rx.You; else rx.You = emoji; WA.rxFor = null; render();
+  api('waReact', { chat:WA.chat, msg:id, emoji:take ? '' : emoji }).catch(function (e) { toast('Reaction did not go: ' + e.message, true); });
+}
 function waView() {
   if (!WA.list && !WA.busy) waLoad();
   var L = WA.list || {}, st = L.status || {}, chats = (L.chats || []).filter(function (c) { return WA.f === 'all' || (WA.f === 'people' ? !c.is_group : WA.f === 'groups' ? c.is_group : c.unread > 0); });
@@ -1715,7 +1730,10 @@ function waView() {
   if (!c) return list + det + '<div class="empty" style="margin-top:20vh">Pick a chat</div></section>';
   var msgs = WA.hist[c.id];
   det += '<div class="wahead"><button class="iconbtn back" onclick="S.phoneOpen=false;render()">' + I.back + '</button><div class="waav sm" style="background:' + (c.is_group ? '#1f8f5f' : hue(c.id)) + '">' + (c.is_group ? '👥' : esc(initials(c.name || '?'))) + '</div><div style="flex:1;min-width:0"><b>' + esc(c.name || '') + '</b><div class="l3">' + (c.is_group ? 'Group' : 'WhatsApp') + '</div></div>' + stickySelect('slack', c.name || 'WhatsApp') + '</div><div class="slmsgs wawall">' + (msgs && msgs.length ? '<div class="l3" style="text-align:center;margin:10px">Messages from ' + esc(new Date(msgs[0].ts).toLocaleDateString('en-GB', { day:'numeric', month:'short' })) + '. Older ones are on your phone.</div>' : '')
-    + (!msgs ? '<div class="skel" style="height:260px;margin:16px"></div>' : (function () { var day = '', out = ''; msgs.forEach(function (m) { var d = waDay(m.ts); if (d !== day) { day = d; out += '<div class="waday"><span>' + d + '</span></div>'; } out += '<div class="wam' + (m.from_me ? ' me' : '') + '">' + (c.is_group && !m.from_me ? '<div class="was" style="color:' + hue(m.sender) + '">' + esc(m.sender) + '</div>' : '') + '<span class="watx">' + linkify(m.text || '') + '</span><span class="wat">' + hm(m.ts) + (m.from_me ? ' ✓✓' : '') + '</span></div>'; }); return out; })())
+    + (!msgs ? '<div class="skel" style="height:260px;margin:16px"></div>' : (function () { var day = '', out = ''; msgs.forEach(function (m) { var d = waDay(m.ts); if (d !== day) { day = d; out += '<div class="waday"><span>' + d + '</span></div>'; } var rx = m.reactions && typeof m.reactions === 'object' ? m.reactions : {}, rxs = Object.keys(rx).map(function (k) { return rx[k]; }).filter(Boolean);
+        out += '<div class="wam' + (m.from_me ? ' me' : '') + (rxs.length ? ' hasrx' : '') + '" onclick="waReactOpen(event,\'' + esc(m.id || '') + '\')">' + (c.is_group && !m.from_me ? '<div class="was" style="color:' + hue(m.sender) + '">' + esc(m.sender) + '</div>' : '') + '<span class="watx">' + linkify(m.text || '') + '</span><span class="wat">' + hm(m.ts) + (m.from_me ? ' ✓✓' : '') + '</span>'
+          + (rxs.length ? '<span class="warx" title="' + esc(Object.keys(rx).map(function (k) { return k + ' ' + rx[k]; }).join(', ')) + '">' + rxs.join('') + '</span>' : '')
+          + (WA.rxFor === m.id ? '<div class="wapick">' + ['❤️', '👍', '😂', '😮', '😢', '🙏', '🔥'].map(function (e) { return '<button class="' + (rx.You === e ? 'on' : '') + '" onclick="event.stopPropagation();waReact(\'' + esc(m.id) + '\',\'' + e + '\')">' + e + '</button>'; }).join('') + '</div>' : '') + '</div>'; }); return out; })())
     + '</div><div class="wacomp"><textarea id="waText" rows="1" placeholder="Message" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();waSendIt()}"></textarea><button class="wasend" title="Send (Enter)" onclick="waSendIt()">' + I.send + '</button></div></section>';
   return list + det;
 }

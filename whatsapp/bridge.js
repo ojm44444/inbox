@@ -108,14 +108,21 @@ function chatOf(msg) {
   }
   return jid;
 }
+// Reactions (9 Nov, Owen: "if I can react to those messages, like heart them"). Kept on the message they belong to.
+async function saveReaction(chatJid, targetId, actor, emoji) {
+  const id = rowId(chatJid) + ':' + targetId;
+  await x("UPDATE inbox_wa_msgs SET reactions = CASE WHEN " + lit(emoji || '') + " = '' THEN coalesce(reactions, '{}'::jsonb) - " + lit(actor) + " ELSE coalesce(reactions, '{}'::jsonb) || jsonb_build_object(" + lit(actor) + ", " + lit(emoji || '') + ") END WHERE id = " + lit(id)).catch((e) => log('reaction', e.message));
+}
 async function saveMsgs(msgs) {
   const rows = [], chats = {};
   for (const msg of msgs) {
     const jid = msg.key && msg.key.remoteJid && chatOf(msg); if (!jid || jid === 'status@broadcast' || /@newsletter$/.test(jid)) continue;
+    const rm = unwrap(msg.message).reactionMessage;
+    if (rm && rm.key) { await saveReaction(jid, rm.key.id, msg.key.fromMe ? 'You' : nameOf(msg.key.participant || jid), rm.text || ''); continue; }
     const t = textOf(msg); if (t === null) continue;
     const from = msg.key.fromMe ? 'me' : jidNormalizedUser(msg.key.participant || jid);
     if (!msg.key.fromMe && msg.pushName) setName(from, msg.pushName);
-    const row = { id: rowId(jid) + ':' + msg.key.id, chat_id: jid, from_me: !!msg.key.fromMe, sender: msg.key.fromMe ? 'You' : nameOf(from), text: t.slice(0, 4000), ts: ts(msg) };
+    const row = { id: rowId(jid) + ':' + msg.key.id, chat_id: jid, from_me: !!msg.key.fromMe, sender: msg.key.fromMe ? 'You' : nameOf(from), sender_jid: msg.key.fromMe ? null : (msg.key.participant || jid), text: t.slice(0, 4000), ts: ts(msg) };
     rows.push(row);
     if (!chats[jid] || chats[jid].ts < row.ts) chats[jid] = row;
   }
@@ -164,6 +171,13 @@ async function start() {
   });
   const contact = (c) => { setName(c.id, c.name || c.notify || c.verifiedName); if (c.lid && c.jid) { lidMap[c.lid] = c.jid; namesDirty = true; if (c.name) setName(c.lid, c.name); } };
   sock.ev.on('contacts.upsert', (cs) => cs.forEach(contact));
+  sock.ev.on('messages.reaction', async (rs) => {
+    for (const r of rs || []) {
+      const k = r.key || {}, rk = (r.reaction && r.reaction.key) || {}; if (!k.remoteJid) continue;
+      const jid = lidMap[k.remoteJid] || k.remoteJid, mine = rk.fromMe;
+      await saveReaction(jid, k.id, mine ? 'You' : nameOf(rk.participant || rk.remoteJid || jid), (r.reaction && r.reaction.text) || '');
+    }
+  });
   sock.ev.on('contacts.update', (cs) => cs.forEach((c) => setName(c.id, c.name || c.notify)));
   sock.ev.on('groups.upsert', (gs) => gs.forEach((g) => setName(g.id, g.subject)));
   sock.ev.on('groups.update', (gs) => gs.forEach((g) => g.subject && setName(g.id, g.subject)));
@@ -258,6 +272,11 @@ async function outbox() {
       let res = 'ok';
       try {
         if (j.kind === 'send') { const s = await sock.sendMessage(j.chat_id, { text: j.text }); await saveMsgs([s]); await touchInbox(j.chat_id, { from_me: true }, me, false); }
+        else if (j.kind === 'react') {
+          const r = JSON.parse(j.text || '{}');
+          await sock.sendMessage(j.chat_id, { react: { text: r.emoji || '', key: { remoteJid: j.chat_id, id: r.id, fromMe: !!r.fromMe, participant: r.participant || undefined } } });
+          await saveReaction(j.chat_id, r.id, 'You', r.emoji || '');
+        }
         else if (j.kind === 'older') {
           const o = (await q('SELECT id, from_me, ts FROM inbox_wa_msgs WHERE chat_id = ' + lit(j.chat_id) + ' ORDER BY ts ASC LIMIT 1') || [])[0];
           if (o) await sock.fetchMessageHistory(50, { remoteJid: j.chat_id, id: o.id.split(':').pop(), fromMe: !!o.from_me }, Math.floor(new Date(o.ts).getTime() / 1000));
