@@ -22,6 +22,7 @@ fs.readFileSync(CFG.env_file, 'utf8').split('\n').forEach((l) => { const m = l.t
 const SB = ENV.VITE_SUPABASE_URL, KEY = ENV.SUPABASE_SERVICE_ROLE_KEY;
 const AUTH = path.join(HOME, '.moon-snippets/wa-auth');
 const NAMES_FILE = path.join(HOME, '.moon-snippets/wa-names.json');
+const HISTORY_DONE = path.join(HOME, '.moon-snippets/wa-history-done');
 const out = console.log.bind(console);
 const log = (...a) => out(new Date().toISOString(), ...a);
 // The encryption library prints whole session keys to the console: never let those reach the log file.
@@ -146,7 +147,9 @@ let sock = null, me = null, busy = false;
 async function start() {
   const { state, saveCreds } = await useMultiFileAuthState(AUTH);
   const { version } = await fetchLatestBaileysVersion().catch(() => ({ version: undefined }));
-  sock = makeWASocket({ auth: state, version, logger: pino({ level: process.env.WA_LOG || 'warn' }), browser: Browsers.macOS('Desktop'), markOnlineOnConnect: false, syncFullHistory: false, shouldSyncHistoryMessage: () => true }); // recent history comes at linking (full history makes WhatsApp refuse the link): keep 3 weeks
+  sock = makeWASocket({ auth: state, version, logger: pino({ level: process.env.WA_LOG || 'warn' }), browser: Browsers.macOS('Desktop'), markOnlineOnConnect: false, syncFullHistory: false, shouldSyncHistoryMessage: () => !fs.existsSync(HISTORY_DONE) });
+  // 9 Nov 2026 bug: asking for history on every reconnect made it wait for a download WhatsApp only sends once, so new
+  // messages sat in a buffer and were never saved. History is asked for only until the first one has arrived. // recent history comes at linking (full history makes WhatsApp refuse the link): keep 3 weeks
   sock.ev.on('creds.update', saveCreds);
   sock.ev.on('connection.update', async (u) => {
     if (u.qr) { log('QR ready, scan it on the Inbox page'); await status({ state: 'qr', qr: await QR.toDataURL(u.qr, { margin: 1, width: 280 }) }); }
@@ -179,6 +182,7 @@ async function start() {
         if (c.unreadCount > 0 && isPerson(c.id)) { const l = (await q('SELECT from_me, sender, text, ts FROM inbox_wa_msgs WHERE chat_id = ' + lit(c.id) + ' ORDER BY ts DESC LIMIT 1') || [])[0]; if (l && !l.from_me) await touchInbox(c.id, l, me, false); }
       }
       log('history', recent.length, 'of', (messages || []).length, 'messages,', (chats || []).length, 'chats');
+      fs.writeFileSync(HISTORY_DONE, new Date().toISOString(), { mode: 0o600 });
     } catch (e) { log('history', e.message); }
   });
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
@@ -189,10 +193,26 @@ async function start() {
       for (const jid of Object.keys(chats)) {
         const mentioned = messages.some((m) => chatOf(m) === jid && mentionsMe(m, me));
         if (isGroup(jid) && !names[jid]) { try { const md = await sock.groupMetadata(jid); setName(jid, md.subject); await x('UPDATE inbox_wa_chats SET name = ' + lit(md.subject) + ' WHERE id = ' + lit(jid)); } catch (e) {} }
-        if (!chats[jid].from_me) await x('UPDATE inbox_wa_chats SET unread = unread + 1 WHERE id = ' + lit(jid));
+        // Two-way (Owen, 9 Nov: "when I've replied on WhatsApp, the app doesn't update"): a message from him, sent on
+        // any device, means he has read that chat, so it is no longer unread here.
+        if (chats[jid].from_me) await x('UPDATE inbox_wa_chats SET unread = 0 WHERE id = ' + lit(jid));
+        else await x('UPDATE inbox_wa_chats SET unread = unread + 1 WHERE id = ' + lit(jid));
         await touchInbox(jid, chats[jid], me, mentioned);
       }
     } catch (e) { log('upsert', e.message); }
+  });
+  // Read on his phone: WhatsApp tells linked devices with a 'read' receipt from himself.
+  sock.ev.on('message-receipt.update', async (us) => {
+    for (const u of us || []) {
+      const jid = u.key && u.key.remoteJid, rec = u.receipt || {};
+      if (jid && rec.userJid && me && jidNormalizedUser(rec.userJid) === me && rec.readTimestamp) await x('UPDATE inbox_wa_chats SET unread = 0 WHERE id = ' + lit(jid)).catch(() => {});
+    }
+  });
+  sock.ev.on('messages.update', async (us) => {
+    for (const u of us || []) {
+      const jid = u.key && u.key.remoteJid;
+      if (jid && !u.key.fromMe && u.update && u.update.status === 4) await x('UPDATE inbox_wa_chats SET unread = 0 WHERE id = ' + lit(jid)).catch(() => {}); // 4 = read
+    }
   });
   // Read on his phone: the chat leaves the inbox, like Slack.
   sock.ev.on('chats.update', async (us) => {
