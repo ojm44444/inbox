@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794253759">
+<html lang="en" data-build="b1794254646">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -41,6 +41,10 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .app.mail { grid-template-columns:220px 420px minmax(0,1fr); }
 .nav em.lbl, .brand em.lbl, .newmail em.lbl { font-style:normal; }
 .brand { display:flex; align-items:center; gap:10px; } .slimbtn { margin-left:auto; color:var(--faint); font-size:16px; }
+.lblsec { display:none; } .lblsec.show, body.dragging .lblsec { display:block; } body.dragging .lblsec { outline:1px dashed var(--acc); border-radius:10px; }
+.lblacct { display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--faint); padding:8px 10px 2px; } .lblacct .dot { width:7px; height:7px; border-radius:50%; }
+.nav.lbl { padding-top:5px; padding-bottom:5px; font-size:13px; } .nav.lbl em { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .ltag { width:9px; height:9px; border-radius:3px; flex:none; }
+.nav.lbl.drop { background:color-mix(in srgb, var(--acc) 30%, transparent); outline:1px solid var(--acc); }
 .app.slim { grid-template-columns:64px minmax(0,1fr); } .app.slim.mail { grid-template-columns:64px 420px minmax(0,1fr); }
 .app.slim .side { padding:14px 8px; } .app.slim .side em.lbl, .app.slim .navmore, .app.slim .side .navlabel, .app.slim .side .navrow, .app.slim .sidefoot span { display:none; }
 .app.slim .brand { justify-content:center; } .app.slim .brand .slimbtn { display:none; } .app.slim .brand .logo { margin:0; }
@@ -1018,12 +1022,13 @@ function side() {
     + nv('home', I.home, 'Home') + nv('review', I.check, 'Review', reviewNeeds().length) + nv('all', I.inbox, 'All mail', unreadCount('all'), 'S.f.acct=\'\';') + nv('sort', I.spark, 'Quick sort', sortDeck().length)
     + pile('reply') + pile('todo') + pile('promise') + pile('chase') + pile('fix') + pile('learn') + pile('noise') + (unreadCount('new') ? pile('new') : '')
     + nv('whatsapp', I.wa, 'WhatsApp', waWaiting()) + nv('sticky', I.sticky, 'Sticky notes', stickyTotal()) + nv('notes', I.note, 'Notes') + nv('money', '<span style="width:16px;text-align:center;font-weight:700">£</span>', 'Money')
-    + '<button class="navmore" onclick="S.sideMore=!S.sideMore;try{localStorage.setItem(\'inbox-sidemore\',S.sideMore?1:0)}catch(e){};render()">' + (S.sideMore ? '▾ Hide' : '▸ Inboxes, Slack, Trello, folders') + '</button>';
+    + '<button class="navmore" onclick="S.sideMore=!S.sideMore;try{localStorage.setItem(\'inbox-sidemore\',S.sideMore?1:0)}catch(e){};render()">' + (S.sideMore ? '▾ Hide' : '▸ Labels, inboxes, Slack, Trello') + '</button>';
   if (S.sideMore) {
     h += '<div class="navlabel">Inboxes</div>' + inboxNav()
       + '<div class="navlabel">Apps</div>' + nv('slack', I.slack, 'Slack', slackWaiting()) + nv('trello', I.board, 'Trello')
       + '<div class="navlabel">Folders</div><div class="navrow">' + ['sent', 'drafts', 'trash'].map(function (b) { return '<button class="' + (S.view === 'box:' + b ? 'on' : '') + '" onclick="FD.open=null;go(\'box:' + b + '\')">' + BOXES[b] + '</button>'; }).join('') + '</div>';
   }
+  h += labelNav();
   var last = S.data && S.data.last && S.data.last.at;
   return h + '</div><div class="sidefoot"><span style="flex:1">' + (S.stale ? 'Updating…' : last ? 'Synced ' + ago(last) + ' ago' : '') + '</span>'
     + '<button class="iconbtn" title="' + (S.theme === 'light' ? 'Light' : S.theme === 'dark' ? 'Dark' : 'Auto (follows your Mac)') + ' mode: tap to change" onclick="cycleTheme()">' + (S.theme === 'light' ? '☀️' : S.theme === 'dark' ? '🌙' : '🌓') + '</button>'
@@ -1031,6 +1036,38 @@ function side() {
     + '<button class="iconbtn" title="Sign out" onclick="signOut()">' + I.out + '</button></div></aside>';
 }
 S.slim = false; // Owen, 9 Nov: "I can't read any of the sidebar". The menu always has words now.
+// Gmail labels (Owen, 9 Nov: "see the labels and tags ... and drag them into that"). Drag an email onto one,
+// or use Label… on the email. Adding a label never takes it out of the inbox.
+S.labels = null;
+function labelsLoad(force) { if (S.labelsBusy) return; S.labelsBusy = true; api('labels', force ? { force:true } : {}).then(function (r) { S.labels = r; S.labelsBusy = false; render(); }).catch(function () { S.labelsBusy = false; }); }
+function labelNav() {
+  if (!S.labels) { if (S.data) setTimeout(labelsLoad, 0); return ''; }
+  var h = '<div class="lblsec' + (S.sideMore ? ' show' : '') + '"><div class="navlabel">Labels <span class="l3">drag an email onto one</span></div>';
+  Object.keys(ACCOUNTS).forEach(function (a) {
+    var l = S.labels[a]; if (!l || !l.length) return;
+    h += '<div class="lblacct"><span class="dot" style="background:' + ACCOUNTS[a].color + '"></span>' + ACCOUNTS[a].label + '</div>' + l.map(function (x) {
+      return '<button class="nav lbl' + (S.view === 'box:label:' + x.id && FD.acct === a ? ' on' : '') + '" title="' + esc(x.name) + '" onclick="FD.open=null;FD.acct=\'' + a + '\';go(\'box:label:' + x.id + '\')" ondragover="event.preventDefault();this.classList.add(\'drop\')" ondragleave="this.classList.remove(\'drop\')" ondrop="event.preventDefault();this.classList.remove(\'drop\');labelDrop(\'' + a + '\',\'' + x.id + '\',event)"><span class="ltag" style="background:' + (x.color || '#6c6d79') + '"></span><em class="lbl">' + esc(x.name) + '</em></button>';
+    }).join('');
+  });
+  return h + '</div>';
+}
+function labelName(a, id) { return ((S.labels && S.labels[a] || []).filter(function (x) { return x.id === id; })[0] || {}).name || 'label'; }
+function labelAdd(acct, label, ids) {
+  ids = ids.filter(function (id) { var e = S.data.emails.filter(function (x) { return x.id === id; })[0]; return !e || (e.account || 'personal') === acct; });
+  if (!ids.length) { toast('That label is in a different inbox from this email', true); return; }
+  toast('Labelled ' + labelName(acct, label)); FD.data['label:' + label + ':' + acct] = null;
+  api('addLabel', { acct:acct, label:label, ids:ids }).catch(fail);
+}
+function labelDrop(acct, label, ev) {
+  document.body.classList.remove('dragging');
+  var gid = ev.dataTransfer.getData('text/inbox-group'); var g = groups().filter(function (x) { return x.id === gid; })[0]; if (!g) return;
+  labelAdd(acct, label, g.items.map(function (e) { return e.id; }));
+}
+function labelSelect(g) {
+  var e = g.items[0], a = e.account || 'personal', l = S.labels && S.labels[a];
+  if (!l || !l.map || !l.length) return '';
+  return '<select class="sel" title="Add a Gmail label (it stays in the inbox)" onchange="var v=this.value;this.value=\'\';if(v)labelAdd(\'' + a + '\',v,' + JSON.stringify(g.items.map(function (x) { return x.id; })).replace(/"/g, '&quot;') + ')"><option value="">🏷 Label…</option>' + l.map(function (x) { return '<option value="' + x.id + '">' + esc(x.name) + '</option>'; }).join('') + '</select>';
+}
 S.sideMore = (function () { try { return localStorage.getItem('inbox-sidemore') === '1'; } catch (e) { return false; } })();
 function tabs() {
   var h = '<div class="tabs"><div class="tab' + (S.view === 'home' ? ' on' : '') + '" onclick="go(\'home\')">Home</div><div class="tab' + (S.view === 'all' ? ' on' : '') + '" onclick="go(\'all\')">All ' + (unreadCount('all') || '') + '</div><div class="tab' + (S.view === 'reading' ? ' on' : '') + '" onclick="go(\'reading\')">Reading ' + (unreadCount('learn') || '') + '</div>';
@@ -1886,11 +1923,11 @@ function folderLoad(box, acct, force) {
   api('folder', { box:box, acct:acct }).then(function (r) { FD.data[k] = r.items; FD.busy[k] = false; render(); }).catch(function (e) { FD.data[k] = { error:e.message }; FD.busy[k] = false; render(); });
 }
 function folderView() {
-  var box = S.view.split(':')[1], acct = FD.acct, k = box + ':' + acct, items = FD.data[k];
+  var box = S.view.replace(/^box:/, ''), acct = FD.acct, k = box + ':' + acct, items = FD.data[k];
   if (!items && !FD.busy[k]) folderLoad(box, acct);
   var accts = Object.keys(ACCOUNTS).filter(function (a) { return a !== 'slack'; });
-  var list = '<section class="list">' + tabs() + '<div class="listhead"><div style="flex:1;min-width:0"><h1>' + BOXES[box] + '</h1><div class="sub">' + (box === 'trash' ? 'Binned emails. Restore puts one back.' : box === 'drafts' ? 'Saved drafts, newest first.' : 'What you sent, newest first.') + '</div></div><button class="iconbtn' + (FD.busy[k] ? ' spin' : '') + '" onclick="folderLoad(\'' + box + '\',FD.acct,true)" title="Refresh">' + I.refresh + '</button></div>'
-    + '<div class="filters"><div class="chips">' + accts.map(function (a) { return '<button class="fchip' + (acct === a ? ' on' : '') + '" onclick="FD.acct=\'' + a + '\';FD.open=null;render()">' + ACCOUNTS[a].label + '</button>'; }).join('') + '</div></div><div class="rows">';
+  var list = '<section class="list">' + tabs() + '<div class="listhead"><div style="flex:1;min-width:0"><h1>' + (BOXES[box] || esc(labelName(acct, box.slice(6)))) + '</h1><div class="sub">' + (/^label:/.test(box) ? 'Gmail label in ' + ACCOUNTS[acct].label + ', newest first.' : box === 'trash' ? 'Binned emails. Restore puts one back.' : box === 'drafts' ? 'Saved drafts, newest first.' : 'What you sent, newest first.') + '</div></div><button class="iconbtn' + (FD.busy[k] ? ' spin' : '') + '" onclick="folderLoad(\'' + box + '\',FD.acct,true)" title="Refresh">' + I.refresh + '</button></div>'
+    + (/^label:/.test(box) ? '<div class="rows">' : '<div class="filters"><div class="chips">' + accts.map(function (a) { return '<button class="fchip' + (acct === a ? ' on' : '') + '" onclick="FD.acct=\'' + a + '\';FD.open=null;render()">' + ACCOUNTS[a].label + '</button>'; }).join('') + '</div></div><div class="rows">');
   if (!items || FD.busy[k] && !items.length) list += '<div class="skel"></div>'.repeat(8);
   else if (items.error) list += '<div class="empty">' + esc(items.error) + '</div>';
   else if (!items.length) list += '<div class="empty">Nothing here.</div>';
@@ -2211,7 +2248,7 @@ function list() {
     var l2 = prom ? e.why : g.isChat ? issues({ items:S.f.unread && g.unread.length ? g.unread : g.items }).map(function (x) { return x.title; }).slice(0, 3).join(' · ') : e.subject;
     var when = chase ? '<span class="wait">' + Math.floor((Date.now() - Date.parse(e.received_at)) / 86400000) + 'd waiting</span>' : prom ? (promDue(e) ? '<span style="color:' + (promDue(e).d <= 0 ? 'var(--fix)' : 'var(--promise)') + '">' + promDue(e).label + '</span>' : '<span style="color:var(--promise)">said ' + ago(e.received_at) + ' ago</span>') : chasedTwice(e) ? '<span style="color:var(--fix)">Chased twice</span>' : ago(e.received_at);
     var n = S.f.unread ? g.unread.length : g.items.length;
-    h += '<div class="row' + (S.open === g.id ? ' on' : '') + (read ? ' read' : '') + '" onclick="if(event.shiftKey||event.metaKey){event.preventDefault();pick(\'' + g.id + '\',event)}else openG(\'' + g.id + '\')">'
+    h += '<div class="row' + (S.open === g.id ? ' on' : '') + (read ? ' read' : '') + '"' + (g.isChat || /^(slack|whatsapp)$/.test(e.account || '') ? '' : ' draggable="true" ondragstart="event.dataTransfer.setData(\'text/inbox-group\',\'' + g.id + '\');event.dataTransfer.effectAllowed=\'copy\';document.body.classList.add(\'dragging\')" ondragend="document.body.classList.remove(\'dragging\')"') + ' onclick="if(event.shiftKey||event.metaKey){event.preventDefault();pick(\'' + g.id + '\',event)}else openG(\'' + g.id + '\')">'
       + '<div class="ck' + (S.sel[g.id] ? ' show' : '') + '" onclick="event.stopPropagation();pick(\'' + g.id + '\',event)"></div>'
       + '<div class="rowav" style="background:' + (g.isChat ? (CHAT_COLOURS[g.chat] || '#6c6d79') : hue(e.from_email)) + '">' + esc(initials(g.isChat ? chatShort(g.chat) : (e.from_name || e.from_email))) + '</div>'
       + '<div style="min-width:0"><div class="who">' + (read ? '' : '<span class="unreaddot"></span>') + esc(who) + (n > 1 ? '<span class="badge">' + n + '</span>' : '') + '</div>'
@@ -2277,7 +2314,7 @@ function mailDetail(g) {
   // Mark read button used to flip to Mark unread, so Owen's click undid it). Read shows a plain tick;
   // Mark unread is its own small button at the end.
   h += (read ? '<span class="btn ghost" style="cursor:default;opacity:.7">' + I.check + 'Read</span>' : '<button class="btn' + (replyable ? '' : ' pri') + '" title="E" onclick="markRead()">' + I.check + (chase ? 'Dismiss' : prom || e.kind === 'todo' ? 'Done' : 'Mark read') + '</button>') + '<button class="btn ghost" title="Gone from here for good, even from All (D)" onclick="doneWith()">' + I.check + 'Done with</button>' + (g.pile === 'noise' ? '<button class="btn" title="Moves it to Reply, and this sender never goes in Noise again" onclick="movePile(\'reply\')">Not noise</button>' : '') + (read ? '<button class="btn ghost sm" title="U" onclick="markUnread()">Mark unread</button>' : '')
-    + stickySelect('ids', g.id)
+    + stickySelect('ids', g.id) + (slack || e.account === 'whatsapp' ? '' : labelSelect(g))
     + (slack || e.account === 'whatsapp' ? '' : '<button class="btn ghost" title="Copy the whole email, pictures and formatting, to paste into Claude" onclick="copyEmail(\'' + e.id + '\')">' + I.copy + 'Copy</button>')
     + '<span style="flex:1"></span>'
     + (e.gmail_url ? '<a class="btn ghost sm" target="_blank" href="' + esc(safeUrl(gmailHref(e.gmail_url))) + '">' + I.gmail + (slack ? 'Open in Slack' : e.account === 'whatsapp' ? 'Open in WhatsApp' : 'Open in Gmail') + '</a>' : '')
