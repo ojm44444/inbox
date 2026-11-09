@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794244285">
+<html lang="en" data-build="b1794244377">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1300,6 +1300,7 @@ function reviewNeeds() { return hubPids().reduce(function (a, p) { return a.conc
 // (app_settings money_tile, money_overview). Never card or account numbers, never a button that moves money.
 function mny(v) { return v === null || v === undefined || v === '' ? '—' : money(v); }
 function moneyView() {
+  if (!S.data) return '<main class="home">' + tabs() + '<div class="skel" style="height:200px"></div></main>';
   var o = (S.data.money && S.data.money.overview) || null, t = (S.data.money && S.data.money.tile) || {};
   var h = '<main class="home moneyv">' + tabs() + '<div class="hero2"><div><div class="day">Money · as of ' + esc((o && o.as_of) || t.as_of || '—') + '</div><h1 class="hello">Money</h1><div class="hellosub">Plan from your budget sheet. Spending from Monzo. Read only: change the plan in the sheet.</div></div></div>';
   if (!o) return h + '<div class="box"><div class="empty">Nothing yet. Your Money chat fills this in at each money check.</div></div></main>';
