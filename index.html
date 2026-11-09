@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794244695">
+<html lang="en" data-build="b1794244836">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1379,14 +1379,14 @@ function moneyUpcomingView(o, payday) {
     + '<div class="cf"><button class="btn pri" onclick="mlSave()">Add to my budget sheet</button><span class="l3">Goes in the UPCOMING tab, same as typing it there.</span></div></div>';
   if (!S.mup) return h + '<div class="box"><div class="skel" style="height:160px"></div></div>';
   if (S.mup.err) return h + '<div class="box"><div class="l3">Could not read your sheet: ' + esc(S.mup.err) + '</div></div>';
-  var rows = S.mup.rows.slice().sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); });
+  var rows = S.mup.rows.slice().sort(function (a, b) { return (a.date ? 0 : 1) - (b.date ? 0 : 1) || String(a.date).localeCompare(String(b.date)); });
   var before = rows.filter(function (r) { return r.inout === 'Out' && r.amount && (!payday || String(r.date) <= String(payday)); }).reduce(function (n, r) { return n + Number(r.amount); }, 0);
   h += '<div class="mupsum"><div><span>Going out before payday</span><b class="mred">' + money(before) + '</b></div>' + (o.upcoming_sheet ? '<a class="btn sm ghost" target="_blank" rel="noopener" href="' + esc(safeUrl(o.upcoming_sheet)) + '">Open the sheet ↗</a>' : '') + '<button class="btn sm pri" onclick="S.mlog=true;render()">+ Log it</button></div>';
   ['Me', 'TEZ', 'songdrafts', 'Business'].forEach(function (who) {
     var l = rows.filter(function (r) { return (r.whose || 'Me') === who; }); if (!l.length) return;
     var out = l.filter(function (r) { return r.inout === 'Out' && r.amount; }).reduce(function (n, r) { return n + Number(r.amount); }, 0), inn = l.filter(function (r) { return r.inout === 'In' && r.amount; }).reduce(function (n, r) { return n + Number(r.amount); }, 0);
     h += '<div class="box"><h3>' + who + '<span style="flex:1"></span><span class="l3">' + (out ? money(out) + ' out' : '') + (out && inn ? ' · ' : '') + (inn ? money(inn) + ' in' : '') + '</span></h3>' + l.map(function (r) {
-      return '<div class="mup"><div class="mupd">' + esc(niceDay(r.date) || r.date) + '</div><div class="mupw"><b>' + esc(r.what) + '</b>' + (r.note || r.via ? '<div class="l3">' + esc([r.via, r.note].filter(Boolean).join(' · ')) + '</div>' : '') + '</div><div class="mupa"><b class="' + (r.inout === 'In' ? 'mgreen' : '') + '">' + (r.inout === 'In' ? '+' : '') + mny(r.amount) + '</b>' + (r.status ? '<span class="mst">' + esc(r.status) + '</span>' : '') + '</div></div>'; }).join('') + '</div>';
+      return '<div class="mup"><div class="mupd">' + (r.date ? esc(niceDay(r.date) || r.date) : '<span class="l3">No date</span>') + '</div><div class="mupw"><b>' + esc(r.what) + '</b>' + (r.note || r.via ? '<div class="l3">' + esc([r.via, r.note].filter(Boolean).join(' · ')) + '</div>' : '') + '</div><div class="mupa"><b class="' + (r.inout === 'In' ? 'mgreen' : '') + '">' + (r.inout === 'In' ? '+' : '') + mny(r.amount) + '</b>' + (r.status ? '<span class="mst">' + esc(r.status) + '</span>' : '') + '</div></div>'; }).join('') + '</div>';
   });
   return h;
 }
