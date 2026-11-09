@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794251430">
+<html lang="en" data-build="b1794253177">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1015,14 +1015,12 @@ function side() {
   var pile = function (k) { var p = pileOf(k), n = unreadCount(k); return '<button class="nav' + (S.view === k ? ' on' : '') + '" title="' + p.title + '" onclick="go(\'' + k + '\')"><span class="dot" style="background:' + p.color + '"></span><em class="lbl">' + p.title + '</em><span class="n">' + (n || '') + '</span></button>'; };
   var h = '<aside class="side"><div class="brand"><div class="logo">' + I.inbox + '</div><em class="lbl">Inbox</em></div><div class="sidescroll">'
     + '<button class="newmail" title="New email" onclick="newMail()">' + I.pen + '<em class="lbl">New email</em></button>'
-    + nv('home', I.home, 'Home') + nv('review', I.check, 'Review', reviewNeeds().length) + nv('sort', I.spark, 'Quick sort', sortDeck().length)
-    + pile('reply') + pile('todo') + pile('promise') + pile('chase')
+    + nv('home', I.home, 'Home') + nv('review', I.check, 'Review', reviewNeeds().length) + nv('all', I.inbox, 'All mail', unreadCount('all'), 'S.f.acct=\'\';') + nv('sort', I.spark, 'Quick sort', sortDeck().length)
+    + pile('reply') + pile('todo') + pile('promise') + pile('chase') + pile('fix') + pile('learn') + pile('noise') + (unreadCount('new') ? pile('new') : '')
     + nv('whatsapp', I.wa, 'WhatsApp', waWaiting()) + nv('sticky', I.sticky, 'Sticky notes', stickyTotal()) + nv('money', '<span style="width:16px;text-align:center;font-weight:700">£</span>', 'Money')
-    + '<button class="navmore" onclick="S.sideMore=!S.sideMore;try{localStorage.setItem(\'inbox-sidemore\',S.sideMore?1:0)}catch(e){};render()">' + (S.sideMore ? '▾ Less' : '▸ More') + '</button>';
+    + '<button class="navmore" onclick="S.sideMore=!S.sideMore;try{localStorage.setItem(\'inbox-sidemore\',S.sideMore?1:0)}catch(e){};render()">' + (S.sideMore ? '▾ Hide' : '▸ Inboxes, Slack, Trello, Notes') + '</button>';
   if (S.sideMore) {
-    h += nv('all', I.inbox, 'All mail', unreadCount('all'), 'S.f.acct=\'\';')
-      + pile('fix') + pile('learn') + pile('noise') + (unreadCount('new') ? pile('new') : '')
-      + '<div class="navlabel">Inboxes</div>' + inboxNav()
+    h += '<div class="navlabel">Inboxes</div>' + inboxNav()
       + '<div class="navlabel">Apps</div>' + nv('slack', I.slack, 'Slack', slackWaiting()) + nv('trello', I.board, 'Trello') + nv('notes', I.note, 'Notes')
       + '<div class="navlabel">Folders</div><div class="navrow">' + ['sent', 'drafts', 'trash'].map(function (b) { return '<button class="' + (S.view === 'box:' + b ? 'on' : '') + '" onclick="FD.open=null;go(\'box:' + b + '\')">' + BOXES[b] + '</button>'; }).join('') + '</div>';
   }
@@ -2660,9 +2658,13 @@ var BUILD = document.documentElement.dataset.build || '';
 setInterval(function () {
   if (document.hidden || S.newVersion) return;
   fetch(location.pathname + '?v=' + Date.now(), { cache:'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
-    var m = t.match(/data-build="([^"]+)"/); if (m && BUILD && m[1] !== BUILD) { S.newVersion = true; var b = document.createElement('div'); b.className = 'newver'; b.innerHTML = 'A new version is ready. <button class="btn sm pri" onclick="location.reload()">Update</button>'; document.body.appendChild(b); }
+    var m = t.match(/data-build="([^"]+)"/); if (m && BUILD && m[1] !== BUILD) {
+      // Owen, 9 Nov: a fix went live but his open tab kept the old page. Update by itself unless he is typing.
+      var a = document.activeElement, typing = a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.value;
+      if (!typing && !SORT.pending) { location.reload(); return; }
+      S.newVersion = true; var b = document.createElement('div'); b.className = 'newver'; b.innerHTML = 'A new version is ready. <button class="btn sm pri" onclick="location.reload()">Update</button>'; document.body.appendChild(b); }
   }).catch(function () {});
-}, 300000);
+}, 120000);
 (function init() {
   try { var t = localStorage.getItem('inbox-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
   // ?k= is Claude's test key from Owen's Mac: this tab only, never stored.
