@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794236110">
+<html lang="en" data-build="b1794244285">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -145,6 +145,8 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .nmbox textarea { min-height:280px; margin-top:10px; background:transparent; border:0; color:inherit; font:inherit; font-size:15px; line-height:1.5; resize:vertical; outline:0; } .nmbox .cf { display:flex; gap:8px; flex-wrap:wrap; align-items:center; border-top:1px solid var(--line); padding-top:12px; }
 .mflags { border-color:color-mix(in srgb, var(--fix) 45%, transparent); background:color-mix(in srgb, var(--fix) 10%, transparent); color:var(--text); }
 .mflags div { padding:4px 0; font-size:14px; }
+.msheets { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:0 0 14px; } .msheets .l3 { flex:1; }
+.mbva { padding:6px 0; border-bottom:1px solid var(--line); } .mbva:last-child { border-bottom:0; }
 .mtiles { grid-template-columns:repeat(2, minmax(0,1fr)) !important; }
 .mbar { height:8px; border-radius:4px; background:rgba(127,127,127,.2); margin:8px 0 4px; overflow:hidden; } .mbar span { display:block; height:100%; background:#3a86d8; }
 .mtab { width:100%; border-collapse:collapse; font-size:14px; } .mtab th, .mtab td { text-align:left; padding:6px 4px; border-bottom:1px solid var(--line); } .mtab th { color:var(--faint); font-weight:500; font-size:12px; } .mred { color:var(--fix); font-weight:600; }
@@ -1299,13 +1301,21 @@ function reviewNeeds() { return hubPids().reduce(function (a, p) { return a.conc
 function mny(v) { return v === null || v === undefined || v === '' ? '—' : money(v); }
 function moneyView() {
   var o = (S.data.money && S.data.money.overview) || null, t = (S.data.money && S.data.money.tile) || {};
-  var h = '<main class="home moneyv">' + tabs() + '<div class="hero2"><div><div class="day">Money · as of ' + esc((o && o.as_of) || t.as_of || '—') + '</div><h1 class="hello">Money</h1><div class="hellosub">Read only, from your Money chat. Nothing here moves money.</div></div></div>';
+  var h = '<main class="home moneyv">' + tabs() + '<div class="hero2"><div><div class="day">Money · as of ' + esc((o && o.as_of) || t.as_of || '—') + '</div><h1 class="hello">Money</h1><div class="hellosub">Plan from your budget sheet. Spending from Monzo. Read only: change the plan in the sheet.</div></div></div>';
   if (!o) return h + '<div class="box"><div class="empty">Nothing yet. Your Money chat fills this in at each money check.</div></div></main>';
   var me = o.me || {}, sl = o.spending_left || {};
   if ((o.flags || []).length) h += '<div class="box mflags">' + o.flags.map(function (f) { return '<div>⚠️ ' + esc(f) + '</div>'; }).join('') + '</div>';
+  // One place to update (Owen, 9 Nov): the plan lives in his budget sheet, TEZ in the TEZ CASHFLOW tab. Logging happens there.
+  var sheets = (o.budget_sheet ? '<a class="btn sm pri" target="_blank" rel="noopener" href="' + esc(safeUrl(o.budget_sheet)) + '">Add to my budget sheet ↗</a>' : '') + (o.tez && o.tez.sheet ? '<a class="btn sm ghost" target="_blank" rel="noopener" href="' + esc(safeUrl(o.tez.sheet)) + '">TEZ cashflow sheet ↗</a>' : '');
+  if (sheets || o.pay_month) h += '<div class="msheets">' + (o.pay_month ? '<span class="l3">Pay month ' + esc(o.pay_month.from || '') + ' to ' + esc(o.pay_month.to || '') + (o.pay_month.day != null ? ' · day ' + esc(String(o.pay_month.day)) + ' of ' + esc(String(o.pay_month.days || '')) : '') + '</span>' : '') + sheets + '</div>';
+  if ((o.insights || []).length) h += '<div class="box"><h3>What stands out</h3>' + o.insights.map(function (x) { return '<div class="mrow"><span>' + esc(x) + '</span></div>'; }).join('') + '</div>';
   h += '<div class="tiles mtiles"><div class="tile" style="--c:#2fa36b"><div class="lab">Spending left till payday</div><div class="num">' + mny(sl.total != null ? sl.total : t.spending_left) + '</div><div class="hint">' + mny(sl.per_day != null ? sl.per_day : t.per_day) + ' a day · ' + esc(String(sl.days != null ? sl.days : t.days_to_payday || '—')) + ' days to payday (' + esc(o.payday || '') + ')' + (sl.note ? '<br>' + esc(sl.note) : '') + '</div></div>';
   var ef = Number(me.emergency_fund || t.emergency_fund || 0), eg = Number(me.emergency_goal || t.emergency_goal || 0), pc = eg ? Math.min(100, Math.round(ef / eg * 100)) : 0;
   h += '<div class="tile" style="--c:#3a86d8"><div class="lab">Emergency Fund</div><div class="num">' + mny(ef) + '</div><div class="mbar"><span style="width:' + pc + '%"></span></div><div class="hint">' + pc + '% of ' + mny(eg) + ' goal</div></div></div>';
+  var bva = o.budget_vs_actual || [];
+  if (bva.length) h += '<div class="box"><h3>Budget vs spent this pay month</h3>' + bva.map(function (r) { var plan = Number(r.plan || 0), sp = Number(r.spent || 0), w = plan ? Math.min(100, Math.round(sp / plan * 100)) : (sp ? 100 : 0), over = plan ? sp > plan : sp > 0;
+      return '<div class="mbva"><div class="mrow" style="border:0;padding-bottom:2px"><span>' + esc(r.line || '') + (r.note ? ' <i class="l3">' + esc(r.note) + '</i>' : '') + '</span><b' + (over ? ' class="mred"' : '') + '>' + mny(r.spent) + ' of ' + mny(r.plan) + '</b></div><div class="mbar"><span style="width:' + w + '%;background:' + (over ? 'var(--fix)' : '#2fa36b') + '"></span></div></div>'; }).join('') + '</div>';
+  if ((o.top_spend || []).length) h += '<div class="box"><h3>Where it went</h3>' + o.top_spend.map(function (r) { return '<div class="mrow"><span>' + esc(r.name || '') + (r.count ? ' <i class="l3">×' + esc(String(r.count)) + '</i>' : '') + (r.note ? ' <i class="l3">' + esc(r.note) + '</i>' : '') + '</span><b>' + mny(r.amount) + '</b></div>'; }).join('') + '</div>';
   var bills = (o.bills_to_come || []).slice().sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); }), run = 0, main = Number(me.main || 0);
   if (bills.length) h += '<div class="box"><h3>Bills to come</h3><table class="mtab"><tr><th>When</th><th>What</th><th>£</th><th>Running</th></tr>' + bills.map(function (b) { run += Number(b.amount || 0); return '<tr><td>' + esc(b.date || '') + '</td><td>' + esc(b.name || '') + '</td><td>' + mny(b.amount) + '</td><td' + (run > main ? ' class="mred"' : '') + '>' + money(run) + '</td></tr>'; }).join('') + '</table><div class="l3">Main account has ' + mny(me.main) + '. Red = more than what is in main.</div></div>';
   var pots = [['Main', me.main], ['Groceries', me.groceries], ['Petrol', me.petrol], ['Direct debits pot', me.direct_debits_pot], ['Travel', me.travel], ['Fiora', me.fiora], ['Band practice', me.band_practice]].filter(function (x) { return x[1] !== undefined; });
@@ -1313,7 +1323,7 @@ function moneyView() {
   var list = function (title, rows) { return '<div class="box"><h3>' + title + '</h3>' + (rows && rows.length ? rows.map(function (r) { return '<div class="mrow"><span>' + esc(r.who || '') + (r.note ? ' <i class="l3">(' + esc(r.note) + ')</i>' : '') + '</span><b>' + mny(r.amount) + '</b></div>'; }).join('') : '<div class="l3">Nothing.</div>') + '</div>'; };
   h += '<div class="mgrid">' + list('Who owes me', o.owed_to_me) + list('Who I owe', o.i_owe) + '</div>';
   var tz = o.tez || {};
-  h += '<div class="box"><h3>TEZ</h3><div class="mpots"><div><span>Band main</span><b>' + mny(tz.band_main) + '</b></div><div><span>Ads pot</span><b>' + mny(tz.ads_pot) + '</b></div><div><span>Merch pot</span><b>' + mny(tz.merch_pot) + '</b></div><div><span>Band owes you</span><b>' + mny(tz.owes_owen) + '</b></div></div></div>';
+  h += '<div class="box"><h3>TEZ</h3><div class="mpots"><div><span>Band main</span><b>' + mny(tz.band_main) + '</b></div><div><span>Ads pot</span><b>' + mny(tz.ads_pot) + '</b></div><div><span>Merch pot</span><b>' + mny(tz.merch_pot) + '</b></div><div><span>Band owes you</span><b>' + mny(tz.owes_owen) + '</b></div>' + (tz.in_this_month !== undefined ? '<div><span>In this month</span><b>' + mny(tz.in_this_month) + '</b></div>' : '') + (tz.meta_spent_since_27_oct !== undefined ? '<div><span>Meta ads since 27 Oct</span><b>' + mny(tz.meta_spent_since_27_oct) + '</b></div>' : '') + (tz.interest_per_month !== undefined ? '<div><span>Interest a month</span><b>' + mny(tz.interest_per_month) + '</b></div>' : '') + '</div>' + (tz.note ? '<div class="l3" style="margin-top:8px">' + esc(tz.note) + '</div>' : '') + '</div>';
   var sd = o.songdrafts || {};
   if (Object.keys(sd).length) h += '<div class="box"><h3>songdrafts</h3><div class="mpots">' + Object.keys(sd).map(function (k) { var v = sd[k]; return '<div><span>' + esc(k.replace(/_/g, ' ')) + '</span><b>' + (typeof v === 'number' ? mny(v) : esc(String(v))) + '</b></div>'; }).join('') + '</div></div>';
   var mc = ((S.data.review && S.data.review.items) || []).filter(function (i) { return i.area === 'money'; });
