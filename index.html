@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794245290">
+<html lang="en" data-build="b1794250808">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -870,11 +870,15 @@ function phoneBar() {
   b.innerHTML = it('home', I.home, 'Home', 0) + it('all', I.inbox, 'Inbox', unreadCount('all')) + it('sort', I.spark, 'Sort', sortDeck().length) + it('whatsapp', I.wa, 'WhatsApp', waWaiting()) + it('sticky', I.sticky, 'Sticky', stickyTotal()) + it('trello', I.board, 'Trello', 0);
 }
 // ---- Quick sort (Owen, 8 Nov: "like Picnic ... so we could boss through stuff"). One unread email at a time:
-// swipe right = keep (read), left = bin (Gmail bin, back for 30 days), up = sticky note, down = needs a reply.
+// swipe right = keep (stays unread), left = bin (Gmail bin, back for 30 days), up = sticky note, down = needs a reply.
 // Every swipe waits 5 seconds before it happens, so Undo always works. Nothing is ever sent.
 var SORT = { done:{}, last:null, pending:null };
+// Keep (Owen, 9 Nov: "Yes, keep unread"): the email stays unread but leaves the deck. Remembered on this device by
+// email id, so a new email in the same thread comes back to sort.
+SORT.kept = (function () { try { return JSON.parse(localStorage.getItem('inbox-sortkept') || '{}') || {}; } catch (e) { return {}; } })();
+function sortKeep(ids, on) { ids.forEach(function (id) { if (on) SORT.kept[id] = Date.now(); else delete SORT.kept[id]; }); var k = Object.keys(SORT.kept); if (k.length > 3000) k.sort(function (a, b) { return SORT.kept[a] - SORT.kept[b]; }).slice(0, k.length - 3000).forEach(function (x) { delete SORT.kept[x]; }); try { localStorage.setItem('inbox-sortkept', JSON.stringify(SORT.kept)); } catch (e) {} }
 function sortDeck() {
-  var l = groups().filter(function (g) { return g.unread.length && !g.isChat && g.pile !== 'todo' && !SORT.done[g.id]; });
+  var l = groups().filter(function (g) { return g.unread.length && !g.isChat && g.pile !== 'todo' && !SORT.done[g.id] && !g.unread.every(function (e) { return SORT.kept[e.id]; }); });
   return l.sort(function (a, b) { return (b.pile === 'reply') - (a.pile === 'reply') || matters(b.items[0]) - matters(a.items[0]) || Date.parse(b.items[0].received_at) - Date.parse(a.items[0].received_at); });
 }
 function sortAct(kind, sid) {
@@ -884,13 +888,13 @@ function sortAct(kind, sid) {
   SORT.done[g.id] = kind; SORT.last = { g:g, kind:kind, ids:ids, sid:sid };
   SORT.pending = setTimeout(sortCommit, 5000);
   var st = sid ? stickies().filter(function (x) { return x.id == sid; })[0] : null;
-  toast({ keep:'Kept, marked read', bin:'Binned (back for 30 days in Gmail)', sticky:'On the ' + (st ? st.name : '') + ' sticky', reply:'In Reply', todo:'In To do' }[kind] + '. Undo for 5 seconds.');
+  toast({ keep:'Kept, still unread', bin:'Binned (back for 30 days in Gmail)', sticky:'On the ' + (st ? st.name : '') + ' sticky', reply:'In Reply', todo:'In To do' }[kind] + '. Undo for 5 seconds.');
   render();
 }
 function sortCommit() {
   var a = SORT.last; if (!a || !SORT.pending) return; clearTimeout(SORT.pending); SORT.pending = null;
   var before = snap(a.ids);
-  if (a.kind === 'keep') { undoUnread(a.ids, 'kept'); setStatus(a.ids, 'done'); api('markRead', { ids:a.ids }).catch(fail); }
+  if (a.kind === 'keep') { sortKeep(a.ids, true); pushUndo('kept', function () { sortKeep(a.ids, false); }); }
   else if (a.kind === 'bin') { undoGone(before, 'binned', true); remember(a.ids, 'gone'); S.data.emails = S.data.emails.filter(function (e) { return a.ids.indexOf(e.id) < 0; }); api('bin', { ids:a.ids }).catch(fail); }
   else if (a.kind === 'sticky') stickyAddIds(a.sid, a.ids);
   else if (a.kind === 'todo') { undoPile(before, 'to do'); rememberCat(a.ids, 'todo'); S.data.emails.forEach(function (e) { if (a.ids.indexOf(e.id) >= 0) { e.category = 'todo'; e.kind = 'todo'; } }); reGroup(); api('setPile', { ids:a.ids, pile:'todo' }).catch(fail); }
