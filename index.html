@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794250808">
+<html lang="en" data-build="b1794251430">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1013,7 +1013,7 @@ function side() {
   // every day stay; everything else is folded under More (remembered on this device). The list scrolls.
   var nv = function (v, icon, label, n, extra) { return '<button class="nav' + (S.view === v && !(v === 'all' && S.f.acct) ? ' on' : '') + '" title="' + label + '" onclick="' + (extra || '') + 'go(\'' + v + '\')">' + icon + '<em class="lbl">' + label + '</em><span class="n">' + (n || '') + '</span></button>'; };
   var pile = function (k) { var p = pileOf(k), n = unreadCount(k); return '<button class="nav' + (S.view === k ? ' on' : '') + '" title="' + p.title + '" onclick="go(\'' + k + '\')"><span class="dot" style="background:' + p.color + '"></span><em class="lbl">' + p.title + '</em><span class="n">' + (n || '') + '</span></button>'; };
-  var h = '<aside class="side"><div class="brand" title="' + (S.slim ? 'Open the menu' : 'Make the menu slim') + '" style="cursor:pointer" onclick="S.slim=!S.slim;try{localStorage.setItem(\'inbox-slim\',S.slim?1:0)}catch(e){};render()"><div class="logo">' + I.inbox + '</div><em class="lbl">Inbox</em><span class="slimbtn">' + (S.slim ? '»' : '«') + '</span></div><div class="sidescroll">'
+  var h = '<aside class="side"><div class="brand"><div class="logo">' + I.inbox + '</div><em class="lbl">Inbox</em></div><div class="sidescroll">'
     + '<button class="newmail" title="New email" onclick="newMail()">' + I.pen + '<em class="lbl">New email</em></button>'
     + nv('home', I.home, 'Home') + nv('review', I.check, 'Review', reviewNeeds().length) + nv('sort', I.spark, 'Quick sort', sortDeck().length)
     + pile('reply') + pile('todo') + pile('promise') + pile('chase')
@@ -1032,7 +1032,7 @@ function side() {
     + '<button class="iconbtn' + (S.refreshing ? ' spin' : '') + '" title="Check Gmail now (R)" onclick="refresh()">' + I.refresh + '</button>'
     + '<button class="iconbtn" title="Sign out" onclick="signOut()">' + I.out + '</button></div></aside>';
 }
-S.slim = (function () { try { var v = localStorage.getItem('inbox-slim'); return v === null ? true : v === '1'; } catch (e) { return true; } })();
+S.slim = false; // Owen, 9 Nov: "I can't read any of the sidebar". The menu always has words now.
 S.sideMore = (function () { try { return localStorage.getItem('inbox-sidemore') === '1'; } catch (e) { return false; } })();
 function tabs() {
   var h = '<div class="tabs"><div class="tab' + (S.view === 'home' ? ' on' : '') + '" onclick="go(\'home\')">Home</div><div class="tab' + (S.view === 'all' ? ' on' : '') + '" onclick="go(\'all\')">All ' + (unreadCount('all') || '') + '</div><div class="tab' + (S.view === 'reading' ? ' on' : '') + '" onclick="go(\'reading\')">Reading ' + (unreadCount('learn') || '') + '</div>';
