@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794231508">
+<html lang="en" data-build="b1794231642">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -139,6 +139,14 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .when { color:var(--faint); font-size:12px; white-space:nowrap; text-align:right; }
 .when .pd { display:block; margin-top:4px; }
 .wait { color:var(--chase); }
+.mflags { border-color:color-mix(in srgb, var(--fix) 45%, transparent); background:color-mix(in srgb, var(--fix) 10%, transparent); color:var(--text); }
+.mflags div { padding:4px 0; font-size:14px; }
+.mtiles { grid-template-columns:repeat(2, minmax(0,1fr)) !important; }
+.mbar { height:8px; border-radius:4px; background:rgba(127,127,127,.2); margin:8px 0 4px; overflow:hidden; } .mbar span { display:block; height:100%; background:#3a86d8; }
+.mtab { width:100%; border-collapse:collapse; font-size:14px; } .mtab th, .mtab td { text-align:left; padding:6px 4px; border-bottom:1px solid var(--line); } .mtab th { color:var(--faint); font-weight:500; font-size:12px; } .mred { color:var(--fix); font-weight:600; }
+.mpots { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:8px; } .mpots div { display:flex; justify-content:space-between; gap:8px; padding:8px 10px; border-radius:10px; background:rgba(127,127,127,.08); font-size:14px; } .mpots span { color:var(--dim); text-transform:capitalize; }
+.mrow { display:flex; justify-content:space-between; gap:8px; padding:8px 0; border-bottom:1px solid var(--line); font-size:14px; } .mrow:last-child { border-bottom:0; }
+.mgrid { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:14px; }
 .sortv { max-width:560px; margin:0 auto; padding:16px; display:flex; flex-direction:column; min-height:calc(100dvh - 40px); }
 .sortcard { position:relative; flex:1; min-height:52vh; background:var(--raise, #17181d); border:1px solid rgba(127,127,127,.25); border-radius:22px; padding:20px; touch-action:none; user-select:none; cursor:grab; overflow:hidden; box-shadow:0 10px 40px rgba(0,0,0,.35); }
 .sorthead { display:flex; gap:10px; align-items:center; }
@@ -813,8 +821,8 @@ function pileOf(k) { return PILES.filter(function (p) { return p.key === k; })[0
 function render() {
   if (!S.token && !S.key) return renderGate();
   var sc = document.querySelector('.rows, .home'), keep = sc ? sc.scrollTop : 0;
-  var mail = S.view !== 'sort' && S.view !== 'home' && S.view !== 'reading' && S.view !== 'trello' && S.view !== 'person' && S.view !== 'review';
-  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'sticky' ? stickyView() : S.view === 'whatsapp' ? waView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'sort' ? sortView() : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : S.view === 'review' ? reviewView() : home()) + '</div>';
+  var mail = S.view !== 'sort' && S.view !== 'money' && S.view !== 'home' && S.view !== 'reading' && S.view !== 'trello' && S.view !== 'person' && S.view !== 'review';
+  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'sticky' ? stickyView() : S.view === 'whatsapp' ? waView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'sort' ? sortView() : S.view === 'money' ? moneyView() : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : S.view === 'review' ? reviewView() : home()) + '</div>';
   var ns = document.querySelector('.rows, .home'); if (ns) ns.scrollTop = keep;
   bulkBar(); wire(); phoneBar(); swipes();
 }
@@ -967,7 +975,7 @@ function side() {
   var h = '<aside class="side"><div class="brand"><div class="logo">' + I.inbox + '</div>Inbox</div><div class="sidescroll">'
     + nv('home', I.home, 'Home') + nv('sort', I.spark, 'Quick sort', sortDeck().length)
     + pile('reply') + pile('todo') + pile('promise') + pile('chase')
-    + nv('whatsapp', I.wa, 'WhatsApp', waWaiting()) + nv('sticky', I.sticky, 'Sticky notes', stickyTotal()) + nv('review', I.check, 'Review', reviewNeeds().length)
+    + nv('whatsapp', I.wa, 'WhatsApp', waWaiting()) + nv('sticky', I.sticky, 'Sticky notes', stickyTotal()) + nv('review', I.check, 'Review', reviewNeeds().length) + nv('money', '<span style="width:16px;text-align:center;font-weight:700">£</span>', 'Money')
     + '<button class="navmore" onclick="S.sideMore=!S.sideMore;try{localStorage.setItem(\'inbox-sidemore\',S.sideMore?1:0)}catch(e){};render()">' + (S.sideMore ? '▾ Less' : '▸ More') + '</button>';
   if (S.sideMore) {
     h += nv('all', I.inbox, 'All mail', unreadCount('all'), 'S.f.acct=\'\';') + nv('reading', I.book, 'Reading list', unreadCount('learn'))
@@ -1005,12 +1013,12 @@ function home() {
   var h = '<main class="home">' + tabs() + '<div class="hero2"><div style="min-width:0"><div class="day">' + day + '</div><h1 class="hello">' + hi + ', Owen</h1><div class="hellosub">' + (bits.length ? bits.join(' · ') + '.' : 'Inbox clear. Nice.') + '</div>' + waitLine + '</div>'
     + '</div>'
     // Owen, 9 Nov: "so much stuff ... overwhelming". One row of the six he uses; the rest under More.
-    + '<div class="tiles">' + ['reply', 'todo', 'sort', 'whatsapp', 'promise', 'review'].map(homeTile).join('') + '</div>'
+    + '<div class="tiles">' + ['reply', 'todo', 'sort', 'money', 'whatsapp', 'review'].map(homeTile).join('') + '</div>'
     + askBar() + briefCard()
     // Owen, 7 Nov: "the bits below are a bit overwhelming. I don't really scroll." Folded away, one tap to open.
-    + '<button class="btn ghost morebtn" onclick="S.homeMore=!S.homeMore;render()">' + (S.homeMore ? 'Show less' : 'More: Fix, Chase, Learn, Slack, Sticky notes, calendar, inboxes') + '</button>';
+    + '<button class="btn ghost morebtn" onclick="S.homeMore=!S.homeMore;render()">' + (S.homeMore ? 'Show less' : 'More: Promised, Fix, Chase, Learn, Slack, Sticky notes, calendar, inboxes') + '</button>';
   if (!S.homeMore) return h + '</main>';
-  h += '<div class="tiles">' + ['fix', 'chase', 'learn', 'slack', 'sticky', 'calendar'].map(homeTile).join('') + '</div>' + inboxStrip();
+  h += '<div class="tiles">' + ['promise', 'fix', 'chase', 'learn', 'slack', 'sticky', 'calendar'].map(homeTile).join('') + '</div>' + inboxStrip();
   h += reviewHomeCard() + '<div class="hgrid"><div class="hcol">' + tasksBox() + '</div><div class="hcol">';
   var people2 = pileList('reply').slice(0, 7);
   h += '<div class="box"><h3>' + I.pen + 'People waiting on you<span class="badge">' + pileList('reply').length + '</span><span style="flex:1"></span><button class="btn sm ghost" onclick="go(\'reply\')">All</button></h3>'
@@ -1281,6 +1289,32 @@ function hubAll() {
 function reviewData() { return (S.data && S.data.review) || { items:[], decisions:{} }; }
 function reviewNeeds() { return hubPids().reduce(function (a, p) { return a.concat(hubWaiting(p)); }, []); }
 // The other apps as tiles next to the piles (Owen, 7 Nov: "it'd be cool if they could be part of this").
+// ---- Money (9 Nov 2026, Owen said yes to the Money chat). Read only: what the Money chat writes at each money check
+// (app_settings money_tile, money_overview). Never card or account numbers, never a button that moves money.
+function mny(v) { return v === null || v === undefined || v === '' ? '—' : money(v); }
+function moneyView() {
+  var o = (S.data.money && S.data.money.overview) || null, t = (S.data.money && S.data.money.tile) || {};
+  var h = '<main class="home moneyv">' + tabs() + '<div class="hero2"><div><div class="day">Money · as of ' + esc((o && o.as_of) || t.as_of || '—') + '</div><h1 class="hello">Money</h1><div class="hellosub">Read only, from your Money chat. Nothing here moves money.</div></div></div>';
+  if (!o) return h + '<div class="box"><div class="empty">Nothing yet. Your Money chat fills this in at each money check.</div></div></main>';
+  var me = o.me || {}, sl = o.spending_left || {};
+  if ((o.flags || []).length) h += '<div class="box mflags">' + o.flags.map(function (f) { return '<div>⚠️ ' + esc(f) + '</div>'; }).join('') + '</div>';
+  h += '<div class="tiles mtiles"><div class="tile" style="--c:#2fa36b"><div class="lab">Spending left till payday</div><div class="num">' + mny(sl.total != null ? sl.total : t.spending_left) + '</div><div class="hint">' + mny(sl.per_day != null ? sl.per_day : t.per_day) + ' a day · ' + esc(String(sl.days != null ? sl.days : t.days_to_payday || '—')) + ' days to payday (' + esc(o.payday || '') + ')' + (sl.note ? '<br>' + esc(sl.note) : '') + '</div></div>';
+  var ef = Number(me.emergency_fund || t.emergency_fund || 0), eg = Number(me.emergency_goal || t.emergency_goal || 0), pc = eg ? Math.min(100, Math.round(ef / eg * 100)) : 0;
+  h += '<div class="tile" style="--c:#3a86d8"><div class="lab">Emergency Fund</div><div class="num">' + mny(ef) + '</div><div class="mbar"><span style="width:' + pc + '%"></span></div><div class="hint">' + pc + '% of ' + mny(eg) + ' goal</div></div></div>';
+  var bills = (o.bills_to_come || []).slice().sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); }), run = 0, main = Number(me.main || 0);
+  if (bills.length) h += '<div class="box"><h3>Bills to come</h3><table class="mtab"><tr><th>When</th><th>What</th><th>£</th><th>Running</th></tr>' + bills.map(function (b) { run += Number(b.amount || 0); return '<tr><td>' + esc(b.date || '') + '</td><td>' + esc(b.name || '') + '</td><td>' + mny(b.amount) + '</td><td' + (run > main ? ' class="mred"' : '') + '>' + money(run) + '</td></tr>'; }).join('') + '</table><div class="l3">Main account has ' + mny(me.main) + '. Red = more than what is in main.</div></div>';
+  var pots = [['Main', me.main], ['Groceries', me.groceries], ['Petrol', me.petrol], ['Direct debits pot', me.direct_debits_pot], ['Travel', me.travel], ['Fiora', me.fiora], ['Band practice', me.band_practice]].filter(function (x) { return x[1] !== undefined; });
+  h += '<div class="box"><h3>Pots</h3><div class="mpots">' + pots.map(function (x) { return '<div><span>' + x[0] + '</span><b>' + mny(x[1]) + '</b></div>'; }).join('') + '</div></div>';
+  var list = function (title, rows) { return '<div class="box"><h3>' + title + '</h3>' + (rows && rows.length ? rows.map(function (r) { return '<div class="mrow"><span>' + esc(r.who || '') + (r.note ? ' <i class="l3">(' + esc(r.note) + ')</i>' : '') + '</span><b>' + mny(r.amount) + '</b></div>'; }).join('') : '<div class="l3">Nothing.</div>') + '</div>'; };
+  h += '<div class="mgrid">' + list('Who owes me', o.owed_to_me) + list('Who I owe', o.i_owe) + '</div>';
+  var tz = o.tez || {};
+  h += '<div class="box"><h3>TEZ</h3><div class="mpots"><div><span>Band main</span><b>' + mny(tz.band_main) + '</b></div><div><span>Ads pot</span><b>' + mny(tz.ads_pot) + '</b></div><div><span>Merch pot</span><b>' + mny(tz.merch_pot) + '</b></div><div><span>Band owes you</span><b>' + mny(tz.owes_owen) + '</b></div></div></div>';
+  var sd = o.songdrafts || {};
+  if (Object.keys(sd).length) h += '<div class="box"><h3>songdrafts</h3><div class="mpots">' + Object.keys(sd).map(function (k) { var v = sd[k]; return '<div><span>' + esc(k.replace(/_/g, ' ')) + '</span><b>' + (typeof v === 'number' ? mny(v) : esc(String(v))) + '</b></div>'; }).join('') + '</div></div>';
+  var mc = ((S.data.review && S.data.review.items) || []).filter(function (i) { return i.area === 'money'; });
+  if (mc.length) h += '<div class="box"><h3>Money cards to look at<span style="flex:1"></span><button class="btn sm" onclick="go(\'review\')">Open Review</button></h3>' + mc.slice(0, 8).map(function (i) { return '<div class="mrow"><span>' + esc(i.title || '') + '</span></div>'; }).join('') + '</div>';
+  return h + '</main>';
+}
 function homeTile(k) {
   var p = PILES.filter(function (x) { return x.key === k; })[0];
   if (p) return '<div class="tile" style="--c:' + p.color + '" onclick="go(\'' + (k === 'learn' ? 'reading' : k) + '\')"><div class="lab"><span class="pico">' + PILE_ICON[k] + '</span>' + p.title + '</div><div class="num">' + unreadCount(k) + '</div><div class="hint">' + p.help + '</div></div>';
@@ -1289,6 +1323,7 @@ function homeTile(k) {
   if (k === 'whatsapp') return t('whatsapp', '#25d366', I.wa, 'WhatsApp', waWaiting(), 'Unread chats with people.');
   if (k === 'slack') return t('slack', '#a35bd6', I.slack, 'Slack', slackWaiting(), 'Waiting on lazygecko Slack.');
   if (k === 'sticky') { var n = stickyTotal(); return t('sticky', '#d6a23a', I.sticky, 'Sticky notes', n, n ? 'Ready to paste into Claude.' : 'Add things for a Claude chat.'); }
+  if (k === 'money') { var mt = (S.data.money && S.data.money.tile) || null; return t('money', '#2fa36b', '£', 'Money', mt ? money(mt.spending_left) : '—', mt ? money(mt.per_day) + ' a day for ' + mt.days_to_payday + ' days to payday' : 'From your Money chat.'); }
   if (k === 'review') return t('review', '#6d6af5', I.check, 'Review', reviewNeeds().length, 'Things to approve.');
   if (k === 'calendar') { var clashes = (S.data.calendar && S.data.calendar.clashes) || [], ev = ((S.data.calendar || {}).events || []).filter(function (e) { return !e.allDay && Date.parse(e.end) > Date.now(); })[0];
     return '<div class="tile" style="--c:#3a86d8"><div class="lab"><span class="pico">' + I.cal + '</span>Calendar</div><div class="num" style="font-size:' + (ev ? '18px' : '') + '">' + (ev ? esc(hm(ev.start)) : '0') + '</div><div class="hint">' + (clashes.length ? '<span style="color:var(--chase)">' + clashes.length + ' clash' + (clashes.length === 1 ? '' : 'es') + '</span> · ' : '') + (ev ? esc(ev.title).slice(0, 40) : 'Nothing booked.') + '</div></div>'; }
