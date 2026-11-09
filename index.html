@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794236056">
+<html lang="en" data-build="b1794236110">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -2349,7 +2349,15 @@ function nmSend(draft) {
   u.innerHTML = '<span>Sending from <b>' + esc(ACCOUNTS[n.from].label) + '</b> to <b>' + esc(n.to) + '</b>…</span><button class="btn sm">Undo</button>';
   u.querySelector('button').onclick = function () { undone = true; u.remove(); S.nm = n; nmSave(); go('compose'); toast('Not sent'); };
   document.body.appendChild(u); S.nm = { from:n.from, to:'', cc:'', bcc:'', subject:'', text:'' }; nmSave(); go('home');
-  setTimeout(function () { if (undone) return; u.remove(); api('sendNew', Object.assign({ account:n.from }, n)).then(function () { toast('Sent to ' + n.to); }).catch(function (e) { S.nm = n; nmSave(); go('compose'); toast('Did not send: ' + e.message, true); }); }, 5000);
+  setTimeout(function () { if (undone) return; u.remove(); api('sendNew', Object.assign({ account:n.from }, n)).then(function (r) { offerWatch(r.account || n.from, r.threadId, n.to, n.subject, n.text); }).catch(function (e) { S.nm = n; nmSave(); go('compose'); toast('Did not send: ' + e.message, true); }); }, 5000);
+}
+// After any send: keep on top of it (Owen, 9 Nov). Comes back in Chase on the day if they haven't answered.
+function offerWatch(account, threadId, to, subject, text) {
+  if (!account || account === 'slack' || account === 'whatsapp' || !threadId) return;
+  var b = document.createElement('div'); b.className = 'undo';
+  b.innerHTML = '<span>Sent. Remind you if no reply?</span><button class="btn sm" data-d="3">3 days</button><button class="btn sm" data-d="7">1 week</button><button class="btn sm ghost" data-d="0">No</button>';
+  b.querySelectorAll('button').forEach(function (x) { x.onclick = function () { var d = Number(x.getAttribute('data-d')); b.remove(); if (!d) return; api('watchReply', { account:account, threadId:threadId, to:to, subject:subject, text:text, days:d }).then(function () { toast('Back in Chase in ' + (d === 7 ? 'a week' : '3 days') + ' if they haven\'t replied'); }).catch(fail); }; });
+  document.body.appendChild(b); setTimeout(function () { b.remove(); }, 15000);
 }
 function ccBox(key) {
   var c = S.cc[key] || {};
@@ -2368,7 +2376,7 @@ function sendD() {
   document.body.appendChild(u);
   setTimeout(function () {
     if (undone) return; u.remove();
-    api('sendReply', { id:e.id, text:text, cc:cc.cc || '', bcc:cc.bcc || '' }).then(function () { e.draft_text = text; delete S.drafts[g.id]; delete S.cc[g.id]; toast('Sent to ' + to); })
+    api('sendReply', { id:e.id, text:text, cc:cc.cc || '', bcc:cc.bcc || '' }).then(function () { e.draft_text = text; delete S.drafts[g.id]; delete S.cc[g.id]; offerWatch(e.account || 'personal', String(e.id).replace(/^(chase|promise|owed):/, '').replace(/^[a-z]+:/, ''), e.kind === 'in' ? e.from_email : e.to_email, /^re:/i.test(e.subject || '') ? e.subject : 'Re: ' + (e.subject || ''), text); })
       .catch(function (err) { setStatus([e.id], 'open'); S.drafts[g.id] = text; render(); toast('Did not send: ' + err.message, true); });
   }, 5000);
 }
