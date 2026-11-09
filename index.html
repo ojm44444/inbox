@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794231273">
+<html lang="en" data-build="b1794231412">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -43,6 +43,10 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .dbody { overflow-x:hidden; }
 .msg pre { overflow-x:auto; }
 .side { background:var(--side); border-right:1px solid var(--line); display:flex; flex-direction:column; padding:14px 10px; gap:2px; min-height:0; }
+.side { height:100vh; height:100dvh; overflow:hidden; }
+.sidescroll { flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:2px; overscroll-behavior:contain; margin:0 -4px; padding:0 4px; }
+.navmore { background:none; border:0; color:var(--faint); font:inherit; font-size:12.5px; text-align:left; padding:10px 10px 6px; cursor:pointer; }
+.navmore:hover { color:var(--text); }
 .brand { display:flex; align-items:center; gap:10px; padding:4px 8px 16px; font-weight:700; font-size:15px; }
 .logo { width:26px; height:26px; border-radius:8px; background:linear-gradient(135deg,var(--acc),#a26bf5); display:grid; place-items:center; }
 .logo svg { width:15px; height:15px; stroke:#fff; stroke-width:2.2; }
@@ -956,23 +960,29 @@ function fitFrame(f) {
 }
 
 function side() {
+  // Owen, 9 Nov: "there's so much stuff here it feels a bit overwhelming", and it didn't scroll. The things he uses
+  // every day stay; everything else is folded under More (remembered on this device). The list scrolls.
   var nv = function (v, icon, label, n, extra) { return '<button class="nav' + (S.view === v && !(v === 'all' && S.f.acct) ? ' on' : '') + '" onclick="' + (extra || '') + 'go(\'' + v + '\')">' + icon + label + '<span class="n">' + (n || '') + '</span></button>'; };
-  var h = '<aside class="side"><div class="brand"><div class="logo">' + I.inbox + '</div>Inbox</div>'
-    + nv('home', I.home, 'Home') + nv('all', I.inbox, 'All mail', unreadCount('all'), 'S.f.acct=\'\';') + nv('reading', I.book, 'Reading list', unreadCount('learn')) + nv('review', I.check, 'Review', reviewNeeds().length)
-    + '<div class="navlabel">Inboxes</div>' + inboxNav() + '<div class="navlabel">Piles</div>';
-  PILES.forEach(function (p) {
-    var n = unreadCount(p.key); if (p.key === 'new' && !n) return;
-    h += '<button class="nav' + (S.view === p.key ? ' on' : '') + '" onclick="go(\'' + p.key + '\')"><span class="dot" style="background:' + p.color + '"></span>' + p.title + '<span class="n">' + (n || '') + '</span></button>';
-  });
-  h += '<div class="navlabel">Apps</div>' + nv('whatsapp', I.wa, 'WhatsApp', waWaiting()) + nv('slack', I.slack, 'Slack', slackWaiting()) + nv('sticky', I.sticky, 'Sticky notes', stickyTotal()) + nv('trello', I.board, 'Trello') + nv('notes', I.note, 'Notes')
-    + '<button class="nav themebtn" onclick="cycleTheme()">' + (S.theme === 'light' ? '☀️ Light' : S.theme === 'dark' ? '🌙 Dark' : '🌓 Auto') + ' mode</button>'
-    + '<div class="navlabel">Folders</div><div class="navrow">' + ['sent', 'drafts', 'trash'].map(function (b) { return '<button class="' + (S.view === 'box:' + b ? 'on' : '') + '" onclick="FD.open=null;go(\'box:' + b + '\')">' + BOXES[b] + '</button>'; }).join('') + '</div>';
+  var pile = function (k) { var p = pileOf(k), n = unreadCount(k); return '<button class="nav' + (S.view === k ? ' on' : '') + '" onclick="go(\'' + k + '\')"><span class="dot" style="background:' + p.color + '"></span>' + p.title + '<span class="n">' + (n || '') + '</span></button>'; };
+  var h = '<aside class="side"><div class="brand"><div class="logo">' + I.inbox + '</div>Inbox</div><div class="sidescroll">'
+    + nv('home', I.home, 'Home') + nv('sort', I.spark, 'Quick sort', sortDeck().length)
+    + pile('reply') + pile('todo') + pile('promise') + pile('chase')
+    + nv('whatsapp', I.wa, 'WhatsApp', waWaiting()) + nv('sticky', I.sticky, 'Sticky notes', stickyTotal()) + nv('review', I.check, 'Review', reviewNeeds().length)
+    + '<button class="navmore" onclick="S.sideMore=!S.sideMore;try{localStorage.setItem(\'inbox-sidemore\',S.sideMore?1:0)}catch(e){};render()">' + (S.sideMore ? '▾ Less' : '▸ More') + '</button>';
+  if (S.sideMore) {
+    h += nv('all', I.inbox, 'All mail', unreadCount('all'), 'S.f.acct=\'\';') + nv('reading', I.book, 'Reading list', unreadCount('learn'))
+      + pile('fix') + pile('learn') + pile('noise') + (unreadCount('new') ? pile('new') : '')
+      + '<div class="navlabel">Inboxes</div>' + inboxNav()
+      + '<div class="navlabel">Apps</div>' + nv('slack', I.slack, 'Slack', slackWaiting()) + nv('trello', I.board, 'Trello') + nv('notes', I.note, 'Notes')
+      + '<div class="navlabel">Folders</div><div class="navrow">' + ['sent', 'drafts', 'trash'].map(function (b) { return '<button class="' + (S.view === 'box:' + b ? 'on' : '') + '" onclick="FD.open=null;go(\'box:' + b + '\')">' + BOXES[b] + '</button>'; }).join('') + '</div>';
+  }
   var last = S.data && S.data.last && S.data.last.at;
-  return h + '<div class="sidefoot"><span style="flex:1">' + (S.stale ? 'Updating…' : last ? 'Synced ' + ago(last) + ' ago' : '') + '</span>'
-    + '<button class="iconbtn" title="Light or dark" onclick="theme()">' + I.sun + '</button>'
+  return h + '</div><div class="sidefoot"><span style="flex:1">' + (S.stale ? 'Updating…' : last ? 'Synced ' + ago(last) + ' ago' : '') + '</span>'
+    + '<button class="iconbtn" title="' + (S.theme === 'light' ? 'Light' : S.theme === 'dark' ? 'Dark' : 'Auto (follows your Mac)') + ' mode: tap to change" onclick="cycleTheme()">' + (S.theme === 'light' ? '☀️' : S.theme === 'dark' ? '🌙' : '🌓') + '</button>'
     + '<button class="iconbtn' + (S.refreshing ? ' spin' : '') + '" title="Check Gmail now (R)" onclick="refresh()">' + I.refresh + '</button>'
     + '<button class="iconbtn" title="Sign out" onclick="signOut()">' + I.out + '</button></div></aside>';
 }
+S.sideMore = (function () { try { return localStorage.getItem('inbox-sidemore') === '1'; } catch (e) { return false; } })();
 function tabs() {
   var h = '<div class="tabs"><div class="tab' + (S.view === 'home' ? ' on' : '') + '" onclick="go(\'home\')">Home</div><div class="tab' + (S.view === 'all' ? ' on' : '') + '" onclick="go(\'all\')">All ' + (unreadCount('all') || '') + '</div><div class="tab' + (S.view === 'reading' ? ' on' : '') + '" onclick="go(\'reading\')">Reading ' + (unreadCount('learn') || '') + '</div>';
   PILES.forEach(function (p) { var n = unreadCount(p.key); if (!n && p.key !== S.view) return; h += '<div class="tab' + (S.view === p.key ? ' on' : '') + '" onclick="go(\'' + p.key + '\')"><span class="dot" style="background:' + p.color + '"></span>' + p.title + ' ' + n + '</div>'; });
