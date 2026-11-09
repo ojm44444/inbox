@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794244836">
+<html lang="en" data-build="b1794244929">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -39,6 +39,13 @@ a { color:var(--acc2); text-decoration:none; }
 svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; flex:none; }
 .app { display:grid; grid-template-columns:220px minmax(0,1fr); height:100vh; height:100dvh; }
 .app.mail { grid-template-columns:220px 420px minmax(0,1fr); }
+.nav em.lbl, .brand em.lbl, .newmail em.lbl { font-style:normal; }
+.brand { display:flex; align-items:center; gap:10px; } .slimbtn { margin-left:auto; color:var(--faint); font-size:16px; }
+.app.slim { grid-template-columns:64px minmax(0,1fr); } .app.slim.mail { grid-template-columns:64px 420px minmax(0,1fr); }
+.app.slim .side { padding:14px 8px; } .app.slim .side em.lbl, .app.slim .navmore, .app.slim .side .navlabel, .app.slim .side .navrow, .app.slim .sidefoot span { display:none; }
+.app.slim .brand { justify-content:center; } .app.slim .brand .slimbtn { display:none; } .app.slim .brand .logo { margin:0; }
+.app.slim .nav { justify-content:center; position:relative; padding:9px 0; } .app.slim .nav .n { position:absolute; top:2px; right:2px; font-size:10px; min-width:16px; }
+.app.slim .nav .dot { width:10px; height:10px; } .app.slim .newmail { padding:9px 0; } .app.slim .sidefoot { flex-direction:column; gap:6px; }
 .detail, .list { min-width:0; }
 .dbody { overflow-x:hidden; }
 .msg pre { overflow-x:auto; }
@@ -846,7 +853,7 @@ function render() {
   if (!S.token && !S.key) return renderGate();
   var sc = document.querySelector('.rows, .home'), keep = sc ? sc.scrollTop : 0;
   var mail = S.view !== 'sort' && S.view !== 'compose' && S.view !== 'money' && S.view !== 'home' && S.view !== 'reading' && S.view !== 'trello' && S.view !== 'person' && S.view !== 'review';
-  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'sticky' ? stickyView() : S.view === 'whatsapp' ? waView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'sort' ? sortView() : S.view === 'money' ? moneyView() : S.view === 'compose' ? composeView() : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : S.view === 'review' ? reviewView() : home()) + '</div>';
+  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + (S.slim ? ' slim' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'sticky' ? stickyView() : S.view === 'whatsapp' ? waView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'sort' ? sortView() : S.view === 'money' ? moneyView() : S.view === 'compose' ? composeView() : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : S.view === 'review' ? reviewView() : home()) + '</div>';
   var ns = document.querySelector('.rows, .home'); if (ns) ns.scrollTop = keep;
   bulkBar(); wire(); phoneBar(); swipes();
 }
@@ -994,13 +1001,13 @@ function fitFrame(f) {
 function side() {
   // Owen, 9 Nov: "there's so much stuff here it feels a bit overwhelming", and it didn't scroll. The things he uses
   // every day stay; everything else is folded under More (remembered on this device). The list scrolls.
-  var nv = function (v, icon, label, n, extra) { return '<button class="nav' + (S.view === v && !(v === 'all' && S.f.acct) ? ' on' : '') + '" onclick="' + (extra || '') + 'go(\'' + v + '\')">' + icon + label + '<span class="n">' + (n || '') + '</span></button>'; };
-  var pile = function (k) { var p = pileOf(k), n = unreadCount(k); return '<button class="nav' + (S.view === k ? ' on' : '') + '" onclick="go(\'' + k + '\')"><span class="dot" style="background:' + p.color + '"></span>' + p.title + '<span class="n">' + (n || '') + '</span></button>'; };
-  var h = '<aside class="side"><div class="brand"><div class="logo">' + I.inbox + '</div>Inbox</div><div class="sidescroll">'
-    + '<button class="newmail" onclick="newMail()">' + I.pen + 'New email</button>'
-    + nv('home', I.home, 'Home') + nv('sort', I.spark, 'Quick sort', sortDeck().length)
+  var nv = function (v, icon, label, n, extra) { return '<button class="nav' + (S.view === v && !(v === 'all' && S.f.acct) ? ' on' : '') + '" title="' + label + '" onclick="' + (extra || '') + 'go(\'' + v + '\')">' + icon + '<em class="lbl">' + label + '</em><span class="n">' + (n || '') + '</span></button>'; };
+  var pile = function (k) { var p = pileOf(k), n = unreadCount(k); return '<button class="nav' + (S.view === k ? ' on' : '') + '" title="' + p.title + '" onclick="go(\'' + k + '\')"><span class="dot" style="background:' + p.color + '"></span><em class="lbl">' + p.title + '</em><span class="n">' + (n || '') + '</span></button>'; };
+  var h = '<aside class="side"><div class="brand" title="' + (S.slim ? 'Open the menu' : 'Make the menu slim') + '" style="cursor:pointer" onclick="S.slim=!S.slim;try{localStorage.setItem(\'inbox-slim\',S.slim?1:0)}catch(e){};render()"><div class="logo">' + I.inbox + '</div><em class="lbl">Inbox</em><span class="slimbtn">' + (S.slim ? '»' : '«') + '</span></div><div class="sidescroll">'
+    + '<button class="newmail" title="New email" onclick="newMail()">' + I.pen + '<em class="lbl">New email</em></button>'
+    + nv('home', I.home, 'Home') + nv('review', I.check, 'Review', reviewNeeds().length) + nv('sort', I.spark, 'Quick sort', sortDeck().length)
     + pile('reply') + pile('todo') + pile('promise') + pile('chase')
-    + nv('whatsapp', I.wa, 'WhatsApp', waWaiting()) + nv('sticky', I.sticky, 'Sticky notes', stickyTotal()) + nv('review', I.check, 'Review', reviewNeeds().length) + nv('money', '<span style="width:16px;text-align:center;font-weight:700">£</span>', 'Money')
+    + nv('whatsapp', I.wa, 'WhatsApp', waWaiting()) + nv('sticky', I.sticky, 'Sticky notes', stickyTotal()) + nv('money', '<span style="width:16px;text-align:center;font-weight:700">£</span>', 'Money')
     + '<button class="navmore" onclick="S.sideMore=!S.sideMore;try{localStorage.setItem(\'inbox-sidemore\',S.sideMore?1:0)}catch(e){};render()">' + (S.sideMore ? '▾ Less' : '▸ More') + '</button>';
   if (S.sideMore) {
     h += nv('all', I.inbox, 'All mail', unreadCount('all'), 'S.f.acct=\'\';') + nv('reading', I.book, 'Reading list', unreadCount('learn'))
@@ -1015,6 +1022,7 @@ function side() {
     + '<button class="iconbtn' + (S.refreshing ? ' spin' : '') + '" title="Check Gmail now (R)" onclick="refresh()">' + I.refresh + '</button>'
     + '<button class="iconbtn" title="Sign out" onclick="signOut()">' + I.out + '</button></div></aside>';
 }
+S.slim = (function () { try { var v = localStorage.getItem('inbox-slim'); return v === null ? true : v === '1'; } catch (e) { return true; } })();
 S.sideMore = (function () { try { return localStorage.getItem('inbox-sidemore') === '1'; } catch (e) { return false; } })();
 function tabs() {
   var h = '<div class="tabs"><div class="tab' + (S.view === 'home' ? ' on' : '') + '" onclick="go(\'home\')">Home</div><div class="tab' + (S.view === 'all' ? ' on' : '') + '" onclick="go(\'all\')">All ' + (unreadCount('all') || '') + '</div><div class="tab' + (S.view === 'reading' ? ' on' : '') + '" onclick="go(\'reading\')">Reading ' + (unreadCount('learn') || '') + '</div>';
@@ -1038,7 +1046,7 @@ function home() {
   var h = '<main class="home">' + tabs() + '<div class="hero2"><div style="min-width:0"><div class="day">' + day + '</div><h1 class="hello">' + hi + ', Owen</h1><div class="hellosub">' + (bits.length ? bits.join(' · ') + '.' : 'Inbox clear. Nice.') + '</div>' + waitLine + '</div>'
     + '</div>'
     // Owen, 9 Nov: "so much stuff ... overwhelming". One row of the six he uses; the rest under More.
-    + '<div class="tiles">' + ['reply', 'todo', 'sort', 'money', 'whatsapp', 'review'].map(homeTile).join('') + '</div>'
+    + '<div class="tiles">' + ['review', 'reply', 'todo', 'sort', 'money', 'whatsapp'].map(homeTile).join('') + '</div>'
     + askBar() + briefCard()
     // Owen, 7 Nov: "the bits below are a bit overwhelming. I don't really scroll." Folded away, one tap to open.
     + '<button class="btn ghost morebtn" onclick="S.homeMore=!S.homeMore;render()">' + (S.homeMore ? 'Show less' : 'More: Promised, Fix, Chase, Learn, Slack, Sticky notes, calendar, inboxes') + '</button>';
@@ -1380,8 +1388,10 @@ function moneyUpcomingView(o, payday) {
   if (!S.mup) return h + '<div class="box"><div class="skel" style="height:160px"></div></div>';
   if (S.mup.err) return h + '<div class="box"><div class="l3">Could not read your sheet: ' + esc(S.mup.err) + '</div></div>';
   var rows = S.mup.rows.slice().sort(function (a, b) { return (a.date ? 0 : 1) - (b.date ? 0 : 1) || String(a.date).localeCompare(String(b.date)); });
-  var before = rows.filter(function (r) { return r.inout === 'Out' && r.amount && (!payday || String(r.date) <= String(payday)); }).reduce(function (n, r) { return n + Number(r.amount); }, 0);
-  h += '<div class="mupsum"><div><span>Going out before payday</span><b class="mred">' + money(before) + '</b></div>' + (o.upcoming_sheet ? '<a class="btn sm ghost" target="_blank" rel="noopener" href="' + esc(safeUrl(o.upcoming_sheet)) + '">Open the sheet ↗</a>' : '') + '<button class="btn sm pri" onclick="S.mlog=true;render()">+ Log it</button></div>';
+  // Owen, 9 Nov: is this extra, or already in a pot? Paid from a pot = already set aside; the rest has to come from Main.
+  var dueSoon = rows.filter(function (r) { return r.inout === 'Out' && r.amount && (!payday || !r.date || String(r.date) <= String(payday)) && r.date; });
+  var covered = dueSoon.filter(function (r) { return /pot/i.test(r.via || ''); }).reduce(function (n, r) { return n + Number(r.amount); }, 0), extra = dueSoon.filter(function (r) { return !/pot/i.test(r.via || ''); }).reduce(function (n, r) { return n + Number(r.amount); }, 0);
+  h += '<div class="mupsum"><div><span>Still to find from Main before payday</span><b class="mred">' + money(extra) + '</b></div><div><span>Already covered by a pot</span><b>' + money(covered) + '</b></div>' + (o.upcoming_sheet ? '<a class="btn sm ghost" target="_blank" rel="noopener" href="' + esc(safeUrl(o.upcoming_sheet)) + '">Open the sheet ↗</a>' : '') + '<button class="btn sm pri" onclick="S.mlog=true;render()">+ Log it</button></div>';
   ['Me', 'TEZ', 'songdrafts', 'Business'].forEach(function (who) {
     var l = rows.filter(function (r) { return (r.whose || 'Me') === who; }); if (!l.length) return;
     var out = l.filter(function (r) { return r.inout === 'Out' && r.amount; }).reduce(function (n, r) { return n + Number(r.amount); }, 0), inn = l.filter(function (r) { return r.inout === 'In' && r.amount; }).reduce(function (n, r) { return n + Number(r.amount); }, 0);
