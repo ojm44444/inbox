@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794244377">
+<html lang="en" data-build="b1794244409">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1310,7 +1310,7 @@ function moneyView() {
   var sheets = (o.budget_sheet ? '<a class="btn sm pri" target="_blank" rel="noopener" href="' + esc(safeUrl(o.budget_sheet)) + '">Add to my budget sheet ↗</a>' : '') + (o.tez && o.tez.sheet ? '<a class="btn sm ghost" target="_blank" rel="noopener" href="' + esc(safeUrl(o.tez.sheet)) + '">TEZ cashflow sheet ↗</a>' : '');
   if (sheets || o.pay_month) h += '<div class="msheets">' + (o.pay_month ? '<span class="l3">Pay month ' + esc(o.pay_month.from || '') + ' to ' + esc(o.pay_month.to || '') + (o.pay_month.day != null ? ' · day ' + esc(String(o.pay_month.day)) + ' of ' + esc(String(o.pay_month.days || '')) : '') + '</span>' : '') + sheets + '</div>';
   if ((o.insights || []).length) h += '<div class="box"><h3>What stands out</h3>' + o.insights.map(function (x) { return '<div class="mrow"><span>' + esc(x) + '</span></div>'; }).join('') + '</div>';
-  h += '<div class="tiles mtiles"><div class="tile" style="--c:#2fa36b"><div class="lab">Spending left till payday</div><div class="num">' + mny(sl.total != null ? sl.total : t.spending_left) + '</div><div class="hint">' + mny(sl.per_day != null ? sl.per_day : t.per_day) + ' a day · ' + esc(String(sl.days != null ? sl.days : t.days_to_payday || '—')) + ' days to payday (' + esc(o.payday || '') + ')' + (sl.note ? '<br>' + esc(sl.note) : '') + '</div></div>';
+  h += '<div class="tiles mtiles"><div class="tile" style="--c:#2fa36b"><div class="lab">Spending left till payday</div><div class="num">' + mny(sl.total != null ? sl.total : t.spending_left) + '</div><div class="hint">' + mny(sl.per_day != null ? sl.per_day : t.per_day) + ' a day · ' + esc(String(sl.days != null ? sl.days : t.days_to_payday || '—')) + ' days to payday' + ((o.payday || (o.pay_month && o.pay_month.to)) ? ' (' + esc(o.payday || o.pay_month.to) + ')' : '') + (sl.note ? '<br>' + esc(sl.note) : '') + '</div></div>';
   var ef = Number(me.emergency_fund || t.emergency_fund || 0), eg = Number(me.emergency_goal || t.emergency_goal || 0), pc = eg ? Math.min(100, Math.round(ef / eg * 100)) : 0;
   h += '<div class="tile" style="--c:#3a86d8"><div class="lab">Emergency Fund</div><div class="num">' + mny(ef) + '</div><div class="mbar"><span style="width:' + pc + '%"></span></div><div class="hint">' + pc + '% of ' + mny(eg) + ' goal</div></div></div>';
   var bva = o.budget_vs_actual || [];
