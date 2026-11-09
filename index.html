@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794099955">
+<html lang="en" data-build="b1794231273">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -165,12 +165,31 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .tiles.apps { margin-top:-10px; }
 .tiles.apps + .strip { margin-bottom:16px; }
 .morebtn { display:block; margin:18px auto 30px; }
-.wam { width:fit-content; max-width:min(72%, 560px); margin:6px 14px; padding:7px 10px; border-radius:10px; background:rgba(127,127,127,.12); font-size:14px; line-height:1.4; white-space:pre-wrap; word-wrap:break-word; }
-.wam.me { margin-left:auto; background:color-mix(in srgb, #25d366 22%, transparent); }
-.wam .was { font-size:12px; font-weight:600; color:#25d366; margin-bottom:2px; }
-.wam .wat { font-size:11px; color:var(--faint); text-align:right; margin-top:2px; }
-.wacomp { display:flex; gap:8px; padding:10px 14px; border-top:1px solid rgba(127,127,127,.2); }
-.wacomp textarea { flex:1; min-height:44px; max-height:160px; resize:vertical; background:rgba(127,127,127,.08); color:inherit; border:1px solid rgba(127,127,127,.25); border-radius:10px; padding:10px; font:inherit; font-size:14px; }
+:root { --wabg:#0b141a; --wain:#202c33; --waout:#005c4b; --watext:#e9edef; --wadim:#8696a0; --wainput:#2a3942; }
+:root[data-theme="light"] { --wabg:#efeae2; --wain:#ffffff; --waout:#d9fdd3; --watext:#111b21; --wadim:#667781; --wainput:#ffffff; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --wabg:#efeae2; --wain:#ffffff; --waout:#d9fdd3; --watext:#111b21; --wadim:#667781; --wainput:#ffffff; } }
+.warow { display:flex; gap:12px; align-items:center; padding:10px 14px; cursor:pointer; border-bottom:1px solid var(--line); }
+.warow:hover { background:var(--hover); } .warow.on { background:var(--sel); }
+.waav { width:46px; height:46px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:15px; }
+.waav.sm { width:36px; height:36px; font-size:13px; }
+.wamid { flex:1; min-width:0; } .watop, .wabot { display:flex; justify-content:space-between; gap:8px; align-items:center; }
+.watop b { font-weight:600; font-size:15.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .watop span { font-size:12px; color:var(--faint); flex:none; }
+.warow.unread .watop span { color:#25d366; font-weight:600; }
+.wabot span { font-size:13.5px; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.wabot i { font-style:normal; background:#25d366; color:#04210f; border-radius:11px; min-width:20px; height:20px; padding:0 6px; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; flex:none; }
+.wahead { display:flex; gap:10px; align-items:center; padding:10px 14px; border-bottom:1px solid var(--line); background:var(--panel); }
+.wahead b { font-size:16px; }
+.wawall { background-color:var(--wabg); background-image:radial-gradient(rgba(127,127,127,.07) 1px, transparent 1px); background-size:18px 18px; padding:10px 0 14px; }
+.waday { text-align:center; margin:12px 0 6px; } .waday span { background:var(--wain); color:var(--wadim); font-size:12px; padding:5px 12px; border-radius:8px; box-shadow:0 1px .5px rgba(0,0,0,.13); }
+.wam { width:fit-content; max-width:min(75%, 560px); margin:3px 14px; padding:6px 8px 6px 10px !important; border-radius:9px; border-top-left-radius:2px; background:var(--wain) !important; color:var(--watext); box-shadow:0 1px .5px rgba(0,0,0,.13); font-size:14.5px; line-height:1.38; white-space:pre-wrap; word-wrap:break-word; }
+.wam.me { margin-left:auto; background:var(--waout) !important; border-top-left-radius:9px; border-top-right-radius:2px; }
+.wam .watx a { color:#53bdeb; } .wam .wat { float:right; margin:6px 0 -4px 10px; font-size:11px; color:var(--wadim) !important; white-space:nowrap; }
+.wam.me .wat { color:#53bdeb !important; }
+.wacomp { display:flex; gap:8px; align-items:flex-end; padding:8px 12px; background:var(--panel); border-top:1px solid var(--line); }
+.wacomp textarea { flex:1; min-height:42px; max-height:140px; resize:none; background:var(--wainput) !important; color:var(--watext); border:1px solid var(--line2) !important; border-radius:21px !important; padding:10px 16px !important; font:inherit; font-size:15px; }
+.wasend { width:42px; height:42px; border-radius:50%; border:0; background:#00a884; color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; flex:none; }
+.wasend svg { width:20px; height:20px; stroke:currentColor; fill:none; stroke-width:2; }
+@media (max-width:900px) { .wacomp { margin-bottom:calc(66px + env(safe-area-inset-bottom)); } }
 .seg { display:flex; gap:4px; }
 .seg button { border:1px solid rgba(127,127,127,.25); background:none; color:inherit; border-radius:8px; padding:4px 10px; font-size:12.5px; cursor:pointer; }
 .seg button.on { background:rgba(127,127,127,.18); }
@@ -821,11 +840,12 @@ function sortAct(kind, sid) {
 }
 function sortCommit() {
   var a = SORT.last; if (!a || !SORT.pending) return; clearTimeout(SORT.pending); SORT.pending = null;
-  if (a.kind === 'keep') { setStatus(a.ids, 'done'); api('markRead', { ids:a.ids }).catch(fail); }
-  else if (a.kind === 'bin') { remember(a.ids, 'gone'); S.data.emails = S.data.emails.filter(function (e) { return a.ids.indexOf(e.id) < 0; }); api('bin', { ids:a.ids }).catch(fail); }
+  var before = snap(a.ids);
+  if (a.kind === 'keep') { undoUnread(a.ids, 'kept'); setStatus(a.ids, 'done'); api('markRead', { ids:a.ids }).catch(fail); }
+  else if (a.kind === 'bin') { undoGone(before, 'binned', true); remember(a.ids, 'gone'); S.data.emails = S.data.emails.filter(function (e) { return a.ids.indexOf(e.id) < 0; }); api('bin', { ids:a.ids }).catch(fail); }
   else if (a.kind === 'sticky') stickyAddIds(a.sid, a.ids);
-  else if (a.kind === 'todo') { rememberCat(a.ids, 'todo'); S.data.emails.forEach(function (e) { if (a.ids.indexOf(e.id) >= 0) { e.category = 'todo'; e.kind = 'todo'; } }); reGroup(); api('setPile', { ids:a.ids, pile:'todo' }).catch(fail); }
-  else if (a.kind === 'reply') { rememberCat(a.ids, 'reply'); S.data.emails.forEach(function (e) { if (a.ids.indexOf(e.id) >= 0) e.category = 'reply'; }); reGroup(); api('setPile', { ids:a.ids, pile:'reply' }).catch(fail); }
+  else if (a.kind === 'todo') { undoPile(before, 'to do'); rememberCat(a.ids, 'todo'); S.data.emails.forEach(function (e) { if (a.ids.indexOf(e.id) >= 0) { e.category = 'todo'; e.kind = 'todo'; } }); reGroup(); api('setPile', { ids:a.ids, pile:'todo' }).catch(fail); }
+  else if (a.kind === 'reply') { undoPile(before, 'needs reply'); rememberCat(a.ids, 'reply'); S.data.emails.forEach(function (e) { if (a.ids.indexOf(e.id) >= 0) e.category = 'reply'; }); reGroup(); api('setPile', { ids:a.ids, pile:'reply' }).catch(fail); }
 }
 function sortSticky(sel) {
   var v = sel.value; sel.value = ''; if (!v) return;
@@ -843,7 +863,7 @@ function unsub(gid, inSort) {
   }).catch(function (err) { if (win) win.close(); fail(err); });
 }
 function sortTodo() { sortAct('todo'); }
-function sortUndo() { var a = SORT.last; if (!a || !SORT.pending) { toast('Nothing to undo'); return; } clearTimeout(SORT.pending); SORT.pending = null; delete SORT.done[a.g.id]; SORT.last = null; toast('Undone'); render(); }
+function sortUndo() { var a = SORT.last; if (!a || !SORT.pending) { var u = S.undo[S.undo.length - 1]; if (u) { S.undo.pop(); try { u.fn(); } catch (e) {} if (a) delete SORT.done[a.g.id]; render(); toast('Undone: ' + u.label); } else toast('Nothing to undo'); return; } clearTimeout(SORT.pending); SORT.pending = null; delete SORT.done[a.g.id]; SORT.last = null; toast('Undone'); render(); }
 function sortView() {
   var deck = sortDeck(), g = deck[0], total = deck.length + Object.keys(SORT.done).length, n = Object.keys(SORT.done).length + 1;
   var h = '<main class="sortv">' + tabs();
@@ -945,6 +965,7 @@ function side() {
     h += '<button class="nav' + (S.view === p.key ? ' on' : '') + '" onclick="go(\'' + p.key + '\')"><span class="dot" style="background:' + p.color + '"></span>' + p.title + '<span class="n">' + (n || '') + '</span></button>';
   });
   h += '<div class="navlabel">Apps</div>' + nv('whatsapp', I.wa, 'WhatsApp', waWaiting()) + nv('slack', I.slack, 'Slack', slackWaiting()) + nv('sticky', I.sticky, 'Sticky notes', stickyTotal()) + nv('trello', I.board, 'Trello') + nv('notes', I.note, 'Notes')
+    + '<button class="nav themebtn" onclick="cycleTheme()">' + (S.theme === 'light' ? '☀️ Light' : S.theme === 'dark' ? '🌙 Dark' : '🌓 Auto') + ' mode</button>'
     + '<div class="navlabel">Folders</div><div class="navrow">' + ['sent', 'drafts', 'trash'].map(function (b) { return '<button class="' + (S.view === 'box:' + b ? 'on' : '') + '" onclick="FD.open=null;go(\'box:' + b + '\')">' + BOXES[b] + '</button>'; }).join('') + '</div>';
   var last = S.data && S.data.last && S.data.last.at;
   return h + '<div class="sidefoot"><span style="flex:1">' + (S.stale ? 'Updating…' : last ? 'Synced ' + ago(last) + ' ago' : '') + '</span>'
@@ -1521,12 +1542,14 @@ function waSendIt() {
 }
 // Every 4s while linking (the code changes every 20s), every 16s once linked.
 WA.tick = 0; setInterval(function () { if (S.view !== 'whatsapp' || document.hidden) return; var linked = WA.list && WA.list.status && WA.list.status.state === 'open'; if (linked && (WA.tick++ % 4)) return; waLoad(); if (WA.chat && linked) waHist(WA.chat); }, 4000);
+function waWhen(ts) { var d = new Date(ts), n = new Date(); if (d.toDateString() === n.toDateString()) return hm(ts); var y = new Date(n.getTime() - 86400000); if (d.toDateString() === y.toDateString()) return 'Yesterday'; return d.toLocaleDateString('en-GB', Date.now() - d < 6 * 86400000 ? { weekday:'long' } : { day:'numeric', month:'short' }); }
+function waDay(ts) { var w = waWhen(ts); return /:/.test(w) ? 'Today' : w; }
 function waView() {
   if (!WA.list && !WA.busy) waLoad();
   var L = WA.list || {}, st = L.status || {}, chats = (L.chats || []).filter(function (c) { return WA.f === 'all' || (WA.f === 'people' ? !c.is_group : WA.f === 'groups' ? c.is_group : c.unread > 0); });
   var list = '<section class="list">' + tabs() + '<div class="listhead"><div style="flex:1;min-width:0"><h1>WhatsApp</h1><div class="sub">' + (st.state === 'open' ? 'Linked from your Mac. Free.' : 'Not linked yet') + '</div></div><button class="iconbtn' + (WA.busy ? ' spin' : '') + '" onclick="waLoad()">' + I.refresh + '</button></div>'
     + '<div class="filters"><div class="seg">' + [['all','All'],['unread','Unread'],['people','People'],['groups','Groups']].map(function (x) { return '<button class="' + (WA.f === x[0] ? 'on' : '') + '" onclick="WA.f=\'' + x[0] + '\';render()">' + x[1] + '</button>'; }).join('') + '</div></div><div class="rows">'
-    + (!WA.list ? '<div class="skel" style="height:300px;margin:12px"></div>' : chats.length ? chats.map(function (c) { return '<div class="strow' + (WA.chat === c.id ? ' on' : '') + '" onclick="waOpen(\'' + c.id + '\')"><div class="rowav" style="background:' + (c.is_group ? '#1f8f5f' : hue(c.id)) + '">' + esc(initials(c.name || '?')) + '</div><div style="min-width:0;flex:1"><div class="t">' + esc(c.name || '') + '</div><div class="l3" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (c.last_from_me ? 'You: ' : c.is_group && c.last_sender ? esc(c.last_sender) + ': ' : '') + esc(c.last_text || '') + '</div></div><div style="text-align:right"><div class="l3">' + ago(c.last_ts) + '</div>' + (c.unread ? '<span class="badge" style="background:#25d366;color:#04210f">' + c.unread + '</span>' : '') + '</div></div>'; }).join('') : '<div class="empty">' + (st.state === 'open' ? 'Nothing here yet. New messages show up as they come in.' : '') + '</div>') + '</div></section>';
+    + (!WA.list ? '<div class="skel" style="height:300px;margin:12px"></div>' : chats.length ? chats.map(function (c) { return '<div class="warow' + (WA.chat === c.id ? ' on' : '') + (c.unread ? ' unread' : '') + '" onclick="waOpen(\'' + c.id + '\')"><div class="waav" style="background:' + (c.is_group ? '#1f8f5f' : hue(c.id)) + '">' + (c.is_group ? '👥' : esc(initials(c.name || '?'))) + '</div><div class="wamid"><div class="watop"><b>' + esc(c.name || '') + '</b><span>' + waWhen(c.last_ts) + '</span></div><div class="wabot"><span>' + (c.last_from_me ? '✓✓ ' : c.is_group && c.last_sender ? esc(c.last_sender) + ': ' : '') + esc(c.last_text || '') + '</span>' + (c.unread ? '<i>' + c.unread + '</i>' : '') + '</div></div></div>'; }).join('') : '<div class="empty">' + (st.state === 'open' ? 'Nothing here yet. New messages show up as they come in.' : '') + '</div>') + '</div></section>';
   var det = '<section class="detail sldetail' + (S.phoneOpen && WA.chat ? ' open' : '') + '">';
   if (st.state !== 'open') {
     det += '<div class="dbody" style="max-width:520px;margin:6vh auto;text-align:center">' + (st.state === 'qr' && st.qr && Date.now() - Date.parse(st.at) < 60000
@@ -1538,9 +1561,9 @@ function waView() {
   var c = (L.chats || []).filter(function (x) { return x.id === WA.chat; })[0];
   if (!c) return list + det + '<div class="empty" style="margin-top:20vh">Pick a chat</div></section>';
   var msgs = WA.hist[c.id];
-  det += '<div class="dhead slhead"><div style="display:flex;gap:10px;align-items:center"><button class="iconbtn back" onclick="S.phoneOpen=false;render()">' + I.back + '</button><h2 style="margin:0;flex:1">' + esc(c.name || '') + '</h2><span class="acct" style="--c:#25d366">WhatsApp</span>' + stickySelect('slack', c.name || 'WhatsApp') + '</div></div><div class="slmsgs">' + (msgs && msgs.length ? '<div class="l3" style="text-align:center;margin:10px">Messages from ' + esc(new Date(msgs[0].ts).toLocaleDateString('en-GB', { day:'numeric', month:'short' })) + '. Older ones are on your phone.</div>' : '')
-    + (!msgs ? '<div class="skel" style="height:260px;margin:16px"></div>' : msgs.map(function (m) { return '<div class="wam' + (m.from_me ? ' me' : '') + '">' + (c.is_group && !m.from_me ? '<div class="was">' + esc(m.sender) + '</div>' : '') + '<div>' + linkify(m.text || '') + '</div><div class="wat">' + hm(m.ts) + '</div></div>'; }).join(''))
-    + '</div><div class="wacomp"><textarea id="waText" placeholder="Message ' + esc(c.name || '') + ' (Enter sends, Shift+Enter for a new line)" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();waSendIt()}"></textarea><button class="btn pri" onclick="waSendIt()">' + I.send + 'Send</button></div></section>';
+  det += '<div class="wahead"><button class="iconbtn back" onclick="S.phoneOpen=false;render()">' + I.back + '</button><div class="waav sm" style="background:' + (c.is_group ? '#1f8f5f' : hue(c.id)) + '">' + (c.is_group ? '👥' : esc(initials(c.name || '?'))) + '</div><div style="flex:1;min-width:0"><b>' + esc(c.name || '') + '</b><div class="l3">' + (c.is_group ? 'Group' : 'WhatsApp') + '</div></div>' + stickySelect('slack', c.name || 'WhatsApp') + '</div><div class="slmsgs wawall">' + (msgs && msgs.length ? '<div class="l3" style="text-align:center;margin:10px">Messages from ' + esc(new Date(msgs[0].ts).toLocaleDateString('en-GB', { day:'numeric', month:'short' })) + '. Older ones are on your phone.</div>' : '')
+    + (!msgs ? '<div class="skel" style="height:260px;margin:16px"></div>' : (function () { var day = '', out = ''; msgs.forEach(function (m) { var d = waDay(m.ts); if (d !== day) { day = d; out += '<div class="waday"><span>' + d + '</span></div>'; } out += '<div class="wam' + (m.from_me ? ' me' : '') + '">' + (c.is_group && !m.from_me ? '<div class="was" style="color:' + hue(m.sender) + '">' + esc(m.sender) + '</div>' : '') + '<span class="watx">' + linkify(m.text || '') + '</span><span class="wat">' + hm(m.ts) + (m.from_me ? ' ✓✓' : '') + '</span></div>'; }); return out; })())
+    + '</div><div class="wacomp"><textarea id="waText" rows="1" placeholder="Message" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();waSendIt()}"></textarea><button class="wasend" title="Send (Enter)" onclick="waSendIt()">' + I.send + '</button></div></section>';
   return list + det;
 }
 function slackWaiting() { return ((S.data && S.data.emails) || []).filter(function (e) { return e.account === 'slack' && !isRead(e); }).length; }
@@ -2195,8 +2218,32 @@ function afterChange(msg) {
   S.busy = ''; render(); if (msg) toast(msg);
 }
 function fail(e) { S.busy = ''; render(); toast(e.message, true); }
-function markRead() { var g = current(); if (!g) return; var x = widen(idsOf(g)); S.lastDone = x.slice(); setStatus(x, 'done'); afterChange(x.length > 1 ? x.length + ' marked read' : 'Marked read'); api('markRead', { ids:x }).catch(function (e) { setStatus(x, 'open'); fail(e); }); }
-function doneWith(ids) { var g = current(); var x = widen(ids || (g ? g.items.map(function (e) { return e.id; }) : [])); if (!x.length) return; remember(x, 'gone'); S.data.emails = S.data.emails.filter(function (e) { return x.indexOf(e.id) < 0; }); S.sel = {}; afterChange(x.length > 1 ? x.length + ' done with' : 'Done with'); api('doneWith', { ids:x }).catch(fail); }
+// ---- Undo (Owen, 9 Nov: "I would like to be able to use Ctrl+Z to undo something"). Cmd+Z or Ctrl+Z takes back the
+// last thing done here: read, done with, binned, moved, sorted. Goes back as far as the last 20 things.
+S.undo = [];
+// Light mode (9 Nov): Auto follows the Mac/iPhone; Light and Dark stick on this device.
+S.theme = (function () { try { return localStorage.getItem('inbox-theme') || 'auto'; } catch (e) { return 'auto'; } })();
+function applyTheme() { if (S.theme === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', S.theme); var m = document.querySelector('meta[name=theme-color]'); if (m) m.setAttribute('content', S.theme === 'light' ? '#f6f6f7' : '#0b0c0f'); }
+function cycleTheme() { S.theme = S.theme === 'auto' ? 'light' : S.theme === 'light' ? 'dark' : 'auto'; try { localStorage.setItem('inbox-theme', S.theme); } catch (e) {} applyTheme(); render(); }
+applyTheme();
+function pushUndo(label, fn) { S.undo.push({ label:label, fn:fn }); if (S.undo.length > 20) S.undo.shift(); }
+function bringBack(list) { var have = {}; S.data.emails.forEach(function (e) { have[e.id] = 1; }); list.forEach(function (e) { e.status = 'open'; if (!have[e.id]) S.data.emails.push(e); }); remember(list.map(function (e) { return e.id; }), 'open'); reGroup(); }
+function undoLast() {
+  if (S.view === 'sort' && SORT.pending) { sortUndo(); return; }
+  var u = S.undo.pop(); if (!u) { toast('Nothing to undo'); return; }
+  try { u.fn(); } catch (e) {} render(); toast('Undone: ' + u.label);
+}
+document.addEventListener('keydown', function (e) {
+  if (!(e.metaKey || e.ctrlKey) || e.shiftKey || String(e.key).toLowerCase() !== 'z') return;
+  if (/INPUT|TEXTAREA|SELECT/.test((document.activeElement || {}).tagName) || (document.activeElement || {}).isContentEditable) return; // typing keeps its own undo
+  e.preventDefault(); undoLast();
+});
+function snap(ids) { return S.data.emails.filter(function (e) { return ids.indexOf(e.id) >= 0; }).map(function (e) { return Object.assign({}, e); }); }
+function undoUnread(ids, label) { pushUndo(label, function () { setStatus(ids, 'open'); api('markUnread', { ids:ids }).catch(fail); }); }
+function undoGone(list, label, binned) { pushUndo(label, function () { bringBack(list); var ids = list.map(function (e) { return e.id; }); if (binned) ids.forEach(function (id) { api('restore', { id:id }).catch(fail); }); api('markUnread', { ids:ids }).catch(fail); }); }
+function undoPile(list, label) { pushUndo(label, function () { var by = {}; list.forEach(function (e) { (by[e.category || 'new'] = by[e.category || 'new'] || []).push(e.id); }); Object.keys(by).forEach(function (c) { rememberCat(by[c], c); S.data.emails.forEach(function (e) { if (by[c].indexOf(e.id) >= 0) { e.category = c; if (e.kind === 'todo' && c !== 'todo') e.kind = 'in'; } }); if (c !== 'new') api('setPile', { ids:by[c], pile:c }).catch(fail); }); reGroup(); }); }
+function markRead() { var g = current(); if (!g) return; var x = widen(idsOf(g)); S.lastDone = x.slice(); undoUnread(x, 'marked read'); setStatus(x, 'done'); afterChange(x.length > 1 ? x.length + ' marked read' : 'Marked read'); api('markRead', { ids:x }).catch(function (e) { setStatus(x, 'open'); fail(e); }); }
+function doneWith(ids) { var g = current(); var x = widen(ids || (g ? g.items.map(function (e) { return e.id; }) : [])); if (!x.length) return; undoGone(snap(x), 'done with'); remember(x, 'gone'); S.data.emails = S.data.emails.filter(function (e) { return x.indexOf(e.id) < 0; }); S.sel = {}; afterChange(x.length > 1 ? x.length + ' done with' : 'Done with'); api('doneWith', { ids:x }).catch(fail); }
 // Noise is marketing with nothing in it: one press bins the lot (Gmail's bin, back for 30 days).
 function binNoise() {
   var x = []; pileList('noise').forEach(function (g) { g.items.forEach(function (e) { if (e.account !== 'slack') x.push(e.id); }); }); if (!x.length) return;
@@ -2210,7 +2257,7 @@ function binNoise() {
 }
 // U straight after a mark undoes that mark, not the next email the list moved on to.
 function markUnread() { var g = current(); var x = g && !g.unread.length ? g.items.map(function (e) { return e.id; }) : (S.lastDone || []); if (!x.length) return; S.lastDone = null; setStatus(x, 'open'); S.busy = ''; render(); toast('Marked unread'); api('markUnread', { ids:x }).catch(fail); }
-function binOne() { var g = current(); if (!g) return; var x = g.items.map(function (e) { return e.id; }); if (!confirm('Bin this? It goes to Gmail\'s bin and can be got back for 30 days.')) return; remember(x, 'gone'); S.data.emails = S.data.emails.filter(function (e) { return x.indexOf(e.id) < 0; }); afterChange('Binned'); api('bin', { ids:x }).catch(fail); }
+function binOne() { var g = current(); if (!g) return; var x = g.items.map(function (e) { return e.id; }); if (!confirm('Bin this? It goes to Gmail\'s bin and can be got back for 30 days.')) return; undoGone(snap(x), 'binned', true); remember(x, 'gone'); S.data.emails = S.data.emails.filter(function (e) { return x.indexOf(e.id) < 0; }); afterChange('Binned'); api('bin', { ids:x }).catch(fail); }
 // Slack can't take a draft from here, so the reply goes on the clipboard and Slack opens on the conversation.
 // Send waits 5 seconds with Undo, like Gmail, then goes from the account the email came to.
 function sendD() {
@@ -2311,10 +2358,10 @@ function slackNames() {
   S.data.emails.forEach(function (e) { if (e.account !== 'slack') return; ['subject', 'snippet'].forEach(function (f) { if (e[f]) e[f] = String(e[f]).replace(/<@(U[A-Z0-9]+)(\|[^>]*)?>/g, function (_, id) { return '@' + (who[id] || 'someone'); }).replace(/<(https?:[^|>]+)\|([^>]+)>/g, '$2').replace(/<(https?:[^>]+)>/g, '$1'); }); });
 }
 function reGroup() { S.data.emails.forEach(function (e) { e.group = e.category === 'fix' ? 'fix|' + (e.project || 'General TO DOs') : /comments-noreply@docs\.google\.com/i.test(e.from_email || '') ? (e.category || 'new') + '|docs|' + (e.from_name || '') : (e.category || 'new') + '|' + (e.from_email || '') + '|' + String(e.subject || '').toLowerCase().replace(/^(re|fwd?):\s*/g, '').replace(/[^a-z ]+/g, ' ').replace(/\s+/g, ' ').trim(); }); }
-function movePile(p) { if (!p) return; var g = current(); var x = g.items.map(function (e) { return e.id; }); rememberCat(x, p); api('setPile', { ids:x, pile:p }).catch(fail); S.data.emails.forEach(function (e) { if (x.indexOf(e.id) >= 0) e.category = p; }); reGroup(); afterChange('Moved to ' + pileOf(p).title); }
+function movePile(p) { if (!p) return; var g = current(); var x = g.items.map(function (e) { return e.id; }); undoPile(snap(x), 'moved to ' + pileOf(p).title); rememberCat(x, p); api('setPile', { ids:x, pile:p }).catch(fail); S.data.emails.forEach(function (e) { if (x.indexOf(e.id) >= 0) e.category = p; }); reGroup(); afterChange('Moved to ' + pileOf(p).title); }
 function moveChat(c) { if (!c) return; var g = current(); var x = g.items.map(function (e) { return e.id; }); api('setChat', { ids:x, chat:c }).catch(fail); S.data.emails.forEach(function (e) { if (x.indexOf(e.id) >= 0) e.project = c; }); reGroup(); afterChange('Moved to the ' + chatShort(c) + ' chat'); }
-function bulk(op) { var x = op === 'markRead' ? widen(selIds()) : selIds(); setStatus(x, op === 'markRead' ? 'done' : 'open'); S.sel = {}; afterChange(x.length + (op === 'markRead' ? ' marked read' : ' marked unread')); api(op, { ids:x }).catch(fail); }
-function bulkPile(p) { if (!p) return; var x = selIds(); rememberCat(x, p); api('setPile', { ids:x, pile:p }).catch(fail); S.data.emails.forEach(function (e) { if (x.indexOf(e.id) >= 0) e.category = p; }); reGroup(); S.sel = {}; afterChange('Moved to ' + pileOf(p).title); }
+function bulk(op) { var x = op === 'markRead' ? widen(selIds()) : selIds(); if (op === 'markRead') undoUnread(x, x.length + ' marked read'); setStatus(x, op === 'markRead' ? 'done' : 'open'); S.sel = {}; afterChange(x.length + (op === 'markRead' ? ' marked read' : ' marked unread')); api(op, { ids:x }).catch(fail); }
+function bulkPile(p) { if (!p) return; var x = selIds(); undoPile(snap(x), 'moved to ' + pileOf(p).title); rememberCat(x, p); api('setPile', { ids:x, pile:p }).catch(fail); S.data.emails.forEach(function (e) { if (x.indexOf(e.id) >= 0) e.category = p; }); reGroup(); S.sel = {}; afterChange('Moved to ' + pileOf(p).title); }
 function bulkBin() { var x = selIds(); if (!confirm('Bin ' + x.length + ' emails? They go to Gmail\'s bin and can be got back for 30 days.')) return; remember(x, 'gone'); S.data.emails = S.data.emails.filter(function (e) { return x.indexOf(e.id) < 0; }); S.sel = {}; afterChange(x.length + ' binned'); api('bin', { ids:x }).catch(fail); }
 function theme() { var r = document.documentElement, now = r.dataset.theme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'); r.dataset.theme = now === 'light' ? 'dark' : 'light'; try { localStorage.setItem('inbox-theme', r.dataset.theme); } catch (e) {} }
 
@@ -2377,6 +2424,7 @@ function quickSync() {
     .catch(function () { quickSync.busy = false; });
 }
 setInterval(quickSync, 120000);
+setInterval(function () { if (!document.hidden && S.data && S.view !== 'whatsapp') { WA.busy = false; waLoad(); } }, 120000);
 document.addEventListener('visibilitychange', function () { if (!document.hidden) quickSync(); });
 
 // A newer version of this page went live: offer it (Owen keeps the tab open for days).
