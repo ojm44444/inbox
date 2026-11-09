@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794231642">
+<html lang="en" data-build="b1794236056">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -139,6 +139,10 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .when { color:var(--faint); font-size:12px; white-space:nowrap; text-align:right; }
 .when .pd { display:block; margin-top:4px; }
 .wait { color:var(--chase); }
+.ccrow { display:flex; gap:10px; flex-wrap:wrap; padding:6px 14px 0; } .ccrow label { display:flex; gap:6px; align-items:center; font-size:13px; color:var(--faint); flex:1; min-width:200px; } .ccrow input { flex:1; background:transparent; border:0; border-bottom:1px solid var(--line2); color:inherit; font:inherit; font-size:14px; padding:4px 2px; }
+.newmail { display:flex; gap:8px; align-items:center; justify-content:center; margin:2px 0 10px; padding:9px; border-radius:10px; border:0; background:var(--acc); color:#fff; font:inherit; font-weight:600; cursor:pointer; } .newmail svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:2; }
+.nmv { max-width:760px; } .nmbox { display:flex; flex-direction:column; gap:2px; } .nmf { display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--line); padding:8px 2px; } .nmf span { width:64px; color:var(--faint); font-size:13px; } .nmf input, .nmf select { flex:1; background:transparent; border:0; color:inherit; font:inherit; font-size:15px; outline:0; } .nmf select option { color:#000; }
+.nmbox textarea { min-height:280px; margin-top:10px; background:transparent; border:0; color:inherit; font:inherit; font-size:15px; line-height:1.5; resize:vertical; outline:0; } .nmbox .cf { display:flex; gap:8px; flex-wrap:wrap; align-items:center; border-top:1px solid var(--line); padding-top:12px; }
 .mflags { border-color:color-mix(in srgb, var(--fix) 45%, transparent); background:color-mix(in srgb, var(--fix) 10%, transparent); color:var(--text); }
 .mflags div { padding:4px 0; font-size:14px; }
 .mtiles { grid-template-columns:repeat(2, minmax(0,1fr)) !important; }
@@ -821,8 +825,8 @@ function pileOf(k) { return PILES.filter(function (p) { return p.key === k; })[0
 function render() {
   if (!S.token && !S.key) return renderGate();
   var sc = document.querySelector('.rows, .home'), keep = sc ? sc.scrollTop : 0;
-  var mail = S.view !== 'sort' && S.view !== 'money' && S.view !== 'home' && S.view !== 'reading' && S.view !== 'trello' && S.view !== 'person' && S.view !== 'review';
-  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'sticky' ? stickyView() : S.view === 'whatsapp' ? waView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'sort' ? sortView() : S.view === 'money' ? moneyView() : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : S.view === 'review' ? reviewView() : home()) + '</div>';
+  var mail = S.view !== 'sort' && S.view !== 'compose' && S.view !== 'money' && S.view !== 'home' && S.view !== 'reading' && S.view !== 'trello' && S.view !== 'person' && S.view !== 'review';
+  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'sticky' ? stickyView() : S.view === 'whatsapp' ? waView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'sort' ? sortView() : S.view === 'money' ? moneyView() : S.view === 'compose' ? composeView() : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : S.view === 'review' ? reviewView() : home()) + '</div>';
   var ns = document.querySelector('.rows, .home'); if (ns) ns.scrollTop = keep;
   bulkBar(); wire(); phoneBar(); swipes();
 }
@@ -973,6 +977,7 @@ function side() {
   var nv = function (v, icon, label, n, extra) { return '<button class="nav' + (S.view === v && !(v === 'all' && S.f.acct) ? ' on' : '') + '" onclick="' + (extra || '') + 'go(\'' + v + '\')">' + icon + label + '<span class="n">' + (n || '') + '</span></button>'; };
   var pile = function (k) { var p = pileOf(k), n = unreadCount(k); return '<button class="nav' + (S.view === k ? ' on' : '') + '" onclick="go(\'' + k + '\')"><span class="dot" style="background:' + p.color + '"></span>' + p.title + '<span class="n">' + (n || '') + '</span></button>'; };
   var h = '<aside class="side"><div class="brand"><div class="logo">' + I.inbox + '</div>Inbox</div><div class="sidescroll">'
+    + '<button class="newmail" onclick="newMail()">' + I.pen + 'New email</button>'
     + nv('home', I.home, 'Home') + nv('sort', I.spark, 'Quick sort', sortDeck().length)
     + pile('reply') + pile('todo') + pile('promise') + pile('chase')
     + nv('whatsapp', I.wa, 'WhatsApp', waWaiting()) + nv('sticky', I.sticky, 'Sticky notes', stickyTotal()) + nv('review', I.check, 'Review', reviewNeeds().length) + nv('money', '<span style="width:16px;text-align:center;font-weight:700">£</span>', 'Money')
@@ -2133,6 +2138,7 @@ function mailDetail(g) {
   if (replyable && composing) {
     var saved = e.gmail_draft_id && S.drafts[g.id] == null;
     h += '<div class="composer"><div class="ch">' + I.pen + (chase ? 'Nudge to ' : prom ? 'Keeping it, to ' : 'Reply to ') + esc(chase || prom ? (e.from_name || e.to_email) : (e.from_name || e.from_email)) + '<span style="flex:1"></span>written in your voice</div>'
+      + (e.account !== 'slack' && e.account !== 'whatsapp' ? ccBox(g.id) : '')
       + '<textarea id="draft">' + esc(draft) + '</textarea><div class="cf">'
       + '<button class="btn pri" onclick="sendD()" ' + (S.busy ? 'disabled' : '') + '>' + I.send + (e.account === 'slack' ? 'Send on Slack' : e.account === 'whatsapp' ? 'Send on WhatsApp' : 'Send') + '<kbd>⌘↵</kbd></button>'
       + (e.account === 'slack' || e.account === 'whatsapp' ? '' : '<button class="btn ghost" onclick="saveD()" ' + (S.busy ? 'disabled' : '') + '>' + I.gmail + (S.busy === 'save' ? 'Saving…' : 'Save as draft') + '</button>')
@@ -2320,10 +2326,41 @@ function markUnread() { var g = current(); var x = g && !g.unread.length ? g.ite
 function binOne() { var g = current(); if (!g) return; var x = g.items.map(function (e) { return e.id; }); if (!confirm('Bin this? It goes to Gmail\'s bin and can be got back for 30 days.')) return; undoGone(snap(x), 'binned', true); remember(x, 'gone'); S.data.emails = S.data.emails.filter(function (e) { return x.indexOf(e.id) < 0; }); afterChange('Binned'); api('bin', { ids:x }).catch(fail); }
 // Slack can't take a draft from here, so the reply goes on the clipboard and Slack opens on the conversation.
 // Send waits 5 seconds with Undo, like Gmail, then goes from the account the email came to.
+// Cc and Bcc (Owen, 9 Nov). Kept per email while he writes.
+S.cc = {};
+// New email from any of his 5 inboxes (Owen, 9 Nov). The draft is kept on this device until sent or thrown away.
+S.nm = (function () { try { return JSON.parse(localStorage.getItem('inbox-newmail') || 'null'); } catch (e) { return null; } })() || { from:'personal', to:'', cc:'', bcc:'', subject:'', text:'' };
+function nmSave() { try { localStorage.setItem('inbox-newmail', JSON.stringify(S.nm)); } catch (e) {} }
+function newMail(to) { if (to) S.nm.to = to; go('compose'); setTimeout(function () { var f = document.getElementById(S.nm.to ? 'nmText' : 'nmTo'); if (f) f.focus(); }, 30); }
+function composeView() {
+  var n = S.nm, ac = Object.keys(ACCOUNTS).filter(function (a) { return a !== 'slack'; });
+  if (!S.myBoxes) { S.myBoxes = {}; api('myInboxes').then(function (r) { S.myBoxes = r || {}; render(); }).catch(function () {}); }
+  var f = function (id, label, key, ph) { return '<label class="nmf"><span>' + label + '</span><input id="' + id + '" value="' + esc(n[key] || '') + '" placeholder="' + ph + '" oninput="S.nm.' + key + '=this.value;nmSave()"></label>'; };
+  return '<main class="home nmv">' + tabs() + '<h1 class="hello" style="font-size:24px">New email</h1><div class="box nmbox">'
+    + '<label class="nmf"><span>From</span><select onchange="S.nm.from=this.value;nmSave()">' + ac.map(function (a) { return '<option value="' + a + '"' + (n.from === a ? ' selected' : '') + '>' + ACCOUNTS[a].label + (S.myBoxes[a] ? ' (' + esc(S.myBoxes[a]) + ')' : '') + '</option>'; }).join('') + '</select></label>'
+    + f('nmTo', 'To', 'to', 'name@example.com, …') + f('nmCc', 'Cc', 'cc', '') + f('nmBcc', 'Bcc', 'bcc', 'hidden copy') + f('nmSub', 'Subject', 'subject', '')
+    + '<textarea id="nmText" placeholder="Write your email…" oninput="S.nm.text=this.value;nmSave()">' + esc(n.text || '') + '</textarea>'
+    + '<div class="cf"><button class="btn pri" onclick="nmSend()">' + I.send + 'Send</button><button class="btn ghost" onclick="nmSend(true)">' + I.gmail + 'Save as draft</button><button class="btn ghost" onclick="if(confirm(\'Throw this email away?\')){S.nm={from:S.nm.from,to:\'\',cc:\'\',bcc:\'\',subject:\'\',text:\'\'};nmSave();render()}">Discard</button><span class="l3">Nothing goes until you press Send. 5 seconds to undo.</span></div></div></main>';
+}
+function nmSend(draft) {
+  var n = Object.assign({}, S.nm); if (!String(n.to).trim()) { toast('Who is it to?', true); return; } if (!String(n.text).trim()) { toast('Write something first', true); return; }
+  if (draft) { api('sendNew', Object.assign({ account:n.from, draft:true }, n)).then(function () { toast('Saved to ' + ACCOUNTS[n.from].label + ' Gmail drafts'); S.nm = { from:n.from, to:'', cc:'', bcc:'', subject:'', text:'' }; nmSave(); go('home'); }).catch(fail); return; }
+  var undone = false, u = document.createElement('div'); u.className = 'undo';
+  u.innerHTML = '<span>Sending from <b>' + esc(ACCOUNTS[n.from].label) + '</b> to <b>' + esc(n.to) + '</b>…</span><button class="btn sm">Undo</button>';
+  u.querySelector('button').onclick = function () { undone = true; u.remove(); S.nm = n; nmSave(); go('compose'); toast('Not sent'); };
+  document.body.appendChild(u); S.nm = { from:n.from, to:'', cc:'', bcc:'', subject:'', text:'' }; nmSave(); go('home');
+  setTimeout(function () { if (undone) return; u.remove(); api('sendNew', Object.assign({ account:n.from }, n)).then(function () { toast('Sent to ' + n.to); }).catch(function (e) { S.nm = n; nmSave(); go('compose'); toast('Did not send: ' + e.message, true); }); }, 5000);
+}
+function ccBox(key) {
+  var c = S.cc[key] || {};
+  if (!c.show) return '<div class="ccrow"><button class="linkbtn" onclick="S.cc[\'' + key + '\']=Object.assign(S.cc[\'' + key + '\']||{},{show:true});render()">+ Cc / Bcc</button></div>';
+  return '<div class="ccrow"><label>Cc <input value="' + esc(c.cc || '') + '" placeholder="names@example.com, …" oninput="S.cc[\'' + key + '\'].cc=this.value"></label><label>Bcc <input value="' + esc(c.bcc || '') + '" placeholder="hidden copy" oninput="S.cc[\'' + key + '\'].bcc=this.value"></label></div>';
+}
 function sendD() {
   var g = current(); if (!g) return; var e = g.items[0];
   var text = (S.drafts[g.id] != null ? S.drafts[g.id] : e.draft_text || '').trim(); if (!text) { toast('Write something first', true); return; }
   var to = e.account === 'slack' ? (e.from_name || 'them') + ' on Slack' : (e.kind === 'chase' || e.kind === 'owed' || e.kind === 'promise' ? e.to_email : e.from_email);
+  var cc = S.cc[g.id] || {}; if (cc.cc || cc.bcc) to += (cc.cc ? ' + Cc ' + cc.cc : '') + (cc.bcc ? ' + Bcc' : '');
   setStatus([e.id], 'done'); afterChange();
   var undone = false, u = document.createElement('div'); u.className = 'undo';
   u.innerHTML = '<span>Sending to <b>' + esc(to) + '</b>…</span><button class="btn sm">Undo</button>';
@@ -2331,7 +2368,7 @@ function sendD() {
   document.body.appendChild(u);
   setTimeout(function () {
     if (undone) return; u.remove();
-    api('sendReply', { id:e.id, text:text }).then(function () { e.draft_text = text; delete S.drafts[g.id]; toast('Sent to ' + to); })
+    api('sendReply', { id:e.id, text:text, cc:cc.cc || '', bcc:cc.bcc || '' }).then(function () { e.draft_text = text; delete S.drafts[g.id]; delete S.cc[g.id]; toast('Sent to ' + to); })
       .catch(function (err) { setStatus([e.id], 'open'); S.drafts[g.id] = text; render(); toast('Did not send: ' + err.message, true); });
   }, 5000);
 }
@@ -2341,7 +2378,8 @@ function slackReply() { var g = current(); if (!g) return; var t = S.drafts[g.id
 function writeD() { var g = current(); if (!g) return; S.busy = 'write'; render(); api('writeDraft', { id:g.items[0].id }).then(function (r) { S.drafts[g.id] = r.text; S.busy = ''; render(); }).catch(fail); }
 function saveD() {
   var g = current(); if (!g) return; var text = S.drafts[g.id] != null ? S.drafts[g.id] : g.items[0].draft_text; S.busy = 'save'; render();
-  api('saveDraft', { id:g.items[0].id, text:text }).then(function () { g.items[0].draft_text = text; g.items[0].gmail_draft_id = 'x'; delete S.drafts[g.id]; S.busy = ''; render(); toast('Saved to Gmail drafts. Send it from Gmail.'); }).catch(fail);
+  var cc = S.cc[g.id] || {};
+  api('saveDraft', { id:g.items[0].id, text:text, cc:cc.cc || '', bcc:cc.bcc || '' }).then(function () { g.items[0].draft_text = text; g.items[0].gmail_draft_id = 'x'; delete S.drafts[g.id]; S.busy = ''; render(); toast('Saved to Gmail drafts. Send it from Gmail.'); }).catch(fail);
 }
 function copyGroup(gid) {
   var g = groups().filter(function (x) { return x.id === gid; })[0]; if (!g) return;
