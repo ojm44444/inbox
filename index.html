@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794609741">
+<html lang="en" data-build="b1794610622">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -815,6 +815,19 @@ function freshToken() {
   }).then(function () { freshToken.p = null; });
   return freshToken.p;
 }
+// The other projects' review feeds check a live Google sign-in, not the 30-day pass (13 Nov: they showed
+// "Owner only" because the page kept sending an expired Google token). Renew it quietly before loading them.
+function freshGoogle() {
+  if (S.key) return Promise.resolve();
+  if (S.token && S.token !== 'x' && tokenExp(S.token) > Date.now() + 120000) return Promise.resolve();
+  if (freshGoogle.p) return freshGoogle.p;
+  freshGoogle.p = new Promise(function (ok) {
+    freshToken.ok = ok;
+    try { gsi.prompted = false; gsi(); } catch (e) {}
+    setTimeout(function () { ok(); }, 12000);
+  }).then(function () { freshGoogle.p = null; });
+  return freshGoogle.p;
+}
 function send(op, args, again) {
   return freshToken().then(function () { return send1(op, args); }).catch(function (e) {
     if (again || S.key || !/sign|token|auth|allowed|expired/i.test(String(e.message))) throw e;
@@ -886,6 +899,7 @@ function render() {
   document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + (S.slim ? ' slim' : '') + (S.menu ? ' menuopen' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'sticky' ? stickyView() : S.view === 'whatsapp' ? waView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'sort' ? sortView() : S.view === 'money' ? moneyView() : S.view === 'compose' ? composeView() : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : S.view === 'review' ? reviewView() : home()) + '</div>';
   var ns = document.querySelector('.rows, .home'); if (ns) ns.scrollTop = keep;
   bulkBar(); wire(); phoneBar(); swipes();
+  var gb = document.getElementById('gbtn'); if (gb && !gb.childElementCount && window.google && google.accounts) { try { gsi(); } catch (e) {} }
 }
 // Phone: a bottom bar like a real app.
 function phoneBar() {
@@ -1339,14 +1353,14 @@ var HUB_SRC = {
 };
 var HUB = { p:{}, at:0, busy:false };
 function hubPost(url, body) {
-  return freshToken().then(function () {
-    if (!S.token) throw new Error('Sign in with Google to see the other projects');
+  return freshGoogle().then(function () {
+    if (!S.token || tokenExp(S.token) < Date.now() + 30000) throw new Error('Google sign-in needed');
     body.idToken = S.token;
     return fetch(url, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body:JSON.stringify(body) });
   }).then(function (r) { return r.json().then(function (j) { if (!r.ok || j.error) throw new Error(j.error || 'Could not reach it (' + r.status + ')'); return j; }); });
 }
 function hubLoad(force) {
-  if (HUB.busy || S.key || !S.token || (!force && Date.now() - HUB.at < 120000)) return;
+  if (HUB.busy || S.key || (!S.token && !stOk()) || (!force && Date.now() - HUB.at < 120000)) return;
   HUB.busy = true;
   var sd = Promise.all([hubPost(HUB_SRC.songdrafts.cards, {}), hubPost(HUB_SRC.songdrafts.saves, {})]).then(function (a) {
     var D = {}; (a[1].decisions || []).forEach(function (d) { D[d.item_id] = { decision:d.decision, note:d.note || '', at:d.decided_at }; });
@@ -1617,7 +1631,9 @@ function reviewView() {
   var f = S.rvP || 'all', all = hubAll(), c = all[0], total = reviewNeeds().length;
   var chip = function (pid, label, n, color) { return '<button class="hubchip' + (f === pid ? ' on' : '') + '" onclick="S.rvP=\'' + pid + '\';S.rvNote=null;render()">' + (color ? '<span class="hubdot" style="--c:' + color + '"></span>' : '') + esc(label) + '<em>' + n + '</em></button>'; };
   var chips = '<div class="hubchips">' + chip('all', 'Everything', total) + hubPids().map(function (p) { return chip(p, HUB_SRC[p].name, hubWaiting(p).length, HUB_SRC[p].color); }).join('') + '</div>';
-  var errs = hubPids().filter(function (p) { return HUB.p[p] && HUB.p[p].error; }).map(function (p) { return '<div class="hubwarn">' + esc(HUB_SRC[p].name) + ' did not load: ' + esc(HUB.p[p].error) + ' <button class="hubbtn ghost" onclick="hubLoad(true)">Try again</button></div>'; }).join('');
+  var gerr = hubPids().some(function (p) { return HUB.p[p] && /google sign-in needed|owner only/i.test(HUB.p[p].error || ''); });
+  var errs = gerr ? '<div class="hubwarn">To see songdrafts, Moon and TEZ here, sign in with Google once more. <span id="gbtn"></span> <button class="hubbtn ghost" onclick="hubLoad(true)">Try again</button></div>'
+    : hubPids().filter(function (p) { return HUB.p[p] && HUB.p[p].error; }).map(function (p) { return '<div class="hubwarn">' + esc(HUB_SRC[p].name) + ' did not load: ' + esc(HUB.p[p].error) + ' <button class="hubbtn ghost" onclick="hubLoad(true)">Try again</button></div>'; }).join('');
   var loading = !HUB.at && HUB.busy ? '<div class="hubwarn">Getting songdrafts, Moon and TEZ…</div>' : '';
   var lead = total ? '<b>' + total + ' thing' + (total === 1 ? '' : 's') + ' need' + (total === 1 ? 's' : '') + ' you</b>' : '<b>Nothing needs you</b>';
   var h = '<main class="home hubpage">' + tabs() + '<div class="hub">'
@@ -2727,7 +2743,7 @@ function gsi() {
   if (!gsi.prompted) { gsi.prompted = true; google.accounts.id.prompt(); }
 }
 function tokenExp(t) { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).exp * 1000; } catch (e) { return 0; } }
-function onCred(r) { var renew = !!S.data; S.token = r.credential; try { localStorage.setItem('inbox-id', S.token); } catch (e) {} stGet(); if (freshToken.ok) { freshToken.ok(); freshToken.ok = null; } if (!renew) { S.loading = true; load('load'); } }
+function onCred(r) { var renew = !!S.data; S.token = r.credential; HUB.at = 0; setTimeout(function () { if (S.view === 'review' || S.view === 'home') hubLoad(true); }, 300); try { localStorage.setItem('inbox-id', S.token); } catch (e) {} stGet(); if (freshToken.ok) { freshToken.ok(); freshToken.ok = null; } if (!renew) { S.loading = true; load('load'); } }
 // Stay signed in (13 Nov): one Google sign-in gets a 30-day pass from the server, renewed while it is used. Sign out clears it.
 function stOk() { return !!S.st && S.stExp > Date.now() + 60000; }
 function stClear() { S.st = ''; S.stExp = 0; try { localStorage.removeItem('inbox-st'); } catch (e) {} }
