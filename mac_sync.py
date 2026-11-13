@@ -116,7 +116,7 @@ NEW_JS = "var N = Application('Notes'); var n = N.Note({ body: %s }); N.defaultA
 
 def do_actions():
     for a in q("SELECT id, action, target, text FROM inbox_mac_actions WHERE done_at IS NULL ORDER BY id LIMIT 20") or []:
-        if a['action'] in ('edit', 'note', 'delete'): state_force_notes[0] = True  # reread notes either way, so the page shows what is really there
+        if a['action'] in ('edit', 'note', 'delete', 'move'): state_force_notes[0] = True  # reread notes either way, so the page shows what is really there
         try:
             if a['action'] == 'complete':
                 complete_reminder(a['target'])
@@ -134,6 +134,10 @@ def do_actions():
             elif a['action'] == 'delete':
                 osa("var N = Application('Notes'); N.delete(N.notes.byId(%s)); JSON.stringify('ok')" % json.dumps(a['target']), 60)
                 x("DELETE FROM inbox_mac WHERE id = '%s'" % esc(a['target']))
+            elif a['action'] == 'move':
+                # Notes sort (13 Nov 2026): Lyrics moves a note into SONGS. Folder names are checked on the server.
+                osa("var N = Application('Notes'); var f = N.folders.whose({ name: %s })(); if (!f.length) throw new Error('No folder ' + %s); N.move(N.notes.byId(%s), { to: f[0] }); JSON.stringify('ok')" % (json.dumps(a['text']), json.dumps(a['text']), json.dumps(a['target'])), 60)
+                x("UPDATE inbox_mac SET list = '%s' WHERE id = '%s'" % (esc(a['text']), esc(a['target'])))
             elif a['action'] == 'note':
                 osa(NEW_JS % json.dumps(_html(a['text'])), 60)
             res = 'ok'

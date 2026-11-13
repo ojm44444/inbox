@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794610622">
+<html lang="en" data-build="b1794611077">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -190,6 +190,11 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .sortwhy { font-size:13px; color:var(--promise); margin-bottom:10px; }
 .sortbody { font-size:15px; line-height:1.5; color:var(--dim, #b8b9c4); white-space:pre-wrap; max-height:46vh; overflow:auto; touch-action:pan-y; overscroll-behavior:contain; }
 .sortbody a { color:var(--accent, #8b87ff); text-decoration:underline; word-break:break-all; }
+.nsbtns { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin:12px 0; }
+.nsbtns button { padding:12px 6px; border-radius:14px; border:1px solid rgba(127,127,127,.3); background:var(--raise, #17181d); color:inherit; font:inherit; font-size:14px; cursor:pointer; }
+.nsbtns button.bin { color:#e0533d; }
+.nsbtns select { grid-column:span 3; padding:10px; border-radius:12px; background:var(--raise, #17181d); color:inherit; border:1px solid rgba(127,127,127,.3); font:inherit; }
+.nsmeta { color:var(--dim, #b8b9c4); font-size:12.5px; }
 .sortstamp { position:absolute; font-size:84px; opacity:0; pointer-events:none; z-index:2; filter:drop-shadow(0 4px 12px rgba(0,0,0,.5)); }
 .sortstamp.keep { left:22px; bottom:22px; } .sortstamp.bin { right:22px; bottom:22px; } .sortstamp.sticky { left:50%; top:30%; transform:translateX(-50%); } .sortstamp.reply { left:50%; bottom:22px; transform:translateX(-50%); }
 .sorthint { display:flex; justify-content:space-between; font-size:12px; color:var(--faint); margin:10px 4px; }
@@ -895,8 +900,8 @@ function pileOf(k) { return PILES.filter(function (p) { return p.key === k; })[0
 function render() {
   if (!S.token && !S.key && !stOk()) return renderGate();
   var sc = document.querySelector('.rows, .home'), keep = sc ? sc.scrollTop : 0;
-  var mail = S.view !== 'sort' && S.view !== 'compose' && S.view !== 'money' && S.view !== 'home' && S.view !== 'reading' && S.view !== 'trello' && S.view !== 'person' && S.view !== 'review';
-  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + (S.slim ? ' slim' : '') + (S.menu ? ' menuopen' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'sticky' ? stickyView() : S.view === 'whatsapp' ? waView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'sort' ? sortView() : S.view === 'money' ? moneyView() : S.view === 'compose' ? composeView() : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : S.view === 'review' ? reviewView() : home()) + '</div>';
+  var mail = S.view !== 'sort' && S.view !== 'compose' && S.view !== 'money' && S.view !== 'home' && S.view !== 'reading' && S.view !== 'trello' && S.view !== 'person' && S.view !== 'review' && S.view !== 'notesort';
+  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + (S.slim ? ' slim' : '') + (S.menu ? ' menuopen' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'sticky' ? stickyView() : S.view === 'whatsapp' ? waView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'sort' ? sortView() : S.view === 'notesort' ? noteSortView() : S.view === 'money' ? moneyView() : S.view === 'compose' ? composeView() : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : S.view === 'review' ? reviewView() : home()) + '</div>';
   var ns = document.querySelector('.rows, .home'); if (ns) ns.scrollTop = keep;
   bulkBar(); wire(); phoneBar(); swipes();
   var gb = document.getElementById('gbtn'); if (gb && !gb.childElementCount && window.google && google.accounts) { try { gsi(); } catch (e) {} }
@@ -2142,6 +2147,7 @@ function notesView() {
   var all = S.data.notes || [], n = S.noteQ ? noteHits() : all;
   var cur = n.concat(all, S.noteHits || []).filter(function (x) { return x.id === S.noteId; })[0] || (window.innerWidth > 800 ? n[0] : null);
   var list = '<section class="list">' + tabs() + '<div class="listhead"><div style="flex:1;min-width:0"><h1>Notes</h1><div class="sub">' + (S.noteQ ? n.length + ' found in all your Apple Notes' : 'Your latest Apple Notes. Search finds any of them.') + '</div></div><button class="btn sm" onclick="newNote()">New note</button></div>'
+    + '<div class="filters"><button class="btn sm" onclick="noteSortOpen()">Sort notes</button></div>'
     + '<div class="filters"><div class="search">' + I.search + '<input id="nq" placeholder="Search all your notes" value="' + esc(S.noteQ || '') + '"></div></div><div class="rows">'
     + (S.noteQ && !n.length ? '<div class="empty">' + (S.noteBusy ? 'Searching…' : 'No note has that.') + '</div>' : '')
     + n.map(function (x) { return '<div class="row nrow' + (cur && cur.id === x.id ? ' on' : '') + '" onclick="openNote(\'' + esc(x.id) + '\')"><div style="min-width:0;flex:1"><div class="t">' + esc(x.title) + '</div><div class="l3">' + esc(x.list || '') + (x.modified_at ? ' · ' + ago(x.modified_at) + ' ago' : '') + '</div><div class="l3">' + esc(noteLines(x).slice(0, 2).join(' · ').slice(0, 90)) + '</div></div></div>'; }).join('') + '</div></section>';
@@ -2159,6 +2165,47 @@ function notesView() {
       + '<div class="dbody">' + (editing ? '<textarea id="noteed" class="noteed">' + esc(cur.body || '') + '</textarea>' : '<div class="notebody">' + linkify(esc(cur.body || '')) + '</div>') + '</div>';
   }
   return list + det + '</section>';
+}
+// Notes sort (13 Nov 2026, Owen's Friday list: "sort Notes like Quick sort (task / for Claude / lyrics / bin)").
+// One note at a time from the loose folders (SONGS, Me and Reference are already sorted). To do adds a task, For Claude
+// puts it on a sticky note, Lyrics moves it into SONGS, Bin sends it to Recently Deleted (back for 30 days).
+// Bin and Lyrics wait 5 seconds so Undo works. Keep hides it from the deck for good; Skip only moves on.
+var NS = { deck:null, i:0, kept:load_('inbox-notekept') || {}, pending:null };
+function noteSortOpen() {
+  S.view = 'notesort'; NS.deck = null; NS.i = 0; render();
+  api('notesDeck', {}).then(function (r) { NS.deck = (r || []).filter(function (n) { return !NS.kept[n.id]; }); render(); }).catch(fail);
+}
+function nsCur() { return NS.deck && NS.deck[NS.i]; }
+function nsNext() { NS.i++; render(); }
+function nsCommit() { if (NS.pending) { clearTimeout(NS.pending.t); NS.pending.run(); NS.pending = null; } }
+function nsLater(label, run) {
+  nsCommit(); var n = nsCur(), at = NS.i;
+  NS.pending = { run:run, n:n, at:at, t:setTimeout(function () { nsCommit(); }, 5000) };
+  NS.deck.splice(at, 1); render(); toast(label + '. Undo for 5 seconds.');
+}
+function nsUndo() { var p = NS.pending; if (!p) { toast('Nothing to undo'); return; } clearTimeout(p.t); NS.pending = null; NS.deck.splice(p.at, 0, p.n); NS.i = p.at; render(); toast('Undone'); }
+function nsAct(kind, sid) {
+  var n = nsCur(); if (!n) return;
+  if (kind === 'skip') return nsNext();
+  if (kind === 'keep') { nsCommit(); NS.kept[n.id] = Date.now(); try { localStorage.setItem('inbox-notekept', JSON.stringify(NS.kept)); } catch (e) {} NS.deck.splice(NS.i, 1); render(); toast('Kept'); return; }
+  if (kind === 'todo') { nsCommit(); api('taskAdd', { text:(n.title || '').slice(0, 200) }).then(function () { toast('Added to To do'); }).catch(fail); NS.deck.splice(NS.i, 1); NS.kept[n.id] = Date.now(); try { localStorage.setItem('inbox-notekept', JSON.stringify(NS.kept)); } catch (e) {} render(); return; }
+  if (kind === 'claude') { if (!sid) return; nsCommit(); var st = stickies().filter(function (x) { return x.id == sid; })[0]; api('stickyAdd', { sticky:Number(sid), noteId:n.id }).then(function (r) { if (r && r.stickies) S.data.stickies = r.stickies; toast('On the ' + (st ? st.name : '') + ' sticky'); }).catch(fail); NS.deck.splice(NS.i, 1); NS.kept[n.id] = Date.now(); try { localStorage.setItem('inbox-notekept', JSON.stringify(NS.kept)); } catch (e) {} render(); return; }
+  if (kind === 'lyrics') return nsLater('Moving to SONGS', function () { api('macMoveNote', { id:n.id, folder:'SONGS' }).catch(fail); });
+  if (kind === 'bin') return nsLater('Binned (Recently Deleted in Notes, back for 30 days)', function () { api('macDeleteNote', { id:n.id }).then(function () { S.data.notes = (S.data.notes || []).filter(function (x) { return x.id !== n.id; }); }).catch(fail); });
+}
+function noteSortView() {
+  var h = '<main class="sortv">' + tabs();
+  if (!NS.deck) return h + '<div class="sortempty"><p class="l3">Getting your notes…</p></div></main>';
+  var n = nsCur();
+  if (!n) return h + '<div class="sortempty"><div style="font-size:54px">🎉</div><h2>All notes sorted</h2><p class="l3">SONGS, Me and Reference are left as they are.</p><button class="btn pri" onclick="go(\'notes\')">Back to Notes</button></div></main>';
+  var body = noteLines(n).join('\n');
+  h += '<div class="sortcard" style="cursor:default"><div class="nsmeta">' + (NS.i + 1) + ' of ' + NS.deck.length + ' · ' + esc(n.list || 'Notes') + (n.modified_at ? ' · ' + ago(n.modified_at) + ' ago' : '') + '</div>'
+    + '<h2 class="sortsubj">' + esc(n.title || '(no title)') + '</h2><div class="sortbody">' + linkify(esc(body)) + '</div></div>'
+    + '<div class="nsbtns"><button onclick="nsAct(\'todo\')">To do</button><button onclick="nsAct(\'lyrics\')">Lyrics → SONGS</button><button class="bin" onclick="nsAct(\'bin\')">Bin</button>'
+    + '<button onclick="nsAct(\'keep\')">Keep</button><button onclick="nsAct(\'skip\')">Skip</button><button onclick="nsUndo()">Undo</button>'
+    + '<select onchange="var v=this.value;this.value=\'\';nsAct(\'claude\',v)"><option value="">For Claude: pick a sticky note…</option>' + stickies().map(function (x) { return '<option value="' + x.id + '">' + esc(x.name) + '</option>'; }).join('') + '</select></div>'
+    + '<div style="text-align:center"><button class="btn sm ghost" onclick="nsCommit();go(\'notes\')">Done for now</button></div>';
+  return h + '</main>';
 }
 function newNote() { S.noteNew = true; S.noteEdit = null; S.phoneOpen = true; render(); setTimeout(function () { var t = document.getElementById('noteed'); if (t) t.focus(); }, 30); }
 function saveNewNote() { var t = (document.getElementById('noteed') || {}).value || ''; if (!t.trim()) return; S.noteNew = false; render(); toast('Saved. It appears in Notes within a minute.'); api('macAddNote', { text:t }).catch(fail); }
