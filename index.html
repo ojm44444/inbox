@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794603194">
+<html lang="en" data-build="b1794609741">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -694,6 +694,18 @@ a.iconbtn { display:inline-grid; place-items:center; color:inherit; }
 .hubrow { display:flex; align-items:center; gap:10px; padding:10px 2px; border-bottom:1px solid var(--hline); color:var(--hink); text-decoration:none; cursor:pointer; font-size:14px; }
 .hubrow .t { flex:1; min-width:0; }
 .hubrow small { display:block; color:var(--hdim); font-size:12.5px; margin-top:2px; }
+.planstep { border-bottom:1px solid var(--hline); }
+.planstep > summary { display:flex; align-items:center; gap:10px; padding:12px 2px; cursor:pointer; list-style:none; font-size:15px; color:var(--hink); }
+.planstep > summary::-webkit-details-marker { display:none; }
+.planstep > summary b { flex:1; font-weight:600; }
+.planstep > summary small { color:var(--hdim); font-size:12px; }
+.planstep .hubrow { cursor:default; padding-left:14px; }
+.pill { flex:none; font:11px/1 'DM Mono',monospace; padding:5px 7px; border-radius:20px; border:1px solid var(--hline); color:var(--hdim); white-space:nowrap; }
+.pill.review { background:#2fa36b; border-color:#2fa36b; color:#fff; }
+.pill.you { background:#c8902c; border-color:#c8902c; color:#fff; }
+.pill.building { border-color:#6d6af5; color:#6d6af5; }
+.pill.done, .pill.live { opacity:.6; }
+.planrule { color:var(--hdim); font-size:13px; margin:2px 0 6px; }
 .hubrow .m { color:var(--hdim); font-size:12.5px; white-space:nowrap; }
 .hubrow.dim { color:var(--hdim); cursor:default; }
 .hubnext { margin:10px 0 14px; }
@@ -1584,6 +1596,22 @@ function hubDecide(key, decision, pick) {
     render();
   }).catch(function (e) { if (prev) p.decisions[id] = prev; else delete p.decisions[id]; render(); toast('Not saved: ' + e.message, true); });
 }
+// The whole plan, every project, step by step (13 Nov 2026, Owen: "all these things also stored in the plan and
+// review pages ... build and me to get to review the stuff before it goes live"). Data: app_settings board_plan,
+// each project chat keeps its own step's statuses true. Nothing here changes anything; it is the list.
+var PLAN_S = { review:'Test it', you:'Your call', building:'Being built', todo:'To build', done:'Done', live:'Live' };
+function planView() {
+  var P = S.data && S.data.plan; if (!P || !P.steps) return '';
+  var h = '<details class="hubsec" open><summary class="hublab">The plan, step by step</summary><p class="planrule">' + esc(P.rule || '') + '</p>';
+  P.steps.forEach(function (st) {
+    var it = st.items || [], c = function (k) { return it.filter(function (i) { return i.s === k; }).length; };
+    var sum = [c('review') ? c('review') + ' to test' : '', c('you') ? c('you') + ' your call' : '', c('todo') + c('building') ? (c('todo') + c('building')) + ' to build' : ''].filter(Boolean).join(' · ') || 'all done';
+    h += '<details class="planstep"' + (st.n === 1 ? ' open' : '') + '><summary><span class="pill">' + st.n + '</span><b>' + esc(st.title) + '</b><small>' + esc(sum) + '</small></summary>'
+      + it.map(function (i) { return '<div class="hubrow"><span class="t">' + esc(i.t) + (i.note ? '<small>' + esc(i.note) + '</small>' : '') + '</span><span class="pill ' + esc(i.s) + '">' + esc(PLAN_S[i.s] || i.s) + '</span></div>'; }).join('')
+      + (st.chat ? '<div class="hubrow dim"><span class="t"><small>Chat: ' + esc(st.chat) + '</small></span></div>' : '') + '</details>';
+  });
+  return h + '</details>';
+}
 function reviewView() {
   hubLoad();
   var f = S.rvP || 'all', all = hubAll(), c = all[0], total = reviewNeeds().length;
@@ -1601,6 +1629,7 @@ function reviewView() {
     var upnext = all.slice(1, 6);
     if (upnext.length) h += '<div class="hubsec"><div class="hublab">Up next</div>' + upnext.map(function (x) { return '<div class="hubrow" onclick="hubSkipTo(' + esc(JSON.stringify(x.pid + ':' + x.id)) + ')"><span class="hubdot" style="--c:' + HUB_SRC[x.pid].color + '"></span><span class="t">' + esc(x.title) + '</span><span class="m">' + esc(HUB_SRC[x.pid].name) + '</span></div>'; }).join('') + (all.length > 6 ? '<div class="hubrow dim">and ' + (all.length - 6) + ' more</div>' : '') + '</div>';
   } else if (HUB.at || !S.token) h += '<article class="hubcard empty"><h2 class="hubtitle">All caught up</h2><p>Nothing waits on you' + (f === 'all' ? '' : ' in ' + esc(HUB_SRC[f].name)) + '. New cards land here as each chat finishes work.</p></article>';
+  h += planView();
   // Things to do inside a tool (Moon's Approve page, the section test): a link each.
   var extra = hubPids().filter(function (p) { return f === 'all' || f === p; }).reduce(function (a, p) { return a.concat(((HUB.p[p] || {}).extra || []).map(function (x) { x.pid = p; return x; })); }, []);
   if (extra.length) h += '<div class="hubsec"><div class="hublab">To do inside the tools</div>' + extra.map(function (x) { return '<a class="hubrow" target="_blank" rel="noopener" href="' + esc(safeUrl(x.href)) + '"><span class="hubdot" style="--c:' + HUB_SRC[x.pid].color + '"></span><span class="t">' + esc(x.title) + '<small>' + esc((x.lines || []).join(' · ')) + '</small></span><span class="m">' + esc(x.button || 'Open') + ' ↗</span></a>'; }).join('') + '</div>';
