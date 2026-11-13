@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794254646">
+<html lang="en" data-build="b1794603011">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -786,7 +786,7 @@ function api(op, args) {
 }
 // Google sign-in lasts an hour: renew it quietly before it runs out, or when the server says so.
 function freshToken() {
-  if (S.key || !S.token || tokenExp(S.token) > Date.now() + 120000) return Promise.resolve();
+  if (S.key || stOk() || !S.token || tokenExp(S.token) > Date.now() + 120000) return Promise.resolve();
   if (freshToken.p) return freshToken.p;
   freshToken.p = new Promise(function (ok) {
     freshToken.ok = ok;
@@ -798,7 +798,7 @@ function freshToken() {
 function send(op, args, again) {
   return freshToken().then(function () { return send1(op, args); }).catch(function (e) {
     if (again || S.key || !/sign|token|auth|allowed|expired/i.test(String(e.message))) throw e;
-    S.token = ''; try { localStorage.removeItem('inbox-id'); } catch (x) {}
+    S.token = ''; stClear(); try { localStorage.removeItem('inbox-id'); } catch (x) {}
     freshToken.p = null; S.token = 'x';
     return freshToken().then(function () { if (!S.token || S.token === 'x') { S.token = ''; render(); throw new Error('Please sign in again.'); } return send(op, args, true); });
   });
@@ -806,7 +806,7 @@ function send(op, args, again) {
 function send1(op, args) {
   // Never hang: Google's server is given 2 minutes, then the page says so.
   var ctl = window.AbortController ? new AbortController() : null; if (ctl) setTimeout(function () { ctl.abort(); }, 120000);
-  return fetch(API, { signal: ctl ? ctl.signal : undefined, method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, redirect:'follow', body:JSON.stringify({ action:'inboxApi', idToken:S.token, key:S.key, op:op, args:args || {} }) })
+  return fetch(API, { signal: ctl ? ctl.signal : undefined, method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, redirect:'follow', body:JSON.stringify({ action:'inboxApi', idToken:stOk() ? '' : S.token, st:S.st || '', key:S.key, op:op, args:args || {} }) })
     .then(function (r) { return r.json(); })
     .then(function (j) { if (!j.ok) throw new Error(j.error || 'Something went wrong'); return j.data; });
 }
@@ -860,7 +860,7 @@ function current() { return groups().filter(function (g) { return g.id === S.ope
 function pileOf(k) { return PILES.filter(function (p) { return p.key === k; })[0] || PILES[1]; }
 
 function render() {
-  if (!S.token && !S.key) return renderGate();
+  if (!S.token && !S.key && !stOk()) return renderGate();
   var sc = document.querySelector('.rows, .home'), keep = sc ? sc.scrollTop : 0;
   var mail = S.view !== 'sort' && S.view !== 'compose' && S.view !== 'money' && S.view !== 'home' && S.view !== 'reading' && S.view !== 'trello' && S.view !== 'person' && S.view !== 'review';
   document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + (S.slim ? ' slim' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'sticky' ? stickyView() : S.view === 'whatsapp' ? waView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'sort' ? sortView() : S.view === 'money' ? moneyView() : S.view === 'compose' ? composeView() : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : S.view === 'review' ? reviewView() : home()) + '</div>';
@@ -920,6 +920,8 @@ function unsub(gid, inSort) {
   }).catch(function (err) { if (win) win.close(); fail(err); });
 }
 function sortTodo() { sortAct('todo'); }
+// Skip (Owen, Trello 10 Nov): move on and do nothing. It stays unread and comes back next time Quick sort opens (Keep hides it for good).
+function sortSkip() { var g = sortDeck()[0]; if (!g) return; sortCommit(); SORT.done[g.id] = 'skip'; SORT.last = null; render(); }
 function sortUndo() { var a = SORT.last; if (!a || !SORT.pending) { var u = S.undo[S.undo.length - 1]; if (u) { S.undo.pop(); try { u.fn(); } catch (e) {} if (a) delete SORT.done[a.g.id]; render(); toast('Undone: ' + u.label); } else toast('Nothing to undo'); return; } clearTimeout(SORT.pending); SORT.pending = null; delete SORT.done[a.g.id]; SORT.last = null; toast('Undone'); render(); }
 function sortView() {
   var deck = sortDeck(), g = deck[0], total = deck.length + Object.keys(SORT.done).length, n = Object.keys(SORT.done).length + 1;
@@ -931,7 +933,7 @@ function sortView() {
     + '<div class="sorthead"><div class="rowav" style="background:' + hue(e.from_email) + '">' + esc(initials(e.from_name || e.from_email)) + '</div><div style="min-width:0"><div class="t">' + esc(e.from_name || e.from_email) + '</div><div class="l3">' + acctTag(e.account) + ' ' + ago(e.received_at) + ' ago' + (g.unread.length > 1 ? ' · ' + g.unread.length + ' emails' : '') + '</div></div></div>'
     + '<h2 class="sortsubj">' + esc(e.subject || '') + '</h2>' + (e.why ? '<div class="sortwhy">' + esc(e.why) + '</div>' : '') + '<div class="sortbody">' + linkify(body) + '</div></div>'
     + '<div class="sorthint"><span>← Bin</span><span>↑ Sticky · ↓ Needs your reply</span><span>Keep →</span></div>'
-    + '<button class="sorttodo" onclick="sortTodo()">' + PILE_ICON.todo + 'To do</button><div class="sortbtns"><button onclick="sortAct(\'reply\')">' + I.reply + '<span>Needs reply</span></button><button onclick="sortAct(\'sticky\',' + (st.id || 0) + ')">' + I.sticky + '<span>' + esc(st.name || 'Sticky') + '</span></button><label class="sortpick">' + I.sticky + '<span>Other sticky…</span><select onchange="sortSticky(this)"><option value="">Pick a sticky</option>' + stickies().map(function (x) { return '<option value="' + x.id + '">' + esc(x.name) + '</option>'; }).join('') + '<option value="new">+ New sticky…</option></select></label>' + (/^(learn|noise|new)$/.test(g.pile) && e.kind === 'in' && e.account !== 'slack' && e.account !== 'whatsapp' ? '<button onclick="unsub(\'' + g.id + '\',true)">' + I.bin + '<span>Unsubscribe</span></button>' : '') + '<button onclick="S.view=\'all\';openG(\'' + g.id + '\')">' + I.inbox + '<span>Open</span></button></div>'
+    + '<button class="sorttodo" onclick="sortTodo()">' + PILE_ICON.todo + 'To do</button><div class="sortbtns"><button onclick="sortAct(\'reply\')">' + I.reply + '<span>Needs reply</span></button><button onclick="sortAct(\'sticky\',' + (st.id || 0) + ')">' + I.sticky + '<span>' + esc(st.name || 'Sticky') + '</span></button><label class="sortpick">' + I.sticky + '<span>Other sticky…</span><select onchange="sortSticky(this)"><option value="">Pick a sticky</option>' + stickies().map(function (x) { return '<option value="' + x.id + '">' + esc(x.name) + '</option>'; }).join('') + '<option value="new">+ New sticky…</option></select></label>' + (/^(learn|noise|new)$/.test(g.pile) && e.kind === 'in' && e.account !== 'slack' && e.account !== 'whatsapp' ? '<button onclick="unsub(\'' + g.id + '\',true)">' + I.bin + '<span>Unsubscribe</span></button>' : '') + '<button onclick="sortSkip()">' + I.inbox + '<span>Skip</span></button>' + '<button onclick="S.view=\'all\';openG(\'' + g.id + '\')">' + I.inbox + '<span>Open</span></button></div>'
     + '<div class="sortfoot"><button class="sortundo" onclick="sortUndo()" title="Undo">↶</button><div class="sortnext">' + deck.slice(1, 6).map(function (x) { return '<span class="rowav" style="background:' + hue(x.items[0].from_email) + '">' + esc(initials(x.items[0].from_name || x.items[0].from_email)) + '</span>'; }).join('') + '</div><div class="l3">' + n + ' of ' + total + '</div></div></main>';
   setTimeout(sortWire, 0);
   return h;
@@ -2665,7 +2667,7 @@ function load(op) {
   return api(op || 'load').then(function (d) { if (sent < (S.dataSent || 0)) { S.loading = false; S.refreshing = false; render(); return; } S.dataSent = sent; S.data = applyLocal(d, sent); if (S.needRegroup) { S.needRegroup = false; reGroup(); } slackNames(); S.loading = false; S.refreshing = false; S.stale = false; saveCache(d); render(); })
     .catch(function (e) {
       S.loading = false; S.refreshing = false;
-      if (/sign in again/i.test(e.message)) { S.token = ''; S.key = ''; try { localStorage.removeItem('inbox-id'); } catch (x) {} }
+      if (/sign in again/i.test(e.message)) { S.token = ''; S.key = ''; stClear(); try { localStorage.removeItem('inbox-id'); } catch (x) {} }
       render(); toast(e.message, true);
     });
 }
@@ -2688,8 +2690,12 @@ function gsi() {
   if (!gsi.prompted) { gsi.prompted = true; google.accounts.id.prompt(); }
 }
 function tokenExp(t) { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).exp * 1000; } catch (e) { return 0; } }
-function onCred(r) { var renew = !!S.data; S.token = r.credential; try { localStorage.setItem('inbox-id', S.token); } catch (e) {} if (freshToken.ok) { freshToken.ok(); freshToken.ok = null; } if (!renew) { S.loading = true; load('load'); } }
-function signOut() { S.token = ''; S.data = null; try { localStorage.removeItem('inbox-id'); localStorage.removeItem('inbox-cache'); } catch (e) {} if (window.google && google.accounts) google.accounts.id.disableAutoSelect(); render(); }
+function onCred(r) { var renew = !!S.data; S.token = r.credential; try { localStorage.setItem('inbox-id', S.token); } catch (e) {} stGet(); if (freshToken.ok) { freshToken.ok(); freshToken.ok = null; } if (!renew) { S.loading = true; load('load'); } }
+// Stay signed in (13 Nov): one Google sign-in gets a 30-day pass from the server, renewed while it is used. Sign out clears it.
+function stOk() { return !!S.st && S.stExp > Date.now() + 60000; }
+function stClear() { S.st = ''; S.stExp = 0; try { localStorage.removeItem('inbox-st'); } catch (e) {} }
+function stGet() { if (stGet.busy) return; stGet.busy = true; send1('session').then(function (d) { stGet.busy = false; if (d && d.st) { S.st = d.st; S.stExp = d.exp; try { localStorage.setItem('inbox-st', JSON.stringify(d)); } catch (e) {} } }).catch(function () { stGet.busy = false; }); }
+function signOut() { S.token = ''; stClear(); S.data = null; try { localStorage.removeItem('inbox-id'); localStorage.removeItem('inbox-cache'); } catch (e) {} if (window.google && google.accounts) google.accounts.id.disableAutoSelect(); render(); }
 
 document.addEventListener('keydown', function (ev) {
   if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === 'k') { ev.preventDefault(); if (S.view !== 'home') go('home'); setTimeout(function () { var a = document.getElementById('askq'); if (a) a.focus(); }, 30); return; }
@@ -2741,9 +2747,12 @@ setInterval(function () {
   // Security audit 8 Nov 2026: no key in the address bar any more; Google sign-in only. Strip any old ?k= link.
   if (new URLSearchParams(location.search).get('k')) history.replaceState(null, '', location.pathname);
   try { var tok = localStorage.getItem('inbox-id') || ''; if (tok && tokenExp(tok) > Date.now() + 60000) S.token = tok; } catch (e) {}
+  try { var sp = JSON.parse(localStorage.getItem('inbox-st') || 'null'); if (sp && sp.st && sp.exp > Date.now() + 60000) { S.st = sp.st; S.stExp = sp.exp; } } catch (e) {}
+  if (stOk() && S.stExp < Date.now() + 25 * 86400000) setTimeout(stGet, 3000);
+  if (!stOk() && S.token) setTimeout(stGet, 1000);
   try { S.local = JSON.parse(localStorage.getItem('inbox-local') || '{}'); } catch (e) { S.local = {}; }
   setInterval(function () { hubLoad(); }, 600000);
-  if (S.token || S.key) { var c = readCache(); if (c) { S.data = applyLocal(c); slackNames(); S.loading = false; S.stale = true; S.refreshing = true; render(); } load('load'); } else render();
+  if (S.token || S.key || stOk()) { var c = readCache(); if (c) { S.data = applyLocal(c); slackNames(); S.loading = false; S.stale = true; S.refreshing = true; render(); } load('load'); } else render();
 })();
 </script>
 </body>
