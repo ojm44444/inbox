@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794603011">
+<html lang="en" data-build="b1794603194">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -573,6 +573,14 @@ a.mini { color:var(--text); }
 /* Email view: compact sender line */
 .bar .sel { width:auto; max-width:120px; padding-right:24px; }
 .bar { flex-wrap:wrap; row-gap:8px; }
+/* iPhone (Trello 13 Nov "looks really shit on iPhone"): email buttons in one swipeable row, not four rows; Menu opens the full list */
+@media (max-width:900px) {
+  .bar { flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; padding-top:8px; padding-bottom:10px; }
+  .bar::-webkit-scrollbar { display:none; }
+  .bar > * { flex:none; }
+  .app.menuopen .side { display:flex; flex-direction:column; position:fixed; inset:0; z-index:14; width:auto; padding:calc(12px + env(safe-area-inset-top)) 12px calc(80px + env(safe-area-inset-bottom)); overflow:auto; background:var(--bg); }
+  .app.menuopen .side .lbl { display:inline; }
+}
 .about2 { display:flex; gap:10px; align-items:center; padding:10px 12px; border:1px solid var(--line); border-radius:10px; margin-bottom:12px; background:var(--panel); }
 .about2 .av { width:30px; height:30px; border-radius:50%; display:grid; place-items:center; color:#fff; font-size:12px; font-weight:600; flex:none; }
 .sel.sm { height:30px; font-size:12px; }
@@ -863,7 +871,7 @@ function render() {
   if (!S.token && !S.key && !stOk()) return renderGate();
   var sc = document.querySelector('.rows, .home'), keep = sc ? sc.scrollTop : 0;
   var mail = S.view !== 'sort' && S.view !== 'compose' && S.view !== 'money' && S.view !== 'home' && S.view !== 'reading' && S.view !== 'trello' && S.view !== 'person' && S.view !== 'review';
-  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + (S.slim ? ' slim' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'sticky' ? stickyView() : S.view === 'whatsapp' ? waView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'sort' ? sortView() : S.view === 'money' ? moneyView() : S.view === 'compose' ? composeView() : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : S.view === 'review' ? reviewView() : home()) + '</div>';
+  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + (S.slim ? ' slim' : '') + (S.menu ? ' menuopen' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'sticky' ? stickyView() : S.view === 'whatsapp' ? waView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'sort' ? sortView() : S.view === 'money' ? moneyView() : S.view === 'compose' ? composeView() : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : S.view === 'review' ? reviewView() : home()) + '</div>';
   var ns = document.querySelector('.rows, .home'); if (ns) ns.scrollTop = keep;
   bulkBar(); wire(); phoneBar(); swipes();
 }
@@ -871,7 +879,7 @@ function render() {
 function phoneBar() {
   var b = document.getElementById('pbar'); if (!b) { b = document.createElement('nav'); b.id = 'pbar'; b.className = 'pbar'; document.body.appendChild(b); }
   var it = function (v, icon, label, n) { return '<button class="' + (S.view === v ? 'on' : '') + '" onclick="go(\'' + v + '\')">' + icon + '<span>' + label + '</span>' + (n ? '<i>' + n + '</i>' : '') + '</button>'; };
-  b.innerHTML = it('home', I.home, 'Home', 0) + it('all', I.inbox, 'Inbox', unreadCount('all')) + it('sort', I.spark, 'Sort', sortDeck().length) + it('whatsapp', I.wa, 'WhatsApp', waWaiting()) + it('sticky', I.sticky, 'Sticky', stickyTotal()) + it('trello', I.board, 'Trello', 0);
+  b.innerHTML = it('home', I.home, 'Home', 0) + it('all', I.inbox, 'Inbox', unreadCount('all')) + it('reply', I.reply, 'Reply', unreadCount('reply')) + it('sort', I.spark, 'Sort', sortDeck().length) + it('whatsapp', I.wa, 'WhatsApp', waWaiting()) + '<button class="' + (S.menu ? 'on' : '') + '" onclick="S.menu=!S.menu;render()">' + I.board + '<span>Menu</span></button>';
 }
 // ---- Quick sort (Owen, 8 Nov: "like Picnic ... so we could boss through stuff"). One unread email at a time:
 // swipe right = keep (stays unread), left = bin (Gmail bin, back for 30 days), up = sticky note, down = needs a reply.
@@ -2404,7 +2412,7 @@ function bulkBar() {
 }
 function selIds() { var out = []; groups().forEach(function (g) { if (S.sel[g.id]) out = out.concat((S.f.unread && g.unread.length ? g.unread : g.items).map(function (e) { return e.id; })); }); return out; }
 
-function go(v) { if (S.view !== 'person') S.prevView = S.view; S.view = v; S.open = null; S.phoneOpen = false; S.sel = {}; render(); }
+function go(v) { S.menu = false; if (S.view !== 'person') S.prevView = S.view; S.view = v; S.open = null; S.phoneOpen = false; S.sel = {}; render(); }
 function openFrom(v, id) { S.view = v; S.open = id; S.phoneOpen = true; S.keepOpen = null; render(); autoRead(id); }
 function openG(id) { S.open = id; S.phoneOpen = true; S.keepOpen = null; render(); autoRead(id); }
 // Opening an email reads it, like Gmail (6 Nov 2026, Owen: "I have to do it all twice"). It stays on
