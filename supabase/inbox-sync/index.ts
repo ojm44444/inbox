@@ -82,7 +82,7 @@ async function pullInbox(a: string) {
       have[r.id] = true;
       if (!hist[r.id] || r.history_id === hist[r.id]) continue;
       const th = await gmail(a, 'threads/' + threadOf(r.id) + '?format=metadata&metadataHeaders=Message-ID');
-      const ms = (th.messages || []).filter((m: any) => (m.labelIds || []).indexOf('DRAFT') < 0);
+      const ms = (th.messages || []).filter((m: any) => (m.labelIds || []).indexOf('DRAFT') < 0 && !/reacted via Gmail/i.test(String(m.snippet || '')));
       if (ms.length && header(ms[ms.length - 1], 'Message-ID') !== r.msg_id) { stale.push(r.id); delete have[r.id]; continue; }
       await x('UPDATE inbox_emails SET history_id = ' + lit(hist[r.id]) + ' WHERE id = ' + lit(r.id));
     }
@@ -90,7 +90,7 @@ async function pullInbox(a: string) {
     for (const id of ids) {
       if (have[id]) continue;
       const th = await gmail(a, 'threads/' + threadOf(id) + '?format=full');
-      const ms = (th.messages || []).filter((m: any) => (m.labelIds || []).indexOf('DRAFT') < 0);
+      const ms = (th.messages || []).filter((m: any) => (m.labelIds || []).indexOf('DRAFT') < 0 && !/reacted via Gmail/i.test(String(m.snippet || '')));
       if (!ms.length) continue;
       const last = ms[ms.length - 1], from = addr(header(last, 'From')), to = addr(header(last, 'To')).email;
       const text = ms.slice(-3).map((m: any) => 'From: ' + header(m, 'From') + '\nDate: ' + header(m, 'Date') + '\n\n' + body(m).slice(0, 1500)).join('\n\n=====\n\n');
@@ -129,7 +129,7 @@ async function pullChases(a: string, seen: Record<string, string>) {
     if (s && s.split('|')[0] === String(t.historyId)) { if (s.split('|')[1]) open.push(s.split('|')[1]); continue; }
     seen[k] = String(t.historyId) + '|';
     const th = await gmail(a, 'threads/' + t.id + '?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Subject&metadataHeaders=Message-ID&metadataHeaders=Date');
-    const ms = (th.messages || []).filter((m: any) => (m.labelIds || []).indexOf('DRAFT') < 0);
+    const ms = (th.messages || []).filter((m: any) => (m.labelIds || []).indexOf('DRAFT') < 0 && !/reacted via Gmail/i.test(String(m.snippet || '')));
     if (!ms.length) continue;
     const last = ms[ms.length - 1];
     if (addr(header(last, 'From')).email !== mine) continue;

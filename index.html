@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794611077">
+<html lang="en" data-build="b1794648624">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -587,6 +587,15 @@ a.mini { color:var(--text); }
   .app.menuopen .side .lbl { display:inline; }
 }
 .about2 { display:flex; gap:10px; align-items:center; padding:10px 12px; border:1px solid var(--line); border-radius:10px; margin-bottom:12px; background:var(--panel); }
+@media (max-width:800px) {
+  /* 14 Nov: on a phone the sender box was a tall squashed column beside the dropdown. Text full width, dropdown under it, Littlebird note 3 lines (tap for more). */
+  .about2 { flex-wrap:wrap; align-items:flex-start; }
+  .about2 > div { flex:1 1 calc(100% - 44px); }
+  .about2 > .sel, .about2 > .btn, .about2 > .l3 { margin-left:40px; }
+  .about2 .lbline { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; cursor:pointer; }
+  .about2 .lbline.open { display:block; }
+  .detail .dhead .bar { -webkit-mask-image:linear-gradient(to right, #000 82%, transparent); mask-image:linear-gradient(to right, #000 82%, transparent); padding-right:28px; }
+}
 .about2 .av { width:30px; height:30px; border-radius:50%; display:grid; place-items:center; color:#fff; font-size:12px; font-weight:600; flex:none; }
 .sel.sm { height:30px; font-size:12px; }
 a.iconbtn { display:inline-grid; place-items:center; color:inherit; }
@@ -2460,7 +2469,7 @@ function aboutSender(g) {
     if (!rule && hb.read >= 3 && !hb.reply) hint = 'You always just mark these read. Put them straight in Noise from now on?';
   }
   var piles = ['noise', 'learn', 'reply', 'fix'];
-  return '<div class="about2"><span class="av" style="background:' + hue(k) + ';cursor:pointer" onclick="openPerson(\'' + esc(k) + '\')">' + esc(initials(e.from_name || k)) + '</span><div style="min-width:0;flex:1"><b class="plink" title="Everything with them" onclick="openPerson(\'' + esc(k) + '\')">' + esc(e.from_name || k) + '</b> <span class="l3">' + esc(k) + '</span><div class="l3">' + esc(facts.join(' · ')) + '</div>' + (lbNote(k, e.from_name) ? '<div class="lbline" title="What Littlebird saw outside email">' + I.spark + esc(lbNote(k, e.from_name).note) + '</div>' : '') + '</div>'
+  return '<div class="about2"><span class="av" style="background:' + hue(k) + ';cursor:pointer" onclick="openPerson(\'' + esc(k) + '\')">' + esc(initials(e.from_name || k)) + '</span><div style="min-width:0;flex:1"><b class="plink" title="Everything with them" onclick="openPerson(\'' + esc(k) + '\')">' + esc(e.from_name || k) + '</b> <span class="l3">' + esc(k) + '</span><div class="l3">' + esc(facts.join(' · ')) + '</div>' + (lbNote(k, e.from_name) ? '<div class="lbline" title="What Littlebird saw outside email" onclick="this.classList.toggle(\'open\')">' + I.spark + esc(lbNote(k, e.from_name).note) + '</div>' : '') + '</div>'
     + (rule ? '<span class="l3">Always <b>' + pileOf(rule).title + '</b></span><button class="btn sm ghost" onclick="setRule(\'' + esc(k) + '\',\'\')">Undo</button>'
       : '<select class="sel sm" title="From now on, put everything from this sender in" onchange="if(this.value)setRule(\'' + esc(k) + '\',this.value)"><option value="">Always put in…</option>' + piles.map(function (x) { return '<option value="' + x + '">' + pileOf(x).title + '</option>'; }).join('') + '</select>')
     + '</div>' + (hint ? '<div class="abh">' + I.spark + esc(hint) + ' <button class="btn sm pri" onclick="setRule(\'' + esc(k) + '\',\'noise\')">Yes, always Noise</button></div>' : '');
