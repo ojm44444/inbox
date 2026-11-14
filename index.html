@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794650968">
+<html lang="en" data-build="b1794651095">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -220,7 +220,7 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .droprow .t { flex:1; min-width:0; cursor:pointer; }
 .droprow .t b { display:block; font-weight:600; font-size:14px; }
 .droprow .t small { display:block; color:var(--dim); font-size:12.5px; margin-top:1px; }
-@media (max-width:800px) { .droprow { flex-wrap:wrap; } .droprow .t { flex-basis:calc(100% - 90px); } .droprow .btn { margin-left:auto; } }
+@media (max-width:800px) { .droprow { flex-wrap:wrap; gap:6px 10px; } .droprow > .chip { order:0; } .droprow .t { flex:1 1 calc(100% - 80px); } .droprow .btn { order:3; } .droprow .btn:first-of-type { margin-left:auto; } }
 .waitline .go { color:var(--reply); font-weight:600; white-space:nowrap; }
 .tiles.apps { margin-top:-10px; }
 .tiles.apps + .strip { margin-bottom:16px; }
@@ -259,6 +259,7 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .wawall { background-image:none !important; padding:14px 0 18px !important; }
 .wawall > * { max-width:760px; margin-left:auto !important; margin-right:auto !important; }
 .wawall .wam { margin-left:16px !important; margin-right:16px !important; }
+.wawall .wam.me { margin-left:auto !important; }
 @media (min-width:900px) { .wawall .wam { margin-left:calc(50% - 364px) !important; } .wawall .wam.me { margin-left:auto !important; margin-right:calc(50% - 364px) !important; } }
 .wam { border:1px solid var(--line); box-shadow:none !important; border-radius:16px !important; padding:7px 11px 7px 12px !important; font-size:14.5px; line-height:1.45; }
 .wam:not(.me) { border-top-left-radius:5px !important; }
