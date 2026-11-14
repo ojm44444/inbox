@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794651183">
+<html lang="en" data-build="1794658621">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -213,6 +213,8 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .sortempty { text-align:center; margin-top:20vh; }
 @media (min-width:801px) { .sortfoot { padding-bottom:20px; } }
 .waitline { margin-top:10px; padding:10px 14px; border-radius:12px; background:color-mix(in srgb, var(--reply) 12%, transparent); border:1px solid color-mix(in srgb, var(--reply) 35%, transparent); cursor:pointer; font-size:15px; line-height:1.4; }
+.evening { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:14px 0 4px; padding:12px 14px; border-radius:14px; background:var(--panel); border:1px solid var(--line); }
+.evening .t { flex:1 1 220px; min-width:0; cursor:pointer; } .evening .t b { display:block; } .evening .t small { color:var(--mut, inherit); opacity:.75; }
 .drops { margin:14px 0 4px; border:1px solid var(--line); border-radius:14px; background:var(--panel); padding:10px 14px 6px; }
 .dropshead { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:4px; }
 .dropshead b { font-size:15px; }
@@ -1183,7 +1185,7 @@ function home() {
     + '</div>'
     // Owen, 9 Nov: "so much stuff ... overwhelming". One row of the six he uses; the rest under More.
     + '<div class="tiles">' + ['review', 'reply', 'todo', 'sort', 'money', 'whatsapp'].map(homeTile).join('') + '</div>'
-    + dropsCard()
+    + eveningCard() + dropsCard()
     + askBar() + briefCard()
     // Owen, 7 Nov: "the bits below are a bit overwhelming. I don't really scroll." Folded away, one tap to open.
     + '<button class="btn ghost morebtn" onclick="S.homeMore=!S.homeMore;render()">' + (S.homeMore ? 'Show less' : 'More: Fix, Learn, Slack, calendar, inboxes') + '</button>';
@@ -2223,6 +2225,20 @@ function dropDone(i) {
   api('dropHide', { key:x.key }).catch(fail);
 }
 function dropsRefresh() { S.dropBusy = true; render(); api('drops', {}).then(function (r) { S.data.drops = r; S.dropBusy = false; render(); }).catch(function (e) { S.dropBusy = false; render(); fail(e); }); }
+function eveningCard() {
+  // Trello INBOX TOOL card: "at the end of the day ... write replies in my voice, with all the context". After 5pm the
+  // server drafts every open Reply from a person (op evening). Drafts stay here until he presses Send or Save.
+  var em = ((S.data && S.data.emails) || []).filter(function (e) { return e.status === 'open' && e.category === 'reply' && e.kind === 'in' && e.account !== 'whatsapp'; });
+  var ready = em.filter(function (e) { return (e.draft_text || '').trim(); }).length, left = em.length - ready;
+  if (!ready && !left) return '';
+  var ev = (S.data && S.data.evening) || {};
+  return '<div class="evening"><div class="t" onclick="go(\'reply\')"><b>' + (ready ? ready + ' repl' + (ready === 1 ? 'y' : 'ies') + ' written in your voice' : 'Replies in your voice') + '</b><small>'
+    + (ready ? 'Check, change a word, send. Nothing goes until you press Send.' : 'Written for you after 5pm each day.') + (ev.at ? ' Last written ' + ago(ev.at) + ' ago.' : '') + '</small></div>'
+    + (ready ? '<button class="btn sm pri" onclick="go(\'reply\')">Check them</button>' : '')
+    + (left ? '<button class="btn sm ghost" onclick="eveningNow()">' + (S.eveBusy ? 'Writing…' : 'Write ' + (left > 12 ? '12 more' : 'the other ' + left) + ' now') + '</button>' : '') + '</div>';
+}
+function eveningNow() { if (S.eveBusy) return; S.eveBusy = true; render(); toast('Writing replies in your voice. About a minute.');
+  api('evening', {}).then(function (r) { S.eveBusy = false; if (S.data) S.data.evening = r; load('load'); var n = r ? r.drafted : 0; toast(n ? n + ' replies ready to check' : 'Nothing new to write'); render(); }).catch(function (e) { S.eveBusy = false; fail(e); }); }
 function dropsCard() {
   var d = (S.data && S.data.drops) || {}, l = d.items || [];
   var head = '<div class="dropshead"><b>You might drop these</b><span class="l3">From WhatsApp, Notes, Reminders, email and Slack' + (d.at ? ', checked ' + ago(d.at) + ' ago' : '') + '</span><span style="flex:1"></span><button class="btn sm ghost" onclick="dropsRefresh()">' + (S.dropBusy ? 'Checking…' : 'Check again') + '</button></div>';
