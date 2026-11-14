@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794649374">
+<html lang="en" data-build="b1794650545">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1410,6 +1410,8 @@ function hubWaiting(pid) {
   var p = HUB.p[pid]; if (!p || !p.cards) return [];
   return p.cards.filter(function (c) { return !p.decisions[c.id]; }).map(function (c) { var o = Object.assign({}, c); o.pid = pid; return o; });
 }
+// 14 Nov: Home said Review 6 while 200+ cards waited, because the other projects had not loaded. Say so instead.
+function hubMissing() { return !S.key && hubPids().some(function (p) { return p !== 'inbox' && (!HUB.p[p] || HUB.p[p].error); }) && !HUB.busy; }
 function hubPids() { return ['songdrafts', 'moon', 'tez', 'inbox']; }
 function hubAll() {
   var skip = S.rvSkip || [], f = S.rvP || 'all', out = [];
@@ -1551,7 +1553,7 @@ function homeTile(k) {
   if (k === 'slack') return t('slack', '#a35bd6', I.slack, 'Slack', slackWaiting(), 'Waiting on lazygecko Slack.');
   if (k === 'sticky') { var n = stickyTotal(); return t('sticky', '#d6a23a', I.sticky, 'Sticky notes', n, n ? 'Ready to paste into Claude.' : 'Add things for a Claude chat.'); }
   if (k === 'money') { var mt = (S.data.money && S.data.money.tile) || null, sh = mt && Number(mt.spending_left) < 0; return t('money', sh ? '#ff6b6b' : '#2fa36b', '£', 'Money', mt ? (sh ? '<span style="color:var(--fix)">Short by ' + money(-Number(mt.spending_left)) + '</span>' : money(mt.spending_left)) : '—', mt ? (sh ? 'after bills, ' + mt.days_to_payday + ' days to payday' : money(mt.per_day) + ' a day for ' + mt.days_to_payday + ' days to payday') : 'From your Money chat.'); }
-  if (k === 'review') return t('review', '#6d6af5', I.check, 'Review', reviewNeeds().length, 'Things to approve.');
+  if (k === 'review') return t('review', '#6d6af5', I.check, 'Review', reviewNeeds().length, hubMissing() ? 'Inbox only: open it and sign in once to add songdrafts, Moon and TEZ.' : 'Things to approve.');
   if (k === 'calendar') { var clashes = (S.data.calendar && S.data.calendar.clashes) || [], ev = ((S.data.calendar || {}).events || []).filter(function (e) { return !e.allDay && Date.parse(e.end) > Date.now(); })[0];
     return '<div class="tile" style="--c:#3a86d8"><div class="lab"><span class="pico">' + I.cal + '</span>Calendar</div><div class="num" style="font-size:' + (ev ? '18px' : '') + '">' + (ev ? esc(hm(ev.start)) : '0') + '</div><div class="hint">' + (clashes.length ? '<span style="color:var(--chase)">' + clashes.length + ' clash' + (clashes.length === 1 ? '' : 'es') + '</span> · ' : '') + (ev ? esc(ev.title).slice(0, 40) : 'Nothing booked.') + '</div></div>'; }
   return '';
@@ -1565,7 +1567,7 @@ function appTiles() {
     + t('whatsapp', '#25d366', I.wa, 'WhatsApp', waWaiting(), 'Unread chats with people.')
     + t('slack', '#a35bd6', I.slack, 'Slack', slackWaiting(), 'Waiting on lazygecko Slack.')
     + t('sticky', '#d6a23a', I.sticky, 'Sticky notes', stN, stN ? 'Ready to paste into Claude.' : 'Add things for a Claude chat.')
-    + t('review', '#6d6af5', I.check, 'Review', rvN, 'Things to approve.')
+    + t('review', '#6d6af5', I.check, 'Review', rvN, hubMissing() ? 'Inbox only: open it and sign in once to add songdrafts, Moon and TEZ.' : 'Things to approve.')
     + '<div class="tile" style="--c:#3a86d8" onclick="S.homeMore=true;render()"><div class="lab"><span class="pico">' + I.cal + '</span>Calendar</div><div class="num" style="font-size:' + (ev ? '18px' : '') + '">' + (ev ? esc(hm(ev.start)) : '0') + '</div><div class="hint">' + (clashes.length ? '<span style="color:var(--chase)">' + clashes.length + ' clash' + (clashes.length === 1 ? '' : 'es') + '</span> · ' : '') + (ev ? esc(ev.title).slice(0, 40) : 'Nothing booked.') + '</div></div>'
     + '</div>';
 }
