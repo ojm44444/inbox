@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794651095">
+<html lang="en" data-build="b1794651183">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -2228,7 +2228,7 @@ function dropsCard() {
   var head = '<div class="dropshead"><b>You might drop these</b><span class="l3">From WhatsApp, Notes, Reminders, email and Slack' + (d.at ? ', checked ' + ago(d.at) + ' ago' : '') + '</span><span style="flex:1"></span><button class="btn sm ghost" onclick="dropsRefresh()">' + (S.dropBusy ? 'Checking…' : 'Check again') + '</button></div>';
   if (!l.length) return '<div class="drops">' + head + '<div class="l3" style="padding:6px 2px">' + (d.at ? 'Nothing looks at risk right now.' : 'Not checked yet today.') + '</div></div>';
   return '<div class="drops">' + head + l.map(function (x, i) {
-    return '<div class="droprow"><span class="chip">' + esc(DROP_SRC[x.src] || x.src) + '</span><div class="t" onclick="dropOpen(' + i + ')"><b>' + esc(x.what) + '</b><small>' + esc(x.why || '') + (x.who ? ' · ' + esc(x.who) : '') + '</small></div>'
+    return '<div class="droprow"><span class="chip">' + esc(DROP_SRC[x.src] || x.src) + '</span><div class="t" onclick="dropOpen(' + i + ')"><b>' + esc(x.what) + '</b><small>' + esc(x.why || '') + (x.who ? ' · ' + esc(String(x.who).replace(/https?:\/\/\S+/g, '').replace(/[\s:-]+$/, '').slice(0, 40)) : '') + '</small></div>'
       + '<button class="btn sm" onclick="dropOpen(' + i + ')">Open</button><button class="btn sm ghost" title="Done, or not a thing: off the list" onclick="dropDone(' + i + ')">Done</button></div>';
   }).join('') + '</div>';
 }
