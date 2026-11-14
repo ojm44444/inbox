@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="1794658621">
+<html lang="en" data-build="1794658958">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -213,6 +213,14 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .sortempty { text-align:center; margin-top:20vh; }
 @media (min-width:801px) { .sortfoot { padding-bottom:20px; } }
 .waitline { margin-top:10px; padding:10px 14px; border-radius:12px; background:color-mix(in srgb, var(--reply) 12%, transparent); border:1px solid color-mix(in srgb, var(--reply) 35%, transparent); cursor:pointer; font-size:15px; line-height:1.4; }
+.orco { margin:12px 0; border:1px solid var(--line); border-radius:14px; background:var(--panel); padding:10px 14px; }
+.orhead { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding-bottom:6px; }
+.orrow { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:9px 0; border-top:1px solid var(--line); }
+.orrow .t { flex:1 1 200px; min-width:0; } .orrow .t b { display:block; } .orrow .t small { opacity:.7; }
+.orst { font-size:12px; padding:3px 9px; border-radius:99px; color:var(--c); border:1px solid var(--c); white-space:nowrap; }
+.oradd { display:flex; gap:6px; flex-wrap:wrap; align-items:center; padding:9px 0 4px; border-top:1px solid var(--line); }
+.oradd input:not([type]) , .oradd input[placeholder] { flex:1 1 140px; min-width:0; padding:7px 9px; border-radius:9px; border:1px solid var(--line); background:transparent; color:inherit; font:inherit; }
+.oradd.hot > .l3 { color:#e0533d; opacity:1; width:100%; }
 .evening { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:14px 0 4px; padding:12px 14px; border-radius:14px; background:var(--panel); border:1px solid var(--line); }
 .evening .t { flex:1 1 220px; min-width:0; cursor:pointer; } .evening .t b { display:block; } .evening .t small { color:var(--mut, inherit); opacity:.75; }
 .drops { margin:14px 0 4px; border:1px solid var(--line); border-radius:14px; background:var(--panel); padding:10px 14px 6px; }
@@ -856,7 +864,7 @@ function toast(msg, bad) { var t = document.getElementById('toast'); t.textConte
 
 // Changes (read, unread, move, bin) go one at a time, in the order Owen made them,
 // so a quick read-then-unread can never finish the wrong way round.
-var WRITES = { stickyTick:1, stickyAdd:1, stickyRemove:1, stickyClear:1, stickyUndoClear:1, stickyCreate:1, stickyDelete:1, reviewDecide:1, reviewNote:1, markRead:1, markUnread:1, setPile:1, setChat:1, bin:1, saveDraft:1, doneWith:1, binNoise:1 }, queue = Promise.resolve();
+var WRITES = { outreachSave:1, outreachSet:1, outreachDelete:1, outreachDraft:1, stickyTick:1, stickyAdd:1, stickyRemove:1, stickyClear:1, stickyUndoClear:1, stickyCreate:1, stickyDelete:1, reviewDecide:1, reviewNote:1, markRead:1, markUnread:1, setPile:1, setChat:1, bin:1, saveDraft:1, doneWith:1, binNoise:1 }, queue = Promise.resolve();
 function api(op, args) {
   if (WRITES[op]) { var p = queue.then(function () { return send(op, args); }); queue = p.catch(function () {}); return p; }
   return send(op, args);
@@ -952,8 +960,8 @@ function pileOf(k) { return PILES.filter(function (p) { return p.key === k; })[0
 function render() {
   if (!S.token && !S.key && !stOk()) return renderGate();
   var sc = document.querySelector('.rows, .home'), keep = sc ? sc.scrollTop : 0;
-  var mail = S.view !== 'sort' && S.view !== 'compose' && S.view !== 'money' && S.view !== 'home' && S.view !== 'reading' && S.view !== 'trello' && S.view !== 'person' && S.view !== 'review' && S.view !== 'notesort';
-  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + (S.slim ? ' slim' : '') + (S.menu ? ' menuopen' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'sticky' ? stickyView() : S.view === 'whatsapp' ? waView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'sort' ? sortView() : S.view === 'notesort' ? noteSortView() : S.view === 'money' ? moneyView() : S.view === 'compose' ? composeView() : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : S.view === 'review' ? reviewView() : home()) + '</div>';
+  var mail = S.view !== 'sort' && S.view !== 'compose' && S.view !== 'money' && S.view !== 'home' && S.view !== 'reading' && S.view !== 'trello' && S.view !== 'person' && S.view !== 'review' && S.view !== 'notesort' && S.view !== 'outreach';
+  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + (S.slim ? ' slim' : '') + (S.menu ? ' menuopen' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'sticky' ? stickyView() : S.view === 'whatsapp' ? waView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'sort' ? sortView() : S.view === 'notesort' ? noteSortView() : S.view === 'outreach' ? outreachView() : S.view === 'money' ? moneyView() : S.view === 'compose' ? composeView() : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : S.view === 'review' ? reviewView() : home()) + '</div>';
   var ns = document.querySelector('.rows, .home'); if (ns) ns.scrollTop = keep;
   bulkBar(); wire(); phoneBar(); swipes();
   var gb = document.getElementById('gbtn'); if (gb && !gb.childElementCount && window.google && google.accounts) { try { gsi(); } catch (e) {} }
@@ -1118,7 +1126,7 @@ function side() {
     + '<button class="navmore" onclick="S.sideMore=!S.sideMore;try{localStorage.setItem(\'inbox-sidemore\',S.sideMore?1:0)}catch(e){};render()">' + (S.sideMore ? '▾ Hide' : '▸ Labels, inboxes, Slack, Trello') + '</button>';
   if (S.sideMore) {
     h += '<div class="navlabel">Inboxes</div>' + inboxNav()
-      + '<div class="navlabel">Apps</div>' + nv('slack', I.slack, 'Slack', slackWaiting()) + nv('trello', I.board, 'Trello')
+      + '<div class="navlabel">Apps</div>' + nv('slack', I.slack, 'Slack', slackWaiting()) + nv('trello', I.board, 'Trello') + nv('outreach', I.send, 'Outreach')
       + '<div class="navlabel">Folders</div><div class="navrow">' + ['sent', 'drafts', 'trash'].map(function (b) { return '<button class="' + (S.view === 'box:' + b ? 'on' : '') + '" onclick="FD.open=null;go(\'box:' + b + '\')">' + BOXES[b] + '</button>'; }).join('') + '</div>';
   }
   h += labelNav();
@@ -2298,6 +2306,47 @@ function nsAct(kind, sid) {
   if (kind === 'claude') { if (!sid) return; nsCommit(); var st = stickies().filter(function (x) { return x.id == sid; })[0]; api('stickyAdd', { sticky:Number(sid), noteId:n.id }).then(function (r) { if (r && r.stickies) S.data.stickies = r.stickies; toast('On the ' + (st ? st.name : '') + ' sticky'); }).catch(fail); NS.deck.splice(NS.i, 1); NS.kept[n.id] = Date.now(); try { localStorage.setItem('inbox-notekept', JSON.stringify(NS.kept)); } catch (e) {} render(); return; }
   if (kind === 'lyrics') return nsLater('Moving to SONGS', function () { api('macMoveNote', { id:n.id, folder:'SONGS' }).catch(fail); });
   if (kind === 'bin') return nsLater('Binned (Recently Deleted in Notes, back for 30 days)', function () { api('macDeleteNote', { id:n.id }).then(function () { S.data.notes = (S.data.notes || []).filter(function (x) { return x.id !== n.id; }); }).catch(fail); });
+}
+// Company outreach (Owen tapped "Build it" on Review, 9 Nov 2026). One person per company at a time. Drafts go to
+// songdrafts Gmail; he writes his own first line and sends it himself. Nothing here ever sends.
+var OR = { rows:null, busy:'', add:{} };
+var OR_ST = { todo:['To write','#8b8c96'], drafted:['Draft in Gmail','#d6a23a'], sent:['Sent, waiting','#3a86d8'], chase:['No reply in a week','#e0533d'], chased:['Followed up, waiting','#3a86d8'], next:['No answer: try the next person','#e0533d'], replied:['Replied','#2fa36b'], no:['Not interested','#8b8c96'] };
+function orLoad(check) { OR.busy = check ? 'check' : 'load'; render(); api('outreach', check ? { check:true } : {}).then(function (r) { OR.rows = r.rows || []; OR.last = r.last; OR.busy = ''; render(); }).catch(function (e) { OR.busy = ''; render(); fail(e); }); }
+function orDo(op, args, msg) { OR.busy = op + (args.id || ''); render(); return api(op, args).then(function (r) { var l = r.list || r; OR.rows = l.rows || OR.rows; OR.busy = ''; render(); if (msg) toast(msg); }).catch(function (e) { OR.busy = ''; render(); fail(e); }); }
+function orAdd(company) { var k = company || '_new', f = function (n) { var el = document.getElementById('or-' + n + '-' + k.replace(/\W/g, '')); return el ? el.value.trim() : ''; };
+  var c = company || f('company'); if (!c) { toast('Which company?', true); return; } if (company && !f('email')) { toast('Add their email', true); return; }
+  orDo('outreachSave', { company:c, name:f('name'), email:f('email'), role:f('role'), warm: company ? undefined : !!(document.getElementById('or-warm-new') || {}).checked }, 'Added'); }
+function orDraft(id, chase) { orDo('outreachDraft', { id:id }, chase ? 'Follow-up saved in songdrafts Gmail drafts. Check it and send it yourself.' : 'Draft saved in songdrafts Gmail drafts. Write your first line, then send it yourself.'); }
+function outreachView() {
+  if (!OR.rows && !OR.busy) { OR.busy = 'load'; setTimeout(function () { OR.busy = ''; orLoad(); }, 0); }
+  var rows = OR.rows || [], by = {}, order = [];
+  rows.forEach(function (r) { if (!by[r.company]) { by[r.company] = []; order.push(r.company); } by[r.company].push(r); });
+  var gm = 'https://mail.google.com/mail/u/?authuser=songdraftsapp%40gmail.com#drafts';
+  var h = '<main class="home outreach">' + tabs() + '<div class="listhead"><div style="flex:1;min-width:0"><h1>Outreach</h1><div class="sub">One person per company at a time. Drafts go to songdrafts Gmail: you write your own first line and send it yourself. Nothing here sends.</div></div>'
+    + '<button class="btn sm ghost" onclick="orLoad(true)">' + (OR.busy === 'check' ? 'Checking…' : 'Check replies') + '</button></div>'
+    + (OR.last && OR.last.at ? '<div class="l3" style="margin:-4px 0 10px">Sent mail and replies checked ' + ago(OR.last.at) + ' ago. It checks once a day by itself.</div>' : '');
+  if (!OR.rows) return h + '<div class="empty">Loading…</div></main>';
+  order.forEach(function (c) {
+    var l = by[c], k = c.replace(/\W/g, ''), active = l.filter(function (r) { return r.email && ['replied', 'no', 'next'].indexOf(r.status) < 0; }).length;
+    var needNext = !active && l.some(function (r) { return r.status === 'next' || r.status === 'no'; }) && !l.some(function (r) { return r.status === 'replied'; });
+    h += '<div class="orco"><div class="orhead"><b>' + esc(c) + '</b>' + (l[0].warm ? '<span class="chip">warm</span>' : '<span class="chip">cold</span>') + (l[0].note ? '<span class="l3">' + esc(l[0].note) + '</span>' : '') + '<span style="flex:1"></span><span class="l3">' + l.filter(function (r) { return r.email; }).length + ' of 10</span></div>';
+    l.filter(function (r) { return r.email; }).forEach(function (r) {
+      var st = OR_ST[r.status] || [r.status, '#888'], b = OR.busy === 'outreachDraft' + r.id;
+      var act = r.status === 'todo' ? '<button class="btn sm pri" onclick="orDraft(' + r.id + ')">' + (b ? 'Writing…' : 'Write draft') + '</button>'
+        : r.status === 'drafted' ? '<a class="btn sm" target="_blank" rel="noopener" href="' + gm + '">Open Gmail drafts</a>'
+        : r.status === 'chase' ? '<button class="btn sm pri" onclick="orDraft(' + r.id + ',1)">' + (b ? 'Writing…' : 'Write follow-up') + '</button>' : '';
+      h += '<div class="orrow"><div class="t"><b>' + esc(r.name || r.email) + '</b><small>' + esc([r.role, r.email].filter(Boolean).join(' · ')) + (r.sent_at ? ' · sent ' + ago(r.sent_at) + ' ago' : '') + '</small></div>'
+        + '<span class="orst" style="--c:' + st[1] + '">' + esc(st[0]) + '</span>' + act
+        + (['replied', 'no'].indexOf(r.status) < 0 ? '<button class="btn sm ghost" title="They answered" onclick="orDo(\'outreachSet\',{id:' + r.id + ',status:\'replied\'})">Replied</button><button class="btn sm ghost" title="Not interested: stop here" onclick="orDo(\'outreachSet\',{id:' + r.id + ',status:\'no\'})">No</button>' : '')
+        + (r.status === 'todo' || r.status === 'no' ? '<button class="btn sm ghost" title="Take off the list" onclick="if(confirm(\'Take ' + esc(String(r.name || r.email).replace(/[\'"]/g, '')) + ' off the list?\'))orDo(\'outreachDelete\',{id:' + r.id + '})">×</button>' : '') + '</div>';
+    });
+    if (!active && l.filter(function (r) { return r.email; }).length < 10)
+      h += '<div class="oradd' + (needNext ? ' hot' : '') + '"><span class="l3">' + (needNext ? 'No answer from the last person. Add the next one:' : l.some(function (r) { return r.email; }) ? 'Add someone else:' : 'Who to email first:') + '</span>'
+        + '<input id="or-name-' + k + '" placeholder="Name"><input id="or-email-' + k + '" placeholder="Email"><input id="or-role-' + k + '" placeholder="Role (optional)"><button class="btn sm" onclick="orAdd(' + esc(JSON.stringify(c)) + ')">Add</button></div>';
+    h += '</div>';
+  });
+  h += '<div class="orco"><div class="orhead"><b>Add a company</b></div><div class="oradd"><input id="or-company-new" placeholder="Company"><input id="or-name-new" placeholder="Name (optional)"><input id="or-email-new" placeholder="Email (optional)"><label class="l3"><input type="checkbox" id="or-warm-new"> I have used them</label><button class="btn sm" onclick="orAdd()">Add</button></div></div>';
+  return h + '</main>';
 }
 function noteSortView() {
   var h = '<main class="sortv">' + tabs();
