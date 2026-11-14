@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="1794658958">
+<html lang="en" data-build="1794659057">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -2243,7 +2243,7 @@ function eveningCard() {
   return '<div class="evening"><div class="t" onclick="go(\'reply\')"><b>' + (ready ? ready + ' repl' + (ready === 1 ? 'y' : 'ies') + ' written in your voice' : 'Replies in your voice') + '</b><small>'
     + (ready ? 'Check, change a word, send. Nothing goes until you press Send.' : 'Written for you after 5pm each day.') + (ev.at ? ' Last written ' + ago(ev.at) + ' ago.' : '') + '</small></div>'
     + (ready ? '<button class="btn sm pri" onclick="go(\'reply\')">Check them</button>' : '')
-    + (left ? '<button class="btn sm ghost" onclick="eveningNow()">' + (S.eveBusy ? 'Writing…' : 'Write ' + (left > 12 ? '12 more' : 'the other ' + left) + ' now') + '</button>' : '') + '</div>';
+    + (left ? '<button class="btn sm ghost" onclick="eveningNow()">' + (S.eveBusy ? 'Writing…' : 'Write the rest now') + '</button>' : '') + '</div>';
 }
 function eveningNow() { if (S.eveBusy) return; S.eveBusy = true; render(); toast('Writing replies in your voice. About a minute.');
   api('evening', {}).then(function (r) { S.eveBusy = false; if (S.data) S.data.evening = r; load('load'); var n = r ? r.drafted : 0; toast(n ? n + ' replies ready to check' : 'Nothing new to write'); render(); }).catch(function (e) { S.eveBusy = false; fail(e); }); }
