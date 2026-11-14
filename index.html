@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794648766">
+<html lang="en" data-build="b1794649374">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -596,6 +596,13 @@ a.mini { color:var(--text); }
   .about2 .lbline.open { display:block; }
   .detail .dhead .bar { -webkit-mask-image:linear-gradient(to right, #000 82%, transparent); mask-image:linear-gradient(to right, #000 82%, transparent); padding-right:28px; }
 }
+.relbox { border:1px solid var(--line); border-radius:10px; margin:-4px 0 12px; background:var(--panel); padding:6px 10px; }
+.rellab { font-size:11.5px; color:var(--dim); text-transform:uppercase; letter-spacing:.04em; margin:2px 0 4px; }
+.relrow { display:flex; gap:8px; align-items:center; padding:6px 0; border-top:1px solid var(--line); cursor:pointer; font-size:13px; }
+.relrow:first-of-type { border-top:0; }
+.relrow .t { flex:1; min-width:0; }
+.relrow .t b, .relrow .t small { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.relrow .t small { color:var(--dim); font-weight:400; }
 .about2 .av { width:30px; height:30px; border-radius:50%; display:grid; place-items:center; color:#fff; font-size:12px; font-weight:600; flex:none; }
 .sel.sm { height:30px; font-size:12px; }
 a.iconbtn { display:inline-grid; place-items:center; color:inherit; }
@@ -2444,6 +2451,7 @@ function mailDetail(g) {
       + '<button class="btn ghost" onclick="writeD()">' + I.spark + (draft ? 'Rewrite for me' : 'Write it for me') + '</button><button class="btn ghost" onclick="cancelReply()">Discard</button><span style="flex:1"></span><span class="saved" id="savedflag" style="' + (saved ? '' : 'display:none') + '">' + I.check + 'In Gmail drafts</span></div></div>';
   }
   h += prom ? '' : aboutSender(g);
+  h += relatedBox(g);
   if (!many) return h + messages(e.id, e) + '</div></section>';
   // Several emails from the same sender (e.g. Google Docs comments): one line each, open to read.
   g.items.forEach(function (x, i) {
@@ -2454,6 +2462,20 @@ function mailDetail(g) {
   return h + '</div></section>';
 }
 // What Owen has done with this sender before, and one tap to make it a rule.
+// Same thing elsewhere (Owen 7 Nov on Review, Kinso idea: "Build it"; built 14 Nov). The same person on WhatsApp,
+// Slack or another inbox, about the same thing, last 60 days. Shows nothing when nothing matches.
+S.rel = S.rel || {};
+function relatedBox(g) {
+  var e = g.items[0]; if (!e || g.items.length > 1 || /^(slack|whatsapp|meeting)$/.test(e.account || '') || S.key) return '';
+  var k = e.id;
+  if (S.rel[k] === undefined) { S.rel[k] = null; api('related', { id:k }).then(function (r) { S.rel[k] = r || []; if ((S.cur || '') === g.id || document.querySelector('.detail.open, .detail')) render(); }).catch(function () { S.rel[k] = []; }); }
+  var l = S.rel[k]; if (!l || !l.length) return '';
+  var tag = function (x) { return x.kind === 'wa' ? 'WhatsApp' : x.kind === 'slack' ? 'Slack' : ({ tez:'TEZ', songdrafts:'songdrafts', rt:'RideTandem', omellette:'Omellette', personal:'Email' })[x.acct] || 'Email'; };
+  var open = function (x) { return x.kind === 'wa' ? "go('whatsapp');waOpen(" + esc(JSON.stringify(x.chat)) + ")" : 'openEmail(' + esc(JSON.stringify(x.id)) + ')'; };
+  return '<div class="relbox"><div class="rellab">Same thing elsewhere</div>' + l.map(function (x) {
+    return '<div class="relrow" onclick="' + open(x) + '"><span class="chip">' + esc(tag(x)) + '</span><span class="t"><b>' + esc(x.title) + '</b><small>' + esc(x.text || '') + '</small></span><span class="l3">' + (x.at ? ago(x.at) : '') + '</span></div>';
+  }).join('') + '</div>';
+}
 function aboutSender(g) {
   var e = g.items[0], k = String(e.from_email || '').toLowerCase(); if (!k || e.kind === 'chase' || e.kind === 'owed') return '';
   var hb = (S.data.habits || {})[k], rule = (S.data.rules || {})[k];
