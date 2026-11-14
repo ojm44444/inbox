@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="b1794650680">
+<html lang="en" data-build="b1794650968">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -213,6 +213,14 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .sortempty { text-align:center; margin-top:20vh; }
 @media (min-width:801px) { .sortfoot { padding-bottom:20px; } }
 .waitline { margin-top:10px; padding:10px 14px; border-radius:12px; background:color-mix(in srgb, var(--reply) 12%, transparent); border:1px solid color-mix(in srgb, var(--reply) 35%, transparent); cursor:pointer; font-size:15px; line-height:1.4; }
+.drops { margin:14px 0 4px; border:1px solid var(--line); border-radius:14px; background:var(--panel); padding:10px 14px 6px; }
+.dropshead { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:4px; }
+.dropshead b { font-size:15px; }
+.droprow { display:flex; align-items:center; gap:10px; padding:9px 0; border-top:1px solid var(--line); }
+.droprow .t { flex:1; min-width:0; cursor:pointer; }
+.droprow .t b { display:block; font-weight:600; font-size:14px; }
+.droprow .t small { display:block; color:var(--dim); font-size:12.5px; margin-top:1px; }
+@media (max-width:800px) { .droprow { flex-wrap:wrap; } .droprow .t { flex-basis:calc(100% - 90px); } .droprow .btn { margin-left:auto; } }
 .waitline .go { color:var(--reply); font-weight:600; white-space:nowrap; }
 .tiles.apps { margin-top:-10px; }
 .tiles.apps + .strip { margin-bottom:16px; }
@@ -1174,6 +1182,7 @@ function home() {
     + '</div>'
     // Owen, 9 Nov: "so much stuff ... overwhelming". One row of the six he uses; the rest under More.
     + '<div class="tiles">' + ['review', 'reply', 'todo', 'sort', 'money', 'whatsapp'].map(homeTile).join('') + '</div>'
+    + dropsCard()
     + askBar() + briefCard()
     // Owen, 7 Nov: "the bits below are a bit overwhelming. I don't really scroll." Folded away, one tap to open.
     + '<button class="btn ghost morebtn" onclick="S.homeMore=!S.homeMore;render()">' + (S.homeMore ? 'Show less' : 'More: Fix, Learn, Slack, calendar, inboxes') + '</button>';
@@ -2195,6 +2204,32 @@ function noteSearch(v) {
   S.noteBusy = true;
   noteSearch.t = setTimeout(function () { api('notesSearch', { q:v }).then(function (r) { if (S.noteQ !== v) return; S.noteHits = r; S.noteHitsFor = v; S.noteBusy = false; var f = document.activeElement && document.activeElement.id === 'nq', pos = f && document.activeElement.selectionStart; render(); var n = document.getElementById('nq'); if (f && n) { n.focus(); n.setSelectionRange(pos, pos); } }).catch(function () { S.noteBusy = false; }); }, 300);
   render();
+}
+// "You might drop these" (14 Nov 2026, Owen: "finding tasks from my notes, reminders, whatsapp, email and slack
+// and telling me what I might drop"). Picked once a day by the server (INBOX_DROPS.js). Open goes to where it lives;
+// Done takes it off the list for good. Nothing here sends, ticks or deletes anything.
+var DROP_SRC = { wa:'WhatsApp', note:'Notes', reminder:'Reminders', email:'Email', slack:'Slack' };
+function dropOpen(i) {
+  var x = ((S.data.drops || {}).items || [])[i]; if (!x) return;
+  if (x.src === 'wa') { go('whatsapp'); waOpen(x.ref); }
+  else if (x.src === 'note') openNote(x.ref);
+  else if (x.src === 'reminder') go('todo');
+  else openEmail(x.ref);
+}
+function dropDone(i) {
+  var d = S.data.drops || {}, x = (d.items || [])[i]; if (!x) return;
+  d.items.splice(i, 1); render(); toast('Off the list');
+  api('dropHide', { key:x.key }).catch(fail);
+}
+function dropsRefresh() { S.dropBusy = true; render(); api('drops', {}).then(function (r) { S.data.drops = r; S.dropBusy = false; render(); }).catch(function (e) { S.dropBusy = false; render(); fail(e); }); }
+function dropsCard() {
+  var d = (S.data && S.data.drops) || {}, l = d.items || [];
+  var head = '<div class="dropshead"><b>You might drop these</b><span class="l3">From WhatsApp, Notes, Reminders, email and Slack' + (d.at ? ', checked ' + ago(d.at) + ' ago' : '') + '</span><span style="flex:1"></span><button class="btn sm ghost" onclick="dropsRefresh()">' + (S.dropBusy ? 'Checking…' : 'Check again') + '</button></div>';
+  if (!l.length) return '<div class="drops">' + head + '<div class="l3" style="padding:6px 2px">' + (d.at ? 'Nothing looks at risk right now.' : 'Not checked yet today.') + '</div></div>';
+  return '<div class="drops">' + head + l.map(function (x, i) {
+    return '<div class="droprow"><span class="chip">' + esc(DROP_SRC[x.src] || x.src) + '</span><div class="t" onclick="dropOpen(' + i + ')"><b>' + esc(x.what) + '</b><small>' + esc(x.why || '') + (x.who ? ' · ' + esc(x.who) : '') + '</small></div>'
+      + '<button class="btn sm" onclick="dropOpen(' + i + ')">Open</button><button class="btn sm ghost" title="Done, or not a thing: off the list" onclick="dropDone(' + i + ')">Done</button></div>';
+  }).join('') + '</div>';
 }
 function openNote(id) { S.view = 'notes'; S.noteId = id; S.phoneOpen = true; render(); }
 function notesView() {
