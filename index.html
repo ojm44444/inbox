@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="1794659057">
+<html lang="en" data-build="1794738489">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1177,7 +1177,7 @@ function tabs() {
 }
 
 function home() {
-  if (S.loading) return '<main class="home">' + tabs() + '<div class="skel" style="height:40px;width:300px;margin:0 0 20px"></div><div class="tiles">' + '<div class="skel" style="height:96px;margin:0"></div>'.repeat(5) + '</div></main>';
+  if (S.loading) return '<main class="home">' + tabs() + (S.loadSlow ? '<div class="evening"><div class="t"><b>Still loading your inbox</b><small>The connection is slow. It keeps trying.</small></div><button class="btn sm pri" onclick="location.reload()">Try again</button></div>' : '') + '<div class="skel" style="height:40px;width:300px;margin:0 0 20px"></div><div class="tiles">' + '<div class="skel" style="height:96px;margin:0"></div>'.repeat(5) + '</div></main>';
   var hr = Number(new Date().toLocaleString('en-GB', { hour:'numeric', hour12:false, timeZone:'Europe/London' }));
   var hi = hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
   var total = unreadCount('all');
@@ -2932,6 +2932,8 @@ function bulkBin() { var x = selIds(); if (!confirm('Bin ' + x.length + ' emails
 function theme() { var r = document.documentElement, now = r.dataset.theme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'); r.dataset.theme = now === 'light' ? 'dark' : 'light'; try { localStorage.setItem('inbox-theme', r.dataset.theme); } catch (e) {} }
 
 function load(op) {
+  // 15 Nov: on his phone with weak signal Home sat on grey cards with no word. After 12s say so and offer a retry.
+  clearTimeout(load.slow); S.loadSlow = false; load.slow = setTimeout(function () { if (S.loading) { S.loadSlow = true; render(); } }, 12000);
   if (op === 'refresh') S.refreshing = true; render();
   var sent = Date.now();
   return api(op || 'load').then(function (d) { if (sent < (S.dataSent || 0)) { S.loading = false; S.refreshing = false; render(); return; } S.dataSent = sent; S.data = applyLocal(d, sent); if (S.needRegroup) { S.needRegroup = false; reGroup(); } slackNames(); S.loading = false; S.refreshing = false; S.stale = false; saveCache(d); render(); })
