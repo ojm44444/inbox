@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="1794738489">
+<html lang="en" data-build="1794738749">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -482,7 +482,7 @@ body { background:radial-gradient(1200px 600px at 80% -10%, color-mix(in srgb, v
 .pbar { display:none; }
 @media (max-width:900px) {
   .pbar { display:flex; position:fixed; left:0; right:0; bottom:0; z-index:15; background:color-mix(in srgb, var(--panel) 92%, transparent); backdrop-filter:blur(16px); border-top:1px solid var(--line); padding:6px 4px calc(6px + env(safe-area-inset-bottom)); }
-  .pbar button { flex:1; border:0; background:none; color:var(--faint); display:flex; flex-direction:column; align-items:center; gap:2px; font-size:10.5px; position:relative; padding:4px 0; }
+  .pbar button { flex:1; border:0; background:none; color:var(--faint); display:flex; flex-direction:column; align-items:center; gap:2px; font-size:10px; position:relative; padding:4px 0; min-width:0; } /* 15 Nov: Review added, 7 tabs */
   .pbar button svg { width:20px; height:20px; }
   .pbar button.on { color:var(--acc2); }
   .pbar i { position:absolute; top:0; left:calc(50% + 6px); background:var(--acc); color:#fff; font-style:normal; font-size:9.5px; border-radius:8px; padding:0 5px; line-height:15px; }
@@ -970,7 +970,7 @@ function render() {
 function phoneBar() {
   var b = document.getElementById('pbar'); if (!b) { b = document.createElement('nav'); b.id = 'pbar'; b.className = 'pbar'; document.body.appendChild(b); }
   var it = function (v, icon, label, n) { return '<button class="' + (S.view === v ? 'on' : '') + '" onclick="go(\'' + v + '\')">' + icon + '<span>' + label + '</span>' + (n ? '<i>' + n + '</i>' : '') + '</button>'; };
-  b.innerHTML = it('home', I.home, 'Home', 0) + it('all', I.inbox, 'Inbox', unreadCount('all')) + it('reply', I.reply, 'Reply', unreadCount('reply')) + it('sort', I.spark, 'Sort', sortDeck().length) + it('whatsapp', I.wa, 'WhatsApp', waWaiting()) + '<button class="' + (S.menu ? 'on' : '') + '" onclick="S.menu=!S.menu;render()">' + I.board + '<span>Menu</span></button>';
+  b.innerHTML = it('home', I.home, 'Home', 0) + it('review', I.check, 'Review', reviewNeeds().length) + it('all', I.inbox, 'Inbox', unreadCount('all')) + it('reply', I.reply, 'Reply', unreadCount('reply')) + it('sort', I.spark, 'Sort', sortDeck().length) + it('whatsapp', I.wa, 'WhatsApp', waWaiting()) + '<button class="' + (S.menu ? 'on' : '') + '" onclick="S.menu=!S.menu;render()">' + I.board + '<span>Menu</span></button>';
 }
 // ---- Quick sort (Owen, 8 Nov: "like Picnic ... so we could boss through stuff"). One unread email at a time:
 // swipe right = keep (stays unread), left = bin (Gmail bin, back for 30 days), up = sticky note, down = needs a reply.
