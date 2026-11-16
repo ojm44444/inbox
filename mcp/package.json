@@ -1,0 +1,9 @@
+{
+  "name": "inbox-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Read-only MCP: Owen's email (all 5 inboxes), tasks, notes, reminders and WhatsApp for Claude chats on his Mac.",
+  "main": "server.js",
+  "dependencies": { "@modelcontextprotocol/sdk": "^1.0.0" }
+}
