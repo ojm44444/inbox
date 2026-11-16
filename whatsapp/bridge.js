@@ -354,7 +354,7 @@ function voiceNotes() {
   cp.on('exit', () => { voiceBusy = false; });
   cp.on('error', (e) => { voiceBusy = false; log('voice notes', e.message); });
 }
-setTimeout(voiceNotes, 10 * 60000);
-setInterval(voiceNotes, 30 * 60000);
+setTimeout(voiceNotes, 60000);
+setInterval(voiceNotes, 2 * 60000);
 
 start().catch((e) => { log('start', e.message); process.exit(1); });
