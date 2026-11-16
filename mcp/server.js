@@ -111,7 +111,7 @@ const TOOLS = [
   },
   {
     name: 'whatsapp_history',
-    description: "Read one WhatsApp chat, full history back to 2015 (photos and documents shown as [tags] with captions and local file paths; voice notes are turned into text on the Mac and shown as said: "...", up to 25 new ones per call, cached). Give a name ('Laura', 'Joe', a group name), a number, or chat_id from whatsapp_chats. Default: last 30 days. Use from/to for any period: from alone reads forward from that date; to alone or both reads the most recent N in the range.",
+    description: "Read one WhatsApp chat, full history back to 2015 (photos and documents shown as [tags] with captions and local file paths; voice notes are turned into text on the Mac and shown as (said: ...), up to 25 new ones per call, cached). Give a name ('Laura', 'Joe', a group name), a number, or chat_id from whatsapp_chats. Default: last 30 days. Use from/to for any period: from alone reads forward from that date; to alone or both reads the most recent N in the range.",
     inputSchema: { type: 'object', properties: {
       chat: { type: 'string', description: 'Name, number or chat_id' },
       from: { type: 'string', description: 'Start date YYYY-MM-DD' },
