@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="1794738749">
+<html lang="en" data-build="1794835336">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -151,6 +151,7 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .when .pd { display:block; margin-top:4px; }
 .wait { color:var(--chase); }
 .ccrow { display:flex; gap:10px; flex-wrap:wrap; padding:6px 14px 0; } .ccrow label { display:flex; gap:6px; align-items:center; font-size:13px; color:var(--faint); flex:1; min-width:200px; } .ccrow input { flex:1; background:transparent; border:0; border-bottom:1px solid var(--line2); color:inherit; font:inherit; font-size:14px; padding:4px 2px; }
+.fwdbox { display:flex; gap:10px; align-items:center; padding:10px 12px; margin-bottom:10px; border-radius:10px; background:var(--soft, rgba(127,127,127,.1)); font-size:13px; } .fwdbox svg { width:16px; height:16px; flex:none; stroke:currentColor; fill:none; stroke-width:2; } .fwdbox span { flex:1; min-width:0; }
 .newmail { display:flex; gap:8px; align-items:center; justify-content:center; margin:2px 0 10px; padding:9px; border-radius:10px; border:0; background:var(--acc); color:#fff; font:inherit; font-weight:600; cursor:pointer; } .newmail svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:2; }
 .nmv { max-width:760px; } .nmbox { display:flex; flex-direction:column; gap:2px; } .nmf { display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--line); padding:8px 2px; } .nmf span { width:64px; color:var(--faint); font-size:13px; } .nmf input, .nmf select { flex:1; background:transparent; border:0; color:inherit; font:inherit; font-size:15px; outline:0; } .nmf select option { color:#000; }
 .nmbox textarea { min-height:280px; margin-top:10px; background:transparent; border:0; color:inherit; font:inherit; font-size:15px; line-height:1.5; resize:vertical; outline:0; } .nmbox .cf { display:flex; gap:8px; flex-wrap:wrap; align-items:center; border-top:1px solid var(--line); padding-top:12px; }
@@ -2572,7 +2573,7 @@ function mailDetail(g) {
   // Mark unread is its own small button at the end.
   h += (read ? '<span class="btn ghost" style="cursor:default;opacity:.7">' + I.check + 'Read</span>' : '<button class="btn' + (replyable ? '' : ' pri') + '" title="E" onclick="markRead()">' + I.check + (chase ? 'Dismiss' : prom || e.kind === 'todo' ? 'Done' : 'Mark read') + '</button>') + '<button class="btn ghost" title="Gone from here for good, even from All (D)" onclick="doneWith()">' + I.check + 'Done with</button>' + (g.pile === 'noise' ? '<button class="btn" title="Moves it to Reply, and this sender never goes in Noise again" onclick="movePile(\'reply\')">Not noise</button>' : '') + (read ? '<button class="btn ghost sm" title="U" onclick="markUnread()">Mark unread</button>' : '')
     + stickySelect('ids', g.id) + (slack || e.account === 'whatsapp' ? '' : labelSelect(g))
-    + (slack || e.account === 'whatsapp' ? '' : '<button class="btn ghost" title="Copy the whole email, pictures and formatting, to paste into Claude" onclick="copyEmail(\'' + e.id + '\')">' + I.copy + 'Copy</button>')
+    + (slack || e.account === 'whatsapp' ? '' : '<button class="btn ghost" title="Copy the whole email, pictures and formatting, to paste into Claude" onclick="copyEmail(\'' + e.id + '\')">' + I.copy + 'Copy</button><button class="btn ghost" title="Send this email on to someone, with its attachments (F)" onclick="fwdStart(\'' + e.id + '\')">' + I.send + 'Forward</button>')
     + '<span style="flex:1"></span>'
     + (e.gmail_url ? '<a class="btn ghost sm" target="_blank" href="' + esc(safeUrl(gmailHref(e.gmail_url))) + '">' + I.gmail + (slack ? 'Open in Slack' : e.account === 'whatsapp' ? 'Open in WhatsApp' : 'Open in Gmail') + '</a>' : '')
     + '<select class="sel" onchange="snooze(this.value)" title="Hide it and bring it back to the top later"><option value="">⏰ Later…</option><option value="later">In 3 hours</option><option value="tomorrow">Tomorrow 9am</option><option value="days3">In 3 days</option><option value="weekend">This weekend</option><option value="nextweek">Next week</option><option value="noreply1">If no reply in 1 week</option><option value="noreply2">If no reply in 2 weeks</option></select>'
@@ -2792,24 +2793,36 @@ S.cc = {};
 S.nm = (function () { try { return JSON.parse(localStorage.getItem('inbox-newmail') || 'null'); } catch (e) { return null; } })() || { from:'personal', to:'', cc:'', bcc:'', subject:'', text:'' };
 function nmSave() { try { localStorage.setItem('inbox-newmail', JSON.stringify(S.nm)); } catch (e) {} }
 function newMail(to) { if (to) S.nm.to = to; go('compose'); setTimeout(function () { var f = document.getElementById(S.nm.to ? 'nmText' : 'nmTo'); if (f) f.focus(); }, 30); }
+// Forward (Owen 16 Nov: "WHY CANT I FORWARD STUFF"): the newest email in the thread, with its attachments, from the inbox it came to.
+function fwdStart(id) {
+  var e = ((S.data && S.data.emails) || []).filter(function (x) { return x.id === id; })[0] || {};
+  var acct = e.account || 'personal';
+  if (!ACCOUNTS[acct] || acct === 'slack' || acct === 'whatsapp' || acct === 'meeting') { toast('Only emails can be forwarded', true); return; }
+  var sub = String(e.subject || '');
+  S.nm = { from:acct, to:'', cc:'', bcc:'', subject:/^fwd?:/i.test(sub) ? sub : 'Fwd: ' + sub, text:'', fwd:{ id:id, subject:sub, from:e.from_name || e.from_email || '' } };
+  nmSave(); go('compose'); setTimeout(function () { var f = document.getElementById('nmTo'); if (f) f.focus(); }, 30);
+}
 function composeView() {
   var n = S.nm, ac = Object.keys(ACCOUNTS).filter(function (a) { return a !== 'slack'; });
   if (!S.myBoxes) { S.myBoxes = {}; api('myInboxes').then(function (r) { S.myBoxes = r || {}; render(); }).catch(function () {}); }
   var f = function (id, label, key, ph) { return '<label class="nmf"><span>' + label + '</span><input id="' + id + '" value="' + esc(n[key] || '') + '" placeholder="' + ph + '" oninput="S.nm.' + key + '=this.value;nmSave()"></label>'; };
-  return '<main class="home nmv">' + tabs() + '<h1 class="hello" style="font-size:24px">New email</h1><div class="box nmbox">'
-    + '<label class="nmf"><span>From</span><select onchange="S.nm.from=this.value;nmSave()">' + ac.map(function (a) { return '<option value="' + a + '"' + (n.from === a ? ' selected' : '') + '>' + ACCOUNTS[a].label + (S.myBoxes[a] ? ' (' + esc(S.myBoxes[a]) + ')' : '') + '</option>'; }).join('') + '</select></label>'
+  var fw = n.fwd;
+  return '<main class="home nmv">' + tabs() + '<h1 class="hello" style="font-size:24px">' + (fw ? 'Forward' : 'New email') + '</h1><div class="box nmbox">'
+    + (fw ? '<div class="fwdbox">' + I.send + '<span>Forwarding <b>' + esc(fw.subject || '(no subject)') + '</b>' + (fw.from ? ' from ' + esc(fw.from) : '') + ', with its attachments, from your ' + esc((ACCOUNTS[n.from] || {}).label || n.from) + ' inbox</span><button class="btn ghost sm" onclick="S.nm={from:S.nm.from,to:\'\',cc:\'\',bcc:\'\',subject:\'\',text:\'\'};nmSave();render()">Not forwarding</button></div>' : '')
+    + '<label class="nmf"><span>From</span><select ' + (fw ? 'disabled title="Forwards go from the inbox the email came to" ' : '') + 'onchange="S.nm.from=this.value;nmSave()">' + ac.map(function (a) { return '<option value="' + a + '"' + (n.from === a ? ' selected' : '') + '>' + ACCOUNTS[a].label + (S.myBoxes[a] ? ' (' + esc(S.myBoxes[a]) + ')' : '') + '</option>'; }).join('') + '</select></label>'
     + f('nmTo', 'To', 'to', 'name@example.com, …') + f('nmCc', 'Cc', 'cc', '') + f('nmBcc', 'Bcc', 'bcc', 'hidden copy') + f('nmSub', 'Subject', 'subject', '')
-    + '<textarea id="nmText" placeholder="Write your email…" oninput="S.nm.text=this.value;nmSave()">' + esc(n.text || '') + '</textarea>'
+    + '<textarea id="nmText" placeholder="' + (fw ? 'Add a note on top (optional)…' : 'Write your email…') + '" oninput="S.nm.text=this.value;nmSave()">' + esc(n.text || '') + '</textarea>'
     + '<div class="cf"><button class="btn pri" onclick="nmSend()">' + I.send + 'Send</button><button class="btn ghost" onclick="nmSend(true)">' + I.gmail + 'Save as draft</button><button class="btn ghost" onclick="if(confirm(\'Throw this email away?\')){S.nm={from:S.nm.from,to:\'\',cc:\'\',bcc:\'\',subject:\'\',text:\'\'};nmSave();render()}">Discard</button><span class="l3">Nothing goes until you press Send. 5 seconds to undo.</span></div></div></main>';
 }
 function nmSend(draft) {
-  var n = Object.assign({}, S.nm); if (!String(n.to).trim()) { toast('Who is it to?', true); return; } if (!String(n.text).trim()) { toast('Write something first', true); return; }
-  if (draft) { api('sendNew', Object.assign({ account:n.from, draft:true }, n)).then(function () { toast('Saved to ' + ACCOUNTS[n.from].label + ' Gmail drafts'); S.nm = { from:n.from, to:'', cc:'', bcc:'', subject:'', text:'' }; nmSave(); go('home'); }).catch(fail); return; }
+  var n = Object.assign({}, S.nm); if (!String(n.to).trim()) { toast('Who is it to?', true); return; } if (!n.fwd && !String(n.text).trim()) { toast('Write something first', true); return; }
+  var op = n.fwd ? 'forward' : 'sendNew', extra = n.fwd ? { id:n.fwd.id } : {};
+  if (draft) { api(op, Object.assign({ account:n.from, draft:true }, n, extra)).then(function () { toast('Saved to ' + ACCOUNTS[n.from].label + ' Gmail drafts'); S.nm = { from:n.from, to:'', cc:'', bcc:'', subject:'', text:'' }; nmSave(); go('home'); }).catch(fail); return; }
   var undone = false, u = document.createElement('div'); u.className = 'undo';
-  u.innerHTML = '<span>Sending from <b>' + esc(ACCOUNTS[n.from].label) + '</b> to <b>' + esc(n.to) + '</b>…</span><button class="btn sm">Undo</button>';
+  u.innerHTML = '<span>' + (n.fwd ? 'Forwarding' : 'Sending') + ' from <b>' + esc(ACCOUNTS[n.from].label) + '</b> to <b>' + esc(n.to) + '</b>…</span><button class="btn sm">Undo</button>';
   u.querySelector('button').onclick = function () { undone = true; u.remove(); S.nm = n; nmSave(); go('compose'); toast('Not sent'); };
   document.body.appendChild(u); S.nm = { from:n.from, to:'', cc:'', bcc:'', subject:'', text:'' }; nmSave(); go('home');
-  setTimeout(function () { if (undone) return; u.remove(); api('sendNew', Object.assign({ account:n.from }, n)).then(function (r) { offerWatch(r.account || n.from, r.threadId, n.to, n.subject, n.text); }).catch(function (e) { S.nm = n; nmSave(); go('compose'); toast('Did not send: ' + e.message, true); }); }, 5000);
+  setTimeout(function () { if (undone) return; u.remove(); api(op, Object.assign({ account:n.from }, n, extra)).then(function (r) { if (n.fwd) toast('Forwarded' + (r.files ? ' with ' + r.files + ' attachment' + (r.files > 1 ? 's' : '') : '')); offerWatch(r.account || n.from, r.threadId, n.to, n.subject, n.text); }).catch(function (e) { S.nm = n; nmSave(); go('compose'); toast('Did not send: ' + e.message, true); }); }, 5000);
 }
 // After any send: keep on top of it (Owen, 9 Nov). Comes back in Chase on the day if they haven't answered.
 function offerWatch(account, threadId, to, subject, text) {
