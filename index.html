@@ -1421,6 +1421,7 @@ var HUB_SRC = {
   songdrafts:{ name:'songdrafts', color:'#2fa36b', cards:'https://www.songdrafts.com/api/review-hub', saves:'https://ejwmspvewnkdcwtbofnc.supabase.co/functions/v1/review-hub' },
   moon:{ name:'Moon', color:'#6d6af5', saves:'https://moon-dashboard-six.vercel.app/api/db' },
   tez:{ name:'TEZ', color:'#e0533d', saves:'https://moon-dashboard-six.vercel.app/api/db' },
+  cutroom:{ name:'Cutroom', color:'#3fbfa0', saves:'https://moon-dashboard-six.vercel.app/api/db' },
   inbox:{ name:'Inbox and Money', color:'#c8902c' }
 };
 var HUB = { p:{}, at:0, busy:false };
@@ -1446,7 +1447,7 @@ function hubLoad(force) {
       var D = {}; Object.keys(p.decisions || {}).forEach(function (k) { var d = p.decisions[k]; D[k] = { decision:d.decision, note:d.choice || d.note || '', at:d.decided_at }; });
       HUB.p[p.project] = { page:p.page, cards:p.waiting, next:p.next || [], extra:p.extra || [], answered:p.answered || [], decisions:D };
     });
-  }).catch(function (e) { HUB.p.moon = { error:e.message }; HUB.p.tez = { error:e.message }; });
+  }).catch(function (e) { HUB.p.moon = { error:e.message }; HUB.p.tez = { error:e.message }; HUB.p.cutroom = { error:e.message }; });
   Promise.all([sd, mt]).then(function () { HUB.busy = false; HUB.at = Date.now(); if (S.view === 'review' || S.view === 'home') render(); });
 }
 // Every card, one shape: { pid, id, title, tag, day, what, why, ask, detail, pics, links, options, own, typed, try }
@@ -1463,7 +1464,7 @@ function hubWaiting(pid) {
 }
 // 14 Nov: Home said Review 6 while 200+ cards waited, because the other projects had not loaded. Say so instead.
 function hubMissing() { return !S.key && hubPids().some(function (p) { return p !== 'inbox' && (!HUB.p[p] || HUB.p[p].error); }) && !HUB.busy; }
-function hubPids() { return ['songdrafts', 'moon', 'tez', 'inbox']; }
+function hubPids() { return ['songdrafts', 'moon', 'tez', 'cutroom', 'inbox']; }
 function hubAll() {
   var skip = S.rvSkip || [], f = S.rvP || 'all', out = [];
   if (f !== 'all') out = hubWaiting(f);
