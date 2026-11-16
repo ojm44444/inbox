@@ -961,9 +961,14 @@ function pileOf(k) { return PILES.filter(function (p) { return p.key === k; })[0
 function render() {
   if (!S.token && !S.key && !stOk()) return renderGate();
   var sc = document.querySelector('.rows, .home'), keep = sc ? sc.scrollTop : 0;
+  // Keep anything half-typed when the page redraws (e.g. Review answers wiped when other projects finish loading).
+  var typed = {}, act = document.activeElement, actId = act && act.id, sel = act && act.selectionStart;
+  document.querySelectorAll('#rvtext').forEach(function (el) { if (el.value) typed[el.id] = el.value; });
   var mail = S.view !== 'sort' && S.view !== 'compose' && S.view !== 'money' && S.view !== 'home' && S.view !== 'reading' && S.view !== 'trello' && S.view !== 'person' && S.view !== 'review' && S.view !== 'notesort' && S.view !== 'outreach';
   document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + (S.slim ? ' slim' : '') + (S.menu ? ' menuopen' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'sticky' ? stickyView() : S.view === 'whatsapp' ? waView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'sort' ? sortView() : S.view === 'notesort' ? noteSortView() : S.view === 'outreach' ? outreachView() : S.view === 'money' ? moneyView() : S.view === 'compose' ? composeView() : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : S.view === 'review' ? reviewView() : home()) + '</div>';
   var ns = document.querySelector('.rows, .home'); if (ns) ns.scrollTop = keep;
+  Object.keys(typed).forEach(function (id) { var el = document.getElementById(id); if (el && !el.value) el.value = typed[id]; });
+  if (actId) { var af = document.getElementById(actId); if (af && af !== document.activeElement) { try { af.focus(); if (sel != null && af.setSelectionRange) af.setSelectionRange(sel, sel); } catch (e) {} } }
   bulkBar(); wire(); phoneBar(); swipes();
   var gb = document.getElementById('gbtn'); if (gb && !gb.childElementCount && window.google && google.accounts) { try { gsi(); } catch (e) {} }
 }
