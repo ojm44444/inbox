@@ -296,4 +296,65 @@ async function outbox() {
 setInterval(outbox, 3000);
 setInterval(() => { if (me) status({ state: 'open', me: me.split('@')[0] }); }, 5 * 60000); // heartbeat once linked (never over the QR)
 
+// Mac mirror (16 Nov): the linked device stopped getting messages after the Mac woke (decrypt errors), while the
+// WhatsApp Mac app had them all. Every minute, copy new messages from the Mac app's own database (read only) into the
+// Inbox tables, same ids as the bridge so nothing doubles. Sending still goes through the bridge.
+const MAC_DB = path.join(HOME, 'Library/Group Containers/group.net.whatsapp.WhatsApp.shared/ChatStorage.sqlite');
+const MAC_PK = path.join(HOME, '.moon-snippets/wa-mac-pk');
+const MAC_LABEL = { 1: 'photo', 2: 'video', 3: 'voice note', 4: 'contact', 5: 'location', 8: 'document', 11: 'GIF', 13: 'GIF', 14: 'deleted message', 15: 'sticker', 46: 'poll' };
+let macDb = null, macBusy = false;
+async function macMirror() {
+  if (macBusy || !fs.existsSync(MAC_DB)) return;
+  macBusy = true;
+  try {
+    if (!macDb) { const { DatabaseSync } = require('node:sqlite'); macDb = new DatabaseSync(MAC_DB, { readOnly: true }); }
+    let last = Number((fs.existsSync(MAC_PK) && fs.readFileSync(MAC_PK, 'utf8')) || 0);
+    if (!last) last = Number((macDb.prepare('SELECT min(Z_PK) p FROM ZWAMESSAGE WHERE ZMESSAGEDATE > ?').get(Date.now() / 1000 - 978307200 - 3 * 86400) || {}).p || 1) - 1;
+    const rows = macDb.prepare(`SELECT m.Z_PK pk, m.ZISFROMME me, m.ZMESSAGETYPE type, m.ZTEXT text, m.ZMESSAGEDATE d, m.ZSTANZAID sid, m.ZFROMJID fromjid,
+        c.ZCONTACTJID jid, c.ZPARTNERNAME cname, c.ZSESSIONTYPE stype, c.ZUNREADCOUNT unread, g.ZCONTACTNAME member, g.ZMEMBERJID memberjid, mi.ZTITLE caption
+      FROM ZWAMESSAGE m JOIN ZWACHATSESSION c ON c.Z_PK = m.ZCHATSESSION LEFT JOIN ZWAGROUPMEMBER g ON g.Z_PK = m.ZGROUPMEMBER LEFT JOIN ZWAMEDIAITEM mi ON mi.Z_PK = m.ZMEDIAITEM
+      WHERE m.Z_PK > ? AND m.ZMESSAGETYPE NOT IN (6, 10) AND c.ZSESSIONTYPE IN (0, 1) AND m.ZSTANZAID IS NOT NULL ORDER BY m.Z_PK LIMIT 2000`).all(last);
+    if (!rows.length) { macBusy = false; return; }
+    const out = [], chats = {};
+    for (const r of rows) {
+      let jid = r.jid; if (!jid || /status|newsletter|broadcast/.test(jid)) continue;
+      if (/@lid$/.test(jid) && lidMap[jid]) jid = lidMap[jid];
+      const label = MAC_LABEL[r.type];
+      let text = r.text || '';
+      if (label) text = '[' + label + ']' + (r.caption ? ' ' + r.caption : '') + (text && text !== r.caption ? ' ' + text : '');
+      if (!text) continue;
+      const sjid = r.me ? null : (r.stype === 1 ? (r.memberjid || r.fromjid) : jid);
+      const row = { id: rowId(jid) + ':' + r.sid, chat_id: jid, from_me: !!r.me, sender: r.me ? 'You' : (r.stype === 1 ? (r.member || nameOf(sjid)) : (r.cname || nameOf(jid))),
+        sender_jid: sjid, text: text.slice(0, 4000), ts: new Date((r.d + 978307200) * 1000).toISOString() };
+      out.push(row);
+      if (!chats[jid] || chats[jid].ts <= row.ts) chats[jid] = Object.assign({ name: r.cname, group: r.stype === 1, unread: r.unread || 0 }, row);
+    }
+    for (let i = 0; i < out.length; i += 400) await upsert('inbox_wa_msgs', out.slice(i, i + 400));
+    for (const jid of Object.keys(chats)) {
+      const c = chats[jid];
+      await x('INSERT INTO inbox_wa_chats (id, name, is_group, last_ts, last_text, last_from_me, last_sender, unread, updated_at) VALUES ('
+        + [jid, c.name || nameOf(jid), c.group, c.ts, c.text.slice(0, 300), c.from_me, c.sender].map((v) => typeof v === 'boolean' ? v : lit(v)).join(', ') + ', ' + Number(c.unread) + ', now())'
+        + ' ON CONFLICT (id) DO UPDATE SET last_ts = EXCLUDED.last_ts, last_text = EXCLUDED.last_text, last_from_me = EXCLUDED.last_from_me, last_sender = EXCLUDED.last_sender, unread = EXCLUDED.unread, updated_at = now()'
+        + ' WHERE inbox_wa_chats.last_ts IS NULL OR inbox_wa_chats.last_ts <= EXCLUDED.last_ts');
+    }
+    fs.writeFileSync(MAC_PK, String(rows[rows.length - 1].pk));
+    log('mac mirror', out.length, 'messages,', Object.keys(chats).length, 'chats');
+  } catch (e) { log('mac mirror', e.message); }
+  macBusy = false;
+}
+setTimeout(macMirror, 20000);
+setInterval(macMirror, 60000);
+
+// New voice notes -> text for the Inbox MCP (Owen 16 Nov: "moving forward yes"). Every 30 min, last 2 days, on the Mac only.
+let voiceBusy = false;
+function voiceNotes() {
+  if (voiceBusy) return;
+  voiceBusy = true;
+  const cp = require('child_process').spawn('/usr/bin/nice', ['-n', '10', process.execPath, path.join(__dirname, '../mcp/transcribe.mjs'), '--days', '2'], { stdio: 'ignore' });
+  cp.on('exit', () => { voiceBusy = false; });
+  cp.on('error', (e) => { voiceBusy = false; log('voice notes', e.message); });
+}
+setTimeout(voiceNotes, 10 * 60000);
+setInterval(voiceNotes, 30 * 60000);
+
 start().catch((e) => { log('start', e.message); process.exit(1); });
