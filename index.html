@@ -2836,7 +2836,7 @@ function mailDetail(g) {
     + '<select class="sel" onchange="snooze(this.value)" title="Hide it and bring it back to the top later"><option value="">⏰ Later…</option><option value="later">In 3 hours</option><option value="tomorrow">Tomorrow 9am</option><option value="days3">In 3 days</option><option value="weekend">This weekend</option><option value="nextweek">Next week</option><option value="noreply1">If no reply in 1 week</option><option value="noreply2">If no reply in 2 weeks</option></select>'
     + '<button class="btn ghost" title="A job to do later: stays in To do until you press Done (T)" onclick="taskFromEmail()">' + PILE_ICON.todo + 'To do</button>' + (/^(learn|noise|new)$/.test(g.pile) && e.kind === 'in' && !slack && e.account !== 'whatsapp' ? '<button class="btn ghost" onclick="unsub(\'' + g.id + '\')">Unsubscribe</button>' : '')
     + '<select class="sel" onchange="movePile(this.value)" title="Move to another pile"><option value="">Move</option>' + PILES.filter(function (x) { return x.key !== 'new' && x.key !== g.pile; }).map(function (x) { return '<option value="' + x.key + '">' + x.title + '</option>'; }).join('') + '</select>'
-    + (slack || e.account === 'whatsapp' ? '' : '<button class="iconbtn" title="Bin" onclick="binOne()">' + I.bin + '</button>') + '</div><div class="dbody">';
+    + (slack || e.account === 'whatsapp' ? '' : '<button class="iconbtn" title="' + (Object.keys(S.sel || {}).length ? 'Bin all ticked (Delete key)' : 'Bin (Delete key)') + '" onclick="binOne()">' + I.bin + '</button>') + '</div><div class="dbody">';
   if (prom) h += '<div class="promisebox"><div class="pl">' + PILE_ICON.promise + 'You said, ' + ago(e.received_at) + ' ago</div><div class="pq">"' + esc(e.snippet) + '"</div><div class="pw">' + esc(e.why) + '</div>' + (e.account === 'meeting' ? '<div class="pw" style="opacity:.7">From a meeting, so nothing to send here. Copy it, or press Done when it is.</div>' : '') + '</div>';
   if (replyable && composing) {
     var saved = e.gmail_draft_id && S.drafts[g.id] == null;
@@ -3041,7 +3041,11 @@ function binNoise() {
 }
 // U straight after a mark undoes that mark, not the next email the list moved on to.
 function markUnread() { var g = current(); var x = g && !g.unread.length ? g.items.map(function (e) { return e.id; }) : (S.lastDone || []); if (!x.length) return; S.lastDone = null; setStatus(x, 'open'); S.busy = ''; render(); toast('Marked unread'); api('markUnread', { ids:x }).catch(fail); }
-function binOne() { var g = current(); if (!g) return; var x = g.items.map(function (e) { return e.id; }); if (!confirm('Bin this? It goes to Gmail\'s bin and can be got back for 30 days.')) return; undoGone(snap(x), 'binned', true); remember(x, 'gone'); S.data.emails = S.data.emails.filter(function (e) { return x.indexOf(e.id) < 0; }); afterChange('Binned'); api('bin', { ids:x }).catch(fail); }
+// 17 Nov 2026, Owen: "when I click delete next to emails it only deletes that one even if multiple are selected" and
+// "let me delete using the delete key on Mac". Bin = everything ticked (plus the open one); Undo (or Cmd+Z) brings it back.
+function binOne() {
+  if (Object.keys(S.sel || {}).length) { var keep = S.open; if (keep && current() && !current().isChat) S.sel[keep] = true; return bulkBin(); }
+  var g = current(); if (!g || g.isChat) return; var x = g.items.map(function (e) { return e.id; }); undoGone(snap(x), 'binned', true); remember(x, 'gone'); S.data.emails = S.data.emails.filter(function (e) { return x.indexOf(e.id) < 0; }); afterChange('Binned. Cmd+Z brings it back'); api('bin', { ids:x }).catch(fail); }
 // Slack can't take a draft from here, so the reply goes on the clipboard and Slack opens on the conversation.
 // Send waits 5 seconds with Undo, like Gmail, then goes from the account the email came to.
 // Cc and Bcc (Owen, 9 Nov). Kept per email while he writes.
@@ -3198,7 +3202,7 @@ function movePile(p) { if (!p) return; var g = current(); var x = g.items.map(fu
 function moveChat(c) { if (!c) return; var g = current(); var x = g.items.map(function (e) { return e.id; }); api('setChat', { ids:x, chat:c }).catch(fail); S.data.emails.forEach(function (e) { if (x.indexOf(e.id) >= 0) e.project = c; }); reGroup(); afterChange('Moved to the ' + chatShort(c) + ' chat'); }
 function bulk(op) { var x = op === 'markRead' ? widen(selIds()) : selIds(); if (op === 'markRead') undoUnread(x, x.length + ' marked read'); setStatus(x, op === 'markRead' ? 'done' : 'open'); S.sel = {}; afterChange(x.length + (op === 'markRead' ? ' marked read' : ' marked unread')); api(op, { ids:x }).catch(fail); }
 function bulkPile(p) { if (!p) return; var x = selIds(); undoPile(snap(x), 'moved to ' + pileOf(p).title); rememberCat(x, p); api('setPile', { ids:x, pile:p }).catch(fail); S.data.emails.forEach(function (e) { if (x.indexOf(e.id) >= 0) e.category = p; }); reGroup(); S.sel = {}; afterChange('Moved to ' + pileOf(p).title); }
-function bulkBin() { var x = selIds(); if (!confirm('Bin ' + x.length + ' emails? They go to Gmail\'s bin and can be got back for 30 days.')) return; remember(x, 'gone'); S.data.emails = S.data.emails.filter(function (e) { return x.indexOf(e.id) < 0; }); S.sel = {}; afterChange(x.length + ' binned'); api('bin', { ids:x }).catch(fail); }
+function bulkBin() { var x = selIds(); if (!x.length) return; if (x.length > 10 && !confirm('Bin ' + x.length + ' emails? They go to Gmail\'s bin and can be got back for 30 days.')) return; undoGone(snap(x), x.length + ' binned', true); remember(x, 'gone'); S.data.emails = S.data.emails.filter(function (e) { return x.indexOf(e.id) < 0; }); S.sel = {}; afterChange(x.length + ' binned. Cmd+Z brings them back'); api('bin', { ids:x }).catch(fail); }
 function theme() { var r = document.documentElement, now = r.dataset.theme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'); r.dataset.theme = now === 'light' ? 'dark' : 'light'; try { localStorage.setItem('inbox-theme', r.dataset.theme); } catch (e) {} }
 
 function load(op) {
@@ -3248,6 +3252,7 @@ document.addEventListener('keydown', function (ev) {
   else if (k === 'e' && S.open) markRead();
   else if (k === 'u' && S.open) markUnread();
   else if (k === 'd' && S.open && S.view !== 'notes') doneWith();
+  else if ((ev.key === 'Backspace' || ev.key === 'Delete') && S.view !== 'notes' && S.view !== 'sort' && S.view !== 'whatsapp' && S.view !== 'slack' && (S.open || Object.keys(S.sel || {}).length)) { ev.preventDefault(); binOne(); }
   else if (k === 'w' && S.open) writeD();
   else if (k === 'x' && S.open) pick(S.open);
   else if (k === 't' && S.open && S.view !== 'sort') taskFromEmail();
