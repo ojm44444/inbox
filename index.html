@@ -472,6 +472,16 @@ body { background:radial-gradient(1200px 600px at 80% -10%, color-mix(in srgb, v
 .t3 { flex:1 1 220px; display:flex; gap:10px; align-items:center; text-align:left; border:1px solid var(--line2); background:var(--bg); color:var(--text); border-radius:10px; padding:9px 12px; cursor:pointer; }
 .t3:hover { border-color:var(--acc); }
 .t3n { width:22px; height:22px; border-radius:50%; background:var(--acc); color:#fff; display:grid; place-items:center; font-size:12px; font-weight:700; flex:none; }
+.tasksv { max-width:1200px; }
+.tvhead { display:flex; align-items:flex-end; gap:12px; margin-bottom:12px; } .tvhead > div { flex:1; } .tvhead h1 { margin:0; }
+.qadd { display:flex; gap:8px; align-items:center; background:var(--panel); border:1px solid var(--line2); border-radius:12px; padding:6px 6px 6px 14px; margin-bottom:16px; position:sticky; top:0; z-index:3; }
+.qadd input { flex:1; min-width:0; border:0; background:transparent; color:var(--text); font-size:16px; height:36px; outline:none; }
+.qaw { border:0; border-radius:999px; padding:4px 10px; font-size:12px; background:var(--acc); color:#fff; cursor:pointer; white-space:nowrap; } .qaw.off { background:var(--line2); color:var(--faint); }
+.tvgrid { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:16px; align-items:start; }
+@media (max-width:900px) { .tvgrid { grid-template-columns:minmax(0,1fr); } .qadd .btn { padding:0 10px; } }
+.tvg { font-size:12px; font-weight:600; color:var(--faint); text-transform:uppercase; letter-spacing:.04em; margin:12px 0 2px; } .tvg span { font-weight:400; } .tvg.late { color:var(--fix); }
+.duesel { border:0; background:transparent; color:var(--faint); font-size:12px; cursor:pointer; max-width:120px; text-align:right; } .duesel.late { color:var(--fix); } .duesel.none { opacity:.5; } .task:hover .duesel.none { opacity:1; }
+.tvnote .btn { flex:none; opacity:.7; } .tvnote:hover .btn { opacity:1; }
 .taskadd { display:flex; gap:6px; margin-bottom:8px; }
 .taskadd input { height:32px; border:1px solid var(--line2); border-radius:8px; background:var(--bg); color:var(--text); padding:0 10px; min-width:0; }
 .taskadd input[name=t] { flex:1; }
@@ -964,8 +974,8 @@ function render() {
   // Keep anything half-typed when the page redraws (e.g. Review answers wiped when other projects finish loading).
   var typed = {}, act = document.activeElement, actId = act && act.id, sel = act && act.selectionStart;
   document.querySelectorAll('#rvtext').forEach(function (el) { if (el.value) typed[el.id] = el.value; });
-  var mail = S.view !== 'sort' && S.view !== 'compose' && S.view !== 'money' && S.view !== 'home' && S.view !== 'reading' && S.view !== 'trello' && S.view !== 'person' && S.view !== 'review' && S.view !== 'notesort' && S.view !== 'outreach';
-  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + (S.slim ? ' slim' : '') + (S.menu ? ' menuopen' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'sticky' ? stickyView() : S.view === 'whatsapp' ? waView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'sort' ? sortView() : S.view === 'notesort' ? noteSortView() : S.view === 'outreach' ? outreachView() : S.view === 'money' ? moneyView() : S.view === 'compose' ? composeView() : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : S.view === 'review' ? reviewView() : home()) + '</div>';
+  var mail = S.view !== 'sort' && S.view !== 'compose' && S.view !== 'money' && S.view !== 'home' && S.view !== 'reading' && S.view !== 'trello' && S.view !== 'person' && S.view !== 'review' && S.view !== 'notesort' && S.view !== 'outreach' && S.view !== 'tasks';
+  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + (S.slim ? ' slim' : '') + (S.menu ? ' menuopen' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'sticky' ? stickyView() : S.view === 'whatsapp' ? waView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'sort' ? sortView() : S.view === 'notesort' ? noteSortView() : S.view === 'tasks' ? tasksView() : S.view === 'outreach' ? outreachView() : S.view === 'money' ? moneyView() : S.view === 'compose' ? composeView() : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : S.view === 'review' ? reviewView() : home()) + '</div>';
   var ns = document.querySelector('.rows, .home'); if (ns) ns.scrollTop = keep;
   Object.keys(typed).forEach(function (id) { var el = document.getElementById(id); if (el && !el.value) el.value = typed[id]; });
   if (actId) { var af = document.getElementById(actId); if (af && af !== document.activeElement) { try { af.focus(); if (sel != null && af.setSelectionRange) af.setSelectionRange(sel, sel); } catch (e) {} } }
@@ -1128,7 +1138,7 @@ function side() {
     + '<button class="newmail" title="New email" onclick="newMail()">' + I.pen + '<em class="lbl">New email</em></button>'
     + nv('home', I.home, 'Home') + nv('review', I.check, 'Review', reviewNeeds().length) + nv('all', I.inbox, 'All mail', unreadCount('all'), 'S.f.acct=\'\';') + nv('sort', I.spark, 'Quick sort', sortDeck().length)
     + pile('reply') + pile('todo') + pile('promise') + pile('chase') + pile('fix') + pile('learn') + pile('noise') + (unreadCount('new') ? pile('new') : '')
-    + nv('whatsapp', I.wa, 'WhatsApp', waWaiting()) + nv('sticky', I.sticky, 'Sticky notes', stickyTotal()) + nv('notes', I.note, 'Notes') + nv('money', '<span style="width:16px;text-align:center;font-weight:700">£</span>', 'Money')
+    + nv('whatsapp', I.wa, 'WhatsApp', waWaiting()) + nv('sticky', I.sticky, 'Sticky notes', stickyTotal()) + nv('tasks', I.check, 'Tasks', tasksDue()) + nv('notes', I.note, 'Notes') + nv('money', '<span style="width:16px;text-align:center;font-weight:700">£</span>', 'Money')
     + '<button class="navmore" onclick="S.sideMore=!S.sideMore;try{localStorage.setItem(\'inbox-sidemore\',S.sideMore?1:0)}catch(e){};render()">' + (S.sideMore ? '▾ Hide' : '▸ Labels, inboxes, Slack, Trello') + '</button>';
   if (S.sideMore) {
     h += '<div class="navlabel">Inboxes</div>' + inboxNav()
@@ -1832,13 +1842,14 @@ function tasksBox() {
   var r = S.data.reminders || [], own = (S.data.tasks || []).filter(function (x) { return !x.done; });
   var lists = {}; r.forEach(function (x) { lists[x.list] = 1; }); var ln = Object.keys(lists);
   var shown = r.filter(function (x) { return !S.remList || x.list === S.remList; });
-  return '<div class="box"><h3>' + I.check + 'Tasks<span class="badge">' + (r.length + own.length) + '</span></h3><div class="bsub">Your Reminders, synced both ways. ' + macStatus() + '</div>'
-    + '<form class="taskadd" onsubmit="event.preventDefault();addRem(this.t.value,this.d.value);this.reset()"><input name="t" placeholder="Add a task…"><input name="d" type="date"><button class="btn sm">Add</button></form>'
+  return '<div class="box"><h3>' + I.check + 'Tasks<span class="badge">' + (r.length + own.length) + '</span><span style="flex:1"></span><button class="btn sm ghost" onclick="go(\'tasks\')">Open Tasks</button></h3><div class="bsub">Your Reminders, synced both ways. ' + macStatus() + '</div>'
+    + '<form class="taskadd" onsubmit="event.preventDefault();var p=this.d.value?{title:this.t.value,due:this.d.value}:parseWhen(this.t.value);addRem(p.title,p.due);this.reset()"><input name="t" placeholder="Add a task… e.g. call Joe fri"><input name="d" type="date"><button class="btn sm">Add</button></form>'
     + (ln.length > 1 ? '<div class="chips" style="margin:2px 0 6px"><button class="fchip' + (!S.remList ? ' on' : '') + '" onclick="S.remList=null;render()">All</button>' + ln.map(function (l) { return '<button class="fchip' + (S.remList === l ? ' on' : '') + '" onclick="S.remList=' + esc(JSON.stringify(l)) + ';render()">' + esc(l) + '</button>'; }).join('') + '</div>' : '')
     + own.map(taskRow).join('')
     + (shown.slice(0, S.allRem ? 999 : 12).map(function (x) { var late = x.due && new Date(x.due) < new Date(); return '<div class="task"><span class="ck" title="Done" onclick="doneRem(\'' + esc(x.id) + '\')"></span><span class="tt" title="Tap to rename" style="cursor:text" onclick="renameRem(\'' + esc(x.id) + '\')">' + esc(x.title) + (ln.length > 1 && !S.remList ? ' <span class="l3">· ' + esc(x.list) + '</span>' : '') + '</span>' + (x.due ? '<span class="due' + (late ? ' late' : '') + '">' + new Date(x.due).toLocaleDateString('en-GB', { day:'numeric', month:'short' }) + '</span>' : '') + '</div>'; }).join('') || (own.length ? '' : '<div class="empty" style="padding:16px">Nothing to do.</div>'))
     + (shown.length > 12 ? '<button class="btn sm ghost" style="margin-top:6px" onclick="S.allRem=!S.allRem;render()">' + (S.allRem ? 'Show fewer' : 'Show all ' + shown.length) + '</button>' : '') + '</div>';
 }
+function tasksDue() { var t = ymd(dayAdd(0)); return (S.data.reminders || []).filter(function (x) { return x.due && ymd(new Date(x.due)) <= t; }).length; }
 function macStatus() {
   var e = (S.data.macErrors || [])[0], p = S.data.macPending || 0;
   return (S.data.macLast && S.data.macLast.at ? 'Synced ' + ago(S.data.macLast.at) + ' ago.' : '') + (p ? ' ' + p + ' change' + (p > 1 ? 's' : '') + ' on the way to your Mac.' : '') + (e ? ' <span style="color:var(--red,#e5484d)">Last change failed: ' + esc(String(e.result).replace(/^error:\s*/, '').replace(/^execution error: (Error: )+/, '').replace(/ \(-\d+\)$/, '')) + '</span>' : '');
@@ -2464,6 +2475,107 @@ function stickyView() {
 function openOnMac(id) { toast('Opening on your Mac in about a minute'); api('macOpenNote', { id:id }).catch(fail); }
 function doneRem(id) { S.data.reminders = (S.data.reminders || []).filter(function (x) { return x.id !== id; }); render(); toast('Ticked. Gone from Reminders on your Mac and phone within a minute.'); api('macComplete', { id:id }).catch(fail); }
 function addRem(t, d) { t = String(t || '').trim(); if (!t) return; S.data.reminders = [{ id:'new' + Date.now(), title:t, list:'', due:d || null }].concat(S.data.reminders || []); render(); toast('Added. It lands in Reminders within a minute.'); api('macAddReminder', { text:t, due:d || '' }).catch(fail); }
+// ---- Tasks page (17 Nov 2026, Owen: "Notes and reminders need to be more integrated and slick as I add lots of tasks to both") ----
+// One page: Reminders by day on the left, the loose notes (his one-line task notes) on the right, one add box on top.
+// The add box reads the day from the words ("call Joe fri", "invoice tomorrow"); tap the day chip to drop it.
+var TV = { notes:null, busy:false, noDate:false, pend:null };
+function ymd(d) { return d.toLocaleDateString('en-CA', { timeZone:'Europe/London' }); }
+function dayAdd(n) { var d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() + n); return d; }
+function parseWhen(t) {
+  var s = ' ' + String(t || '') + ' ', d = null, hit = null, now = dayAdd(0);
+  var MON = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'], DAYS = ['sun','mon','tue','wed','thu','fri','sat'];
+  var dated = function (day, mon) { var x = new Date(now.getFullYear(), mon, day, 12); if (x < now) x.setFullYear(x.getFullYear() + 1); return x.getMonth() === mon ? x : null; };
+  var rules = [
+    [/\s(by |on )?(today|tonight)(?=[\s.,!?])/i, function () { return dayAdd(0); }],
+    [/\s(by |on )?(tomorrow|tmrw|tmr|tomoz)(?=[\s.,!?])/i, function () { return dayAdd(1); }],
+    [/\s(by |on )?(this |at the |on the )?weekend(?=[\s.,!?])/i, function () { return dayAdd(((6 - now.getDay()) + 7) % 7 || 7); }],
+    [/\s(by |on )?next week(?=[\s.,!?])/i, function () { return dayAdd(((8 - now.getDay()) % 7) || 7); }],
+    [/\sin (\d{1,2}) days?(?=[\s.,!?])/i, function (m) { return dayAdd(Number(m[1])); }],
+    [/\sin (a|one|1|two|2|three|3) weeks?(?=[\s.,!?])/i, function (m) { return dayAdd(7 * ({ a:1, one:1, two:2, three:3 }[m[1].toLowerCase()] || Number(m[1]))); }],
+    [/\s(by |on )?(\d{1,2})(st|nd|rd|th)? (of )?(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*(?=[\s.,!?])/i, function (m) { return dated(Number(m[2]), MON.indexOf(m[5].toLowerCase())); }],
+    [/\s(by |on )?(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]* (\d{1,2})(st|nd|rd|th)?(?=[\s.,!?])/i, function (m) { return dated(Number(m[3]), MON.indexOf(m[2].toLowerCase())); }],
+    [/\s(by |on )?(\d{1,2})\/(\d{1,2})(?=[\s.,!?])/, function (m) { return dated(Number(m[2]), Number(m[3]) - 1); }],
+    // Full day names, or short ones that are not words too ("sun cream" is not Sunday).
+    [/\s(by |on |next |this )?(monday|tuesday|tues|tue|wednesday|thursday|thurs|thur|thu|friday|fri|saturday|sunday)(?=[\s.,!?])/i, function (m) { var w = DAYS.indexOf(m[2].slice(0, 3).toLowerCase()); return dayAdd(((w - now.getDay()) + 7) % 7 || 7); }],
+    [/\s(by |on |next |this )(mon|wed|sat|sun)(?=[\s.,!?])/i, function (m) { var w = DAYS.indexOf(m[2].toLowerCase()); return dayAdd(((w - now.getDay()) + 7) % 7 || 7); }]
+  ];
+  for (var i = 0; i < rules.length && !d; i++) { var m = s.match(rules[i][0]); if (m) { d = rules[i][1](m); if (d) hit = m[0]; } }
+  if (!d) return { title:String(t || '').trim(), due:'' };
+  return { title:s.replace(hit, ' ').replace(/\s+/g, ' ').replace(/\s+([.,!?])/g, '$1').replace(/^[\s.,]+|[\s,]+$/g, '').trim(), due:ymd(d) };
+}
+function dayLabel(due) {
+  if (!due) return 'No date';
+  var d = typeof due === 'string' && due.length === 10 ? new Date(due + 'T12:00:00') : new Date(due), k = ymd(d), t = ymd(dayAdd(0));
+  if (k === t) return 'Today'; if (k === ymd(dayAdd(1))) return 'Tomorrow';
+  var diff = (new Date(k + 'T12:00:00') - new Date(t + 'T12:00:00')) / 864e5;
+  return d.toLocaleDateString('en-GB', diff > 0 && diff < 7 ? { weekday:'long' } : { weekday:'short', day:'numeric', month:'short' });
+}
+function qaPreview() {
+  var el = document.getElementById('qa'), w = document.getElementById('qaw'); if (!el || !w) return;
+  var p = parseWhen(el.value); if (!p.due) TV.noDate = false;
+  w.style.display = p.due ? '' : 'none';
+  w.className = 'qaw' + (TV.noDate ? ' off' : ''); w.textContent = p.due ? (TV.noDate ? 'No date (tap to use ' + dayLabel(p.due) + ')' : dayLabel(p.due) + ' ✕') : '';
+}
+function qaGet() { var el = document.getElementById('qa'), v = el ? el.value : ''; var p = parseWhen(v); if (TV.noDate) p = { title:v.trim(), due:'' }; return p; }
+function qaDone() { TV.qa = ''; var el = document.getElementById('qa'); if (el) { el.value = ''; el.focus(); } TV.noDate = false; qaPreview(); }
+function qaRem() { var p = qaGet(); if (!p.title) return; addRem(p.title, p.due); qaDone(); }
+function qaNote() {
+  var p = qaGet(), v = (document.getElementById('qa') || {}).value || ''; if (!v.trim()) return;
+  (TV.notes = TV.notes || []).unshift({ id:'new' + Date.now(), title:v.trim(), body:v.trim(), list:'Notes', modified_at:new Date().toISOString() });
+  api('macAddNote', { text:v.trim() }).catch(fail); toast('Saved as a note. It appears in Notes within a minute.'); render(); qaDone();
+}
+function tvLoad(force) {
+  if (TV.busy || (TV.notes && !force)) return; TV.busy = true;
+  api('notesDeck', {}).then(function (r) { TV.notes = r || []; TV.busy = false; render(); }).catch(function (e) { TV.busy = false; fail(e); });
+}
+function remDue(id, v) {
+  var x = (S.data.reminders || []).filter(function (r) { return r.id === id; })[0]; if (!x || v === '') return;
+  var due = v === 'none' ? '' : v === 'pick' ? null : ymd(dayAdd(Number(v)));
+  if (due === null) { var a = prompt('Which day? (fri, 28 nov, next week…)'); if (!a) { render(); return; } due = parseWhen('x ' + a).due; if (!due) { toast('Could not read that day', true); render(); return; } }
+  x.due = due ? due + 'T12:00:00' : null; render(); toast(due ? 'Moved to ' + dayLabel(due) + '. Reminders updates within a minute.' : 'Date taken off.');
+  api('macDueReminder', { id:id, due:due }).catch(fail);
+}
+function dueSelect(x) {
+  var wk = ((6 - dayAdd(0).getDay()) + 7) % 7 || 7, nw = ((8 - dayAdd(0).getDay()) % 7) || 7, late = x.due && ymd(new Date(x.due)) < ymd(dayAdd(0));
+  return '<select class="duesel' + (late ? ' late' : '') + (x.due ? '' : ' none') + '" onclick="event.stopPropagation()" onchange="remDue(\'' + esc(x.id) + '\',this.value)">'
+    + '<option value="">' + esc(x.due ? dayLabel(x.due) : 'Add date') + '</option><option value="0">Today</option><option value="1">Tomorrow</option><option value="' + wk + '">Weekend</option><option value="' + nw + '">Next week</option><option value="pick">Pick a day…</option>' + (x.due ? '<option value="none">No date</option>' : '') + '</select>';
+}
+function remRow(x) {
+  return '<div class="task"><span class="ck" title="Done" onclick="doneRem(\'' + esc(x.id) + '\')"></span><span class="tt" title="Tap to rename" style="cursor:text" onclick="renameRem(\'' + esc(x.id) + '\')">' + esc(x.title) + (x.body ? '<span class="l3"> · ' + esc(String(x.body).split('\n')[0].slice(0, 60)) + '</span>' : '') + '</span>' + dueSelect(x) + '</div>';
+}
+// A note that is a task: Done bins it (Recently Deleted, 30 days), Reminder turns it into one and bins the note. Both wait 5s for Undo.
+function tvNoteAct(id, kind) {
+  var n = (TV.notes || []).filter(function (x) { return x.id === id; })[0]; if (!n) return;
+  if (TV.pend) { clearTimeout(TV.pend.t); TV.pend.run(); }
+  var at = TV.notes.indexOf(n); TV.notes.splice(at, 1);
+  var run = function () { TV.pend = null; if (kind === 'rem') { var p = parseWhen(n.title), rest = noteLines(n).join('\n'); api('macAddReminder', { text:p.title + (rest ? '\n' + rest : ''), due:p.due }).then(function () { load('load'); }).catch(fail); }
+    if (!/^new/.test(n.id)) api('macDeleteNote', { id:n.id }).then(function () { S.data.notes = (S.data.notes || []).filter(function (x) { return x.id !== n.id; }); }).catch(fail); };
+  if (kind === 'rem') { var p0 = parseWhen(n.title); S.data.reminders = [{ id:'new' + Date.now(), title:p0.title, list:'', due:p0.due ? p0.due + 'T12:00:00' : null }].concat(S.data.reminders || []); }
+  TV.pend = { run:run, t:setTimeout(run, 5000), undo:function () { TV.notes.splice(at, 0, n); if (kind === 'rem') S.data.reminders = (S.data.reminders || []).filter(function (r) { return !/^new/.test(r.id) || r.title !== parseWhen(n.title).title; }); } };
+  render(); toast(kind === 'rem' ? 'Now a reminder, note binned. Undo for 5 seconds.' : 'Done, note binned (back for 30 days in Notes). Undo for 5 seconds.');
+}
+function tvUndo() { var p = TV.pend; if (!p) { toast('Nothing to undo'); return; } clearTimeout(p.t); TV.pend = null; p.undo(); render(); toast('Undone'); }
+function tasksView() {
+  tvLoad();
+  var r = (S.data.reminders || []).slice(), t = ymd(dayAdd(0)), tm = ymd(dayAdd(1)), wk = ymd(dayAdd(7));
+  var G = [['Overdue', []], ['Today', []], ['Tomorrow', []], ['Next 7 days', []], ['Later', []], ['No date', []]];
+  r.sort(function (a, b) { return String(a.due || 'z') < String(b.due || 'z') ? -1 : 1; }).forEach(function (x) {
+    var k = x.due ? ymd(new Date(x.due)) : ''; G[!k ? 5 : k < t ? 0 : k === t ? 1 : k === tm ? 2 : k <= wk ? 3 : 4][1].push(x); });
+  var own = (S.data.tasks || []).filter(function (x) { return !x.done; });
+  var notes = (TV.notes || []).filter(function (n) { return n.list !== 'Recently Deleted'; });
+  var h = '<main class="home tasksv">' + tabs() + '<div class="tvhead"><div><h1>Tasks</h1><div class="sub">Your Reminders and your to-do notes in one place. ' + macStatus() + '</div></div>' + (TV.pend ? '<button class="btn sm" onclick="tvUndo()">Undo</button>' : '') + '</div>'
+    + '<form class="qadd" onsubmit="event.preventDefault();qaRem()"><input id="qa" autocomplete="off" placeholder="Add a task… e.g. call Joe fri, invoice tomorrow" value="' + esc(TV.qa || '') + '" oninput="TV.qa=this.value;qaPreview()"><button type="button" id="qaw" class="qaw" style="display:none" onclick="TV.noDate=!TV.noDate;qaPreview();document.getElementById(\'qa\').focus()"></button><button class="btn pri sm">Reminder</button><button type="button" class="btn sm" onclick="qaNote()">Note</button></form>'
+    + '<div class="tvgrid"><div class="box"><h3>' + I.check + 'Reminders<span class="badge">' + (r.length + own.length) + '</span></h3>'
+    + G.map(function (g) { return g[1].length ? '<div class="tvg' + (g[0] === 'Overdue' ? ' late' : '') + '">' + g[0] + ' <span>' + g[1].length + '</span></div>' + g[1].map(remRow).join('') : ''; }).join('')
+    + (own.length ? '<div class="tvg">Added here before <span>' + own.length + '</span></div>' + own.map(taskRow).join('') : '')
+    + (r.length || own.length ? '' : '<div class="empty" style="padding:16px">Nothing to do.</div>') + '</div>'
+    + '<div class="box"><h3>' + I.note + 'To-do notes<span class="badge">' + notes.length + '</span><span style="flex:1"></span><button class="btn sm ghost" onclick="noteSortOpen()">Sort notes</button></h3><div class="bsub">Notes outside SONGS, Me and Reference. Done bins the note, Reminder turns it into one.</div>'
+    + (!TV.notes ? '<div class="l3" style="padding:12px 0">Getting your notes…</div>' : notes.map(function (n) { var more = noteLines(n);
+        return '<div class="task tvnote"><span class="ck" title="Done, bin the note" onclick="tvNoteAct(\'' + esc(n.id) + '\',\'done\')"></span><span class="tt" onclick="openNote(\'' + esc(n.id) + '\')" style="cursor:pointer">' + linkify(esc(n.title || '(no title)')) + (more.length ? '<span class="l3"> · ' + esc(more.slice(0, 2).join(' · ').slice(0, 80)) + (more.length > 2 ? ' +' + (more.length - 2) + ' lines' : '') + '</span>' : '') + '<span class="l3"> · ' + (n.modified_at ? ago(n.modified_at) : '') + '</span></span><button class="btn sm ghost" title="Make it a reminder, bin the note" onclick="tvNoteAct(\'' + esc(n.id) + '\',\'rem\')">Reminder</button></div>'; }).join('') || '<div class="empty" style="padding:16px">No loose notes.</div>')
+    + '</div></div></main>';
+  setTimeout(qaPreview, 0);
+  return h;
+}
 
 // Before a call (readywhen-style): who it is, where things were left, what you promised. Cached on the server 6h.
 S.cu = {};

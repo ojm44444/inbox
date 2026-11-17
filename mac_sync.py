@@ -93,6 +93,20 @@ def add_reminder(text, due=''):
     ok, err = st.saveReminder_commit_error_(r, True, None)
     if not ok: raise RuntimeError(str(err))
 
+def set_due(rid, due=''):
+    # Tasks page date chip (17 Nov 2026): '' clears the date.
+    import Foundation
+    st = _store(); r = st.calendarItemWithIdentifier_(rid)
+    if r is None: raise RuntimeError('Reminder not found')
+    if due:
+        y, m, d = (int(v) for v in due.split('-'))
+        dc = Foundation.NSDateComponents.alloc().init(); dc.setYear_(y); dc.setMonth_(m); dc.setDay_(d)
+        r.setDueDateComponents_(dc)
+    else:
+        r.setDueDateComponents_(None)
+    ok, err = st.saveReminder_commit_error_(r, True, None)
+    if not ok: raise RuntimeError(str(err))
+
 def rename_reminder(rid, text):
     st = _store(); r = st.calendarItemWithIdentifier_(rid)
     if r is None: raise RuntimeError('Reminder not found')
@@ -123,6 +137,8 @@ def do_actions():
                 x("UPDATE inbox_mac SET done = true WHERE id = '%s'" % esc(a['target']))
             elif a['action'] == 'add':
                 add_reminder(a['text'], a.get('target') or '')
+            elif a['action'] == 'due':
+                set_due(a['target'], a.get('text') or '')
             elif a['action'] == 'rename':
                 rename_reminder(a['target'], a['text'])
             elif a['action'] == 'open':
