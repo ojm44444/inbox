@@ -282,9 +282,12 @@ async function outbox() {
           if (o) await sock.fetchMessageHistory(50, { remoteJid: j.chat_id, id: o.id.split(':').pop(), fromMe: !!o.from_me }, Math.floor(new Date(o.ts).getTime() / 1000));
         }
         else if (j.kind === 'read') {
-          const last = await q('SELECT id FROM inbox_wa_msgs WHERE chat_id = ' + lit(j.chat_id) + ' AND NOT from_me ORDER BY ts DESC LIMIT 5') || [];
-          const keys = last.map((m) => ({ remoteJid: j.chat_id, id: m.id.split(':').pop(), fromMe: false }));
+          // 17 Nov: group receipts need the sender (participant) or the phone never sees them as read.
+          const last = await q('SELECT id, sender_jid, ts FROM inbox_wa_msgs WHERE chat_id = ' + lit(j.chat_id) + ' AND NOT from_me ORDER BY ts DESC LIMIT 10') || [];
+          const keys = last.map((m) => ({ remoteJid: j.chat_id, id: m.id.split(':').pop(), fromMe: false, participant: isGroup(j.chat_id) ? (m.sender_jid || undefined) : undefined }));
           if (keys.length) await sock.readMessages(keys);
+          // And mark the whole chat read, so the badge clears on his phone and Mac too.
+          if (last[0]) { try { await sock.chatModify({ markRead: true, lastMessages: [{ key: keys[0], messageTimestamp: Math.floor(new Date(last[0].ts).getTime() / 1000) }] }, j.chat_id); } catch (e) { log('markRead', e.message); } }
           await x('UPDATE inbox_wa_chats SET unread = 0 WHERE id = ' + lit(j.chat_id));
         }
       } catch (e) { res = 'error: ' + String(e.message || e).slice(0, 200); }
