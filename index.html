@@ -481,6 +481,7 @@ body { background:radial-gradient(1200px 600px at 80% -10%, color-mix(in srgb, v
 @media (max-width:900px) { .tvgrid { grid-template-columns:minmax(0,1fr); } .qadd .btn { padding:0 10px; } }
 .tvg { font-size:12px; font-weight:600; color:var(--faint); text-transform:uppercase; letter-spacing:.04em; margin:12px 0 2px; } .tvg span { font-weight:400; } .tvg.late { color:var(--fix); }
 .duesel { border:0; background:transparent; color:var(--faint); font-size:12px; cursor:pointer; max-width:120px; text-align:right; } .duesel.late { color:var(--fix); } .duesel.none { opacity:.5; } .task:hover .duesel.none { opacity:1; }
+.tvnote .tt { flex:1; } .tvt, .tvp { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .tvnote .btn { flex:none; opacity:.7; } .tvnote:hover .btn { opacity:1; }
 .taskadd { display:flex; gap:6px; margin-bottom:8px; }
 .taskadd input { height:32px; border:1px solid var(--line2); border-radius:8px; background:var(--bg); color:var(--text); padding:0 10px; min-width:0; }
@@ -2571,7 +2572,7 @@ function tasksView() {
     + (r.length || own.length ? '' : '<div class="empty" style="padding:16px">Nothing to do.</div>') + '</div>'
     + '<div class="box"><h3>' + I.note + 'To-do notes<span class="badge">' + notes.length + '</span><span style="flex:1"></span><button class="btn sm ghost" onclick="noteSortOpen()">Sort notes</button></h3><div class="bsub">Notes outside SONGS, Me and Reference. Done bins the note, Reminder turns it into one.</div>'
     + (!TV.notes ? '<div class="l3" style="padding:12px 0">Getting your notes…</div>' : notes.map(function (n) { var more = noteLines(n);
-        return '<div class="task tvnote"><span class="ck" title="Done, bin the note" onclick="tvNoteAct(\'' + esc(n.id) + '\',\'done\')"></span><span class="tt" onclick="openNote(\'' + esc(n.id) + '\')" style="cursor:pointer">' + linkify(esc(n.title || '(no title)')) + (more.length ? '<span class="l3"> · ' + esc(more.slice(0, 2).join(' · ').slice(0, 80)) + (more.length > 2 ? ' +' + (more.length - 2) + ' lines' : '') + '</span>' : '') + '<span class="l3"> · ' + (n.modified_at ? ago(n.modified_at) : '') + '</span></span><button class="btn sm ghost" title="Make it a reminder, bin the note" onclick="tvNoteAct(\'' + esc(n.id) + '\',\'rem\')">Reminder</button></div>'; }).join('') || '<div class="empty" style="padding:16px">No loose notes.</div>')
+        return '<div class="task tvnote"><span class="ck" title="Done, bin the note" onclick="tvNoteAct(\'' + esc(n.id) + '\',\'done\')"></span><span class="tt" onclick="openNote(\'' + esc(n.id) + '\')" style="cursor:pointer;min-width:0"><span class="tvt">' + esc(n.title || '(no title)') + '</span><span class="l3 tvp">' + (n.modified_at ? ago(n.modified_at) + ' ago' : '') + (more.length ? ' · ' + esc(more.slice(0, 2).join(' · ').slice(0, 90)) + (more.length > 2 ? ' +' + (more.length - 2) + ' lines' : '') : '') + '</span></span><button class="btn sm ghost" title="Make it a reminder, bin the note" onclick="tvNoteAct(\'' + esc(n.id) + '\',\'rem\')">Reminder</button></div>'; }).join('') || '<div class="empty" style="padding:16px">No loose notes.</div>')
     + '</div></div></main>';
   setTimeout(qaPreview, 0);
   return h;
