@@ -474,6 +474,7 @@ body { background:radial-gradient(1200px 600px at 80% -10%, color-mix(in srgb, v
 .t3n { width:22px; height:22px; border-radius:50%; background:var(--acc); color:#fff; display:grid; place-items:center; font-size:12px; font-weight:700; flex:none; }
 .tasksv { max-width:1200px; }
 .tvhead { display:flex; align-items:flex-end; gap:12px; margin-bottom:12px; } .tvhead > div { flex:1; } .tvhead h1 { margin:0; }
+.tbox .qadd { position:static; margin:4px 0 6px; padding:4px 4px 4px 10px; } .tbox .qadd input { font-size:15px; height:32px; }
 .qadd { display:flex; gap:8px; align-items:center; background:var(--panel); border:1px solid var(--line2); border-radius:12px; padding:6px 6px 6px 14px; margin-bottom:16px; position:sticky; top:0; z-index:3; }
 .qadd input { flex:1; min-width:0; border:0; background:transparent; color:var(--text); font-size:16px; height:36px; outline:none; }
 .qaw { border:0; border-radius:999px; padding:4px 10px; font-size:12px; background:var(--acc); color:#fff; cursor:pointer; white-space:nowrap; } .qaw.off { background:var(--line2); color:var(--faint); }
@@ -1840,15 +1841,18 @@ function newBrief() { S.briefBusy = true; render(); api('brief').then(function (
 // Tasks are Owen's Apple Reminders, synced both ways (5 Nov 2026: "Tasks, like stuff and
 // reminders, are their own things", emails are not tasks). Older tasks added here show too.
 function tasksBox() {
-  var r = S.data.reminders || [], own = (S.data.tasks || []).filter(function (x) { return !x.done; });
-  var lists = {}; r.forEach(function (x) { lists[x.list] = 1; }); var ln = Object.keys(lists);
-  var shown = r.filter(function (x) { return !S.remList || x.list === S.remList; });
-  return '<div class="box"><h3>' + I.check + 'Tasks<span class="badge">' + (r.length + own.length) + '</span><span style="flex:1"></span><button class="btn sm ghost" onclick="go(\'tasks\')">Open Tasks</button></h3><div class="bsub">Your Reminders, synced both ways. ' + macStatus() + '</div>'
-    + '<form class="taskadd" onsubmit="event.preventDefault();var p=this.d.value?{title:this.t.value,due:this.d.value}:parseWhen(this.t.value);addRem(p.title,p.due);this.reset()"><input name="t" placeholder="Add a task… e.g. call Joe fri"><input name="d" type="date"><button class="btn sm">Add</button></form>'
-    + (ln.length > 1 ? '<div class="chips" style="margin:2px 0 6px"><button class="fchip' + (!S.remList ? ' on' : '') + '" onclick="S.remList=null;render()">All</button>' + ln.map(function (l) { return '<button class="fchip' + (S.remList === l ? ' on' : '') + '" onclick="S.remList=' + esc(JSON.stringify(l)) + ';render()">' + esc(l) + '</button>'; }).join('') + '</div>' : '')
-    + own.map(taskRow).join('')
-    + (shown.slice(0, S.allRem ? 999 : 12).map(function (x) { var late = x.due && new Date(x.due) < new Date(); return '<div class="task"><span class="ck" title="Done" onclick="doneRem(\'' + esc(x.id) + '\')"></span><span class="tt" title="Tap to rename" style="cursor:text" onclick="renameRem(\'' + esc(x.id) + '\')">' + esc(x.title) + (ln.length > 1 && !S.remList ? ' <span class="l3">· ' + esc(x.list) + '</span>' : '') + '</span>' + (x.due ? '<span class="due' + (late ? ' late' : '') + '">' + new Date(x.due).toLocaleDateString('en-GB', { day:'numeric', month:'short' }) + '</span>' : '') + '</div>'; }).join('') || (own.length ? '' : '<div class="empty" style="padding:16px">Nothing to do.</div>'))
-    + (shown.length > 12 ? '<button class="btn sm ghost" style="margin-top:6px" onclick="S.allRem=!S.allRem;render()">' + (S.allRem ? 'Show fewer' : 'Show all ' + shown.length) + '</button>' : '') + '</div>';
+  // Home = the short version of the Tasks page: late and today, To do emails, next few days, count of to-do notes.
+  tvLoad(); setTimeout(qaPreview, 0);
+  var G = remGroups(), mails = pileList('todo'), now = G[0][1].concat(G[1][1]), soon = G[2][1].concat(G[3][1]);
+  var total = (S.data.reminders || []).length + mails.length + (TV.notes ? TV.notes.length : 0);
+  var sec = function (label, rows, cls) { return rows ? '<div class="tvg' + (cls || '') + '">' + label + '</div>' + rows : ''; };
+  return '<div class="box tbox"><h3>' + I.check + 'Tasks<span class="badge">' + total + '</span><span style="flex:1"></span><button class="btn sm ghost" onclick="go(\'tasks\')">All tasks</button></h3>'
+    + qaForm()
+    + sec('Late and today', now.slice(0, 8).map(remRow).join(''), G[0][1].length ? ' late' : '')
+    + sec('From email', mails.slice(0, 5).map(emailTaskRow).join(''))
+    + sec('Next few days', soon.slice(0, 5).map(remRow).join(''))
+    + (!now.length && !mails.length && !soon.length ? '<div class="empty" style="padding:12px">Nothing due. Nice.</div>' : '')
+    + '<button class="btn sm ghost" style="margin-top:8px" onclick="go(\'tasks\')">' + ((S.data.reminders || []).length - now.length - soon.length) + ' more reminders' + (TV.notes ? ', ' + TV.notes.length + ' to-do notes' : '') + ' →</button></div>';
 }
 function tasksDue() { var t = ymd(dayAdd(0)); return (S.data.reminders || []).filter(function (x) { return x.due && ymd(new Date(x.due)) <= t; }).length; }
 function macStatus() {
@@ -2556,20 +2560,35 @@ function tvNoteAct(id, kind) {
   render(); toast(kind === 'rem' ? 'Now a reminder, note binned. Undo for 5 seconds.' : 'Done, note binned (back for 30 days in Notes). Undo for 5 seconds.');
 }
 function tvUndo() { var p = TV.pend; if (!p) { toast('Nothing to undo'); return; } clearTimeout(p.t); TV.pend = null; p.undo(); render(); toast('Undone'); }
+// To do emails sit with the tasks too (Owen 17 Nov: "happy for this to be a dashboard thing now, all in one place").
+// They stay emails (no copy in Reminders): tick = the same Done as in the email.
+function tvEmailDone(gid) { var v = S.view; S.open = gid; markRead(); S.open = null; S.phoneOpen = false; S.view = v; render(); }
+function emailTaskRow(g) {
+  var e = g.items[0], who = String(e.from_name || e.from_email || '').split(' <')[0];
+  return '<div class="task"><span class="ck" title="Done" onclick="tvEmailDone(\'' + esc(g.id) + '\')"></span><span class="tt" style="cursor:pointer;min-width:0" onclick="openFrom(\'todo\',\'' + esc(g.id) + '\')"><span class="tvt">' + esc(e.subject || '(no subject)') + '</span><span class="l3 tvp">Email · ' + esc(who) + ' · ' + ago(e.received_at) + ' ago</span></span></div>';
+}
+function remGroups() {
+  var t = ymd(dayAdd(0)), tm = ymd(dayAdd(1)), wk = ymd(dayAdd(7));
+  var G = [['Overdue', []], ['Today', []], ['Tomorrow', []], ['Next 7 days', []], ['Later', []], ['No date', []]];
+  (S.data.reminders || []).slice().sort(function (a, b) { return String(a.due || 'z') < String(b.due || 'z') ? -1 : 1; }).forEach(function (x) {
+    var k = x.due ? ymd(new Date(x.due)) : ''; G[!k ? 5 : k < t ? 0 : k === t ? 1 : k === tm ? 2 : k <= wk ? 3 : 4][1].push(x); });
+  return G;
+}
+function qaForm() {
+  return '<form class="qadd" onsubmit="event.preventDefault();qaRem()"><input id="qa" autocomplete="off" placeholder="Add a task… e.g. call Joe fri, invoice tomorrow" value="' + esc(TV.qa || '') + '" oninput="TV.qa=this.value;qaPreview()"><button type="button" id="qaw" class="qaw" style="display:none" onclick="TV.noDate=!TV.noDate;qaPreview();document.getElementById(\'qa\').focus()"></button><button class="btn pri sm">Reminder</button><button type="button" class="btn sm" onclick="qaNote()">Note</button></form>';
+}
 function tasksView() {
   tvLoad();
-  var r = (S.data.reminders || []).slice(), t = ymd(dayAdd(0)), tm = ymd(dayAdd(1)), wk = ymd(dayAdd(7));
-  var G = [['Overdue', []], ['Today', []], ['Tomorrow', []], ['Next 7 days', []], ['Later', []], ['No date', []]];
-  r.sort(function (a, b) { return String(a.due || 'z') < String(b.due || 'z') ? -1 : 1; }).forEach(function (x) {
-    var k = x.due ? ymd(new Date(x.due)) : ''; G[!k ? 5 : k < t ? 0 : k === t ? 1 : k === tm ? 2 : k <= wk ? 3 : 4][1].push(x); });
+  var r = S.data.reminders || [], G = remGroups(), mails = pileList('todo');
   var own = (S.data.tasks || []).filter(function (x) { return !x.done; });
   var notes = (TV.notes || []).filter(function (n) { return n.list !== 'Recently Deleted'; });
   var h = '<main class="home tasksv">' + tabs() + '<div class="tvhead"><div><h1>Tasks</h1><div class="sub">Your Reminders and your to-do notes in one place. ' + macStatus() + '</div></div>' + (TV.pend ? '<button class="btn sm" onclick="tvUndo()">Undo</button>' : '') + '</div>'
-    + '<form class="qadd" onsubmit="event.preventDefault();qaRem()"><input id="qa" autocomplete="off" placeholder="Add a task… e.g. call Joe fri, invoice tomorrow" value="' + esc(TV.qa || '') + '" oninput="TV.qa=this.value;qaPreview()"><button type="button" id="qaw" class="qaw" style="display:none" onclick="TV.noDate=!TV.noDate;qaPreview();document.getElementById(\'qa\').focus()"></button><button class="btn pri sm">Reminder</button><button type="button" class="btn sm" onclick="qaNote()">Note</button></form>'
-    + '<div class="tvgrid"><div class="box"><h3>' + I.check + 'Reminders<span class="badge">' + (r.length + own.length) + '</span></h3>'
+    + qaForm()
+    + '<div class="tvgrid"><div class="box"><h3>' + I.check + 'Reminders and email to-dos<span class="badge">' + (r.length + own.length + mails.length) + '</span></h3>'
+    + (mails.length ? '<div class="tvg">From email, To do <span>' + mails.length + '</span></div>' + mails.map(emailTaskRow).join('') : '')
     + G.map(function (g) { return g[1].length ? '<div class="tvg' + (g[0] === 'Overdue' ? ' late' : '') + '">' + g[0] + ' <span>' + g[1].length + '</span></div>' + g[1].map(remRow).join('') : ''; }).join('')
     + (own.length ? '<div class="tvg">Added here before <span>' + own.length + '</span></div>' + own.map(taskRow).join('') : '')
-    + (r.length || own.length ? '' : '<div class="empty" style="padding:16px">Nothing to do.</div>') + '</div>'
+    + (r.length || own.length || mails.length ? '' : '<div class="empty" style="padding:16px">Nothing to do.</div>') + '</div>'
     + '<div class="box"><h3>' + I.note + 'To-do notes<span class="badge">' + notes.length + '</span><span style="flex:1"></span><button class="btn sm ghost" onclick="noteSortOpen()">Sort notes</button></h3><div class="bsub">Notes outside SONGS, Me and Reference. Done bins the note, Reminder turns it into one.</div>'
     + (!TV.notes ? '<div class="l3" style="padding:12px 0">Getting your notes…</div>' : notes.map(function (n) { var more = noteLines(n);
         return '<div class="task tvnote"><span class="ck" title="Done, bin the note" onclick="tvNoteAct(\'' + esc(n.id) + '\',\'done\')"></span><span class="tt" onclick="openNote(\'' + esc(n.id) + '\')" style="cursor:pointer;min-width:0"><span class="tvt">' + esc(n.title || '(no title)') + '</span><span class="l3 tvp">' + (n.modified_at ? ago(n.modified_at) + ' ago' : '') + (more.length ? ' · ' + esc(more.slice(0, 2).join(' · ').slice(0, 90)) + (more.length > 2 ? ' +' + (more.length - 2) + ' lines' : '') : '') + '</span></span><button class="btn sm ghost" title="Make it a reminder, bin the note" onclick="tvNoteAct(\'' + esc(n.id) + '\',\'rem\')">Reminder</button></div>'; }).join('') || '<div class="empty" style="padding:16px">No loose notes.</div>')
