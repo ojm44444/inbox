@@ -984,6 +984,7 @@ function render() {
   // Keep anything half-typed when the page redraws (e.g. Review answers wiped when other projects finish loading).
   var typed = {}, act = document.activeElement, actId = act && act.id, sel = act && act.selectionStart;
   document.querySelectorAll('#rvtext').forEach(function (el) { if (el.value) typed[el.id] = el.value; });
+  if (S.view === 'money' || S.view === 'outreach') S.view = 'home';
   var mail = S.view !== 'sort' && S.view !== 'compose' && S.view !== 'money' && S.view !== 'home' && S.view !== 'reading' && S.view !== 'trello' && S.view !== 'person' && S.view !== 'review' && S.view !== 'notesort' && S.view !== 'outreach' && S.view !== 'tasks';
   document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + (S.slim ? ' slim' : '') + (S.menu ? ' menuopen' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'sticky' ? stickyView() : S.view === 'whatsapp' ? waView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'sort' ? sortView() : S.view === 'notesort' ? noteSortView() : S.view === 'tasks' ? tasksView() : S.view === 'outreach' ? outreachView() : S.view === 'money' ? moneyView() : S.view === 'compose' ? composeView() : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : S.view === 'review' ? reviewView() : home()) + '</div>';
   var ns = document.querySelector('.rows, .home'); if (ns) ns.scrollTop = keep;
@@ -1148,11 +1149,11 @@ function side() {
     + '<button class="newmail" title="New email" onclick="newMail()">' + I.pen + '<em class="lbl">New email</em></button>'
     + nv('home', I.home, 'Home') + nv('review', I.check, 'Review', reviewNeeds().length) + nv('all', I.inbox, 'All mail', unreadCount('all'), 'S.f.acct=\'\';') + nv('sort', I.spark, 'Quick sort', sortDeck().length)
     + pile('reply') + pile('todo') + pile('promise') + pile('chase') + pile('fix') + pile('learn') + pile('noise') + (unreadCount('new') ? pile('new') : '')
-    + nv('whatsapp', I.wa, 'WhatsApp', waWaiting()) + nv('sticky', I.sticky, 'Sticky notes', stickyTotal()) + nv('tasks', I.check, 'Tasks', tasksDue()) + nv('notes', I.note, 'Notes') + nv('money', '<span style="width:16px;text-align:center;font-weight:700">£</span>', 'Money')
+    + nv('whatsapp', I.wa, 'WhatsApp', waWaiting()) + nv('sticky', I.sticky, 'Sticky notes', stickyTotal()) + nv('tasks', I.check, 'Tasks', tasksDue()) + nv('notes', I.note, 'Notes')
     + '<button class="navmore" onclick="S.sideMore=!S.sideMore;try{localStorage.setItem(\'inbox-sidemore\',S.sideMore?1:0)}catch(e){};render()">' + (S.sideMore ? '▾ Hide' : '▸ Labels, inboxes, Slack, Trello') + '</button>';
   if (S.sideMore) {
     h += '<div class="navlabel">Inboxes</div>' + inboxNav()
-      + '<div class="navlabel">Apps</div>' + nv('slack', I.slack, 'Slack', slackWaiting()) + nv('trello', I.board, 'Trello') + nv('outreach', I.send, 'Outreach')
+      + '<div class="navlabel">Apps</div>' + nv('slack', I.slack, 'Slack', slackWaiting()) + nv('trello', I.board, 'Trello')
       + '<div class="navlabel">Folders</div><div class="navrow">' + ['sent', 'drafts', 'trash'].map(function (b) { return '<button class="' + (S.view === 'box:' + b ? 'on' : '') + '" onclick="FD.open=null;go(\'box:' + b + '\')">' + BOXES[b] + '</button>'; }).join('') + '</div>';
   }
   h += labelNav();
@@ -1218,7 +1219,7 @@ function home() {
   var h = '<main class="home">' + tabs() + '<div class="hero2"><div style="min-width:0"><div class="day">' + day + '</div><h1 class="hello">' + hi + ', Owen</h1><div class="hellosub">' + (bits.length ? bits.join(' · ') + '.' : 'Inbox clear. Nice.') + '</div>' + waitLine + '</div>'
     + '</div>'
     // Owen, 9 Nov: "so much stuff ... overwhelming". One row of the six he uses; the rest under More.
-    + '<div class="tiles">' + ['review', 'reply', 'tasks', 'sort', 'money', 'whatsapp'].map(homeTile).join('') + '</div>'
+    + '<div class="tiles">' + ['review', 'reply', 'tasks', 'sort', 'whatsapp'].map(homeTile).join('') + '</div>'
     + eveningCard() + tasksBox() + dropsCard()
     + askBar() + briefCard()
     // Owen, 7 Nov: "the bits below are a bit overwhelming. I don't really scroll." Folded away, one tap to open.
@@ -1442,7 +1443,7 @@ var HUB_SRC = {
   moon:{ name:'Moon', color:'#6d6af5', saves:'https://moon-dashboard-six.vercel.app/api/db' },
   tez:{ name:'TEZ', color:'#e0533d', saves:'https://moon-dashboard-six.vercel.app/api/db' },
   cutroom:{ name:'Cutroom', color:'#3fbfa0', saves:'https://moon-dashboard-six.vercel.app/api/db' },
-  inbox:{ name:'Inbox and Money', color:'#c8902c' }
+  inbox:{ name:'Inbox', color:'#c8902c' }
 };
 var HUB = { p:{}, at:0, busy:false };
 function hubPost(url, body) {
@@ -1473,7 +1474,8 @@ function hubLoad(force) {
 // Every card, one shape: { pid, id, title, tag, day, what, why, ask, detail, pics, links, options, own, typed, try }
 function hubInbox() {
   var r = reviewData();
-  return r.items.filter(function (i) { return i.status === 'needs' && !r.decisions[i.id]; }).map(function (i) {
+  // Money and Outreach removed from the tool 17 Nov 2026 (Owen: "just remove all money parts of the tool", Outreach "Remove it").
+  return r.items.filter(function (i) { return i.status === 'needs' && !r.decisions[i.id] && i.area !== 'money'; }).map(function (i) {
     return { pid:'inbox', id:i.id, title:i.title, tag:i.area === 'money' ? 'Money' : (i.where || 'Inbox'), what:i.check || '', ask:i.ask ? 'Type your answer.' : i.options ? 'Pick one.' : 'Try it, then Approve or say what to change.', options:i.options, typed:!!i.ask, try:i.try };
   });
 }
@@ -1756,7 +1758,7 @@ function reviewView() {
   if (done.length) h += '<details class="hubsec"><summary class="hublab">You approved <em>' + done.length + '</em></summary>' + done.map(row).join('') + '</details>';
   var nexts = hubPids().filter(function (p) { return (f === 'all' || f === p) && p !== 'inbox'; }).map(function (p) { var l = (HUB.p[p] || {}).next || []; return l.length ? '<div class="hubnext"><div class="hubtag"><span class="hubdot" style="--c:' + HUB_SRC[p].color + '"></span>' + esc(HUB_SRC[p].name) + '</div><ul>' + l.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul></div>' : ''; }).join('');
   var r0 = reviewData(), inboxNext = (f === 'all' || f === 'inbox') ? r0.items.filter(function (i) { return i.status === 'next' || i.status === 'working'; }) : [];
-  if (inboxNext.length) nexts += '<div class="hubnext"><div class="hubtag"><span class="hubdot" style="--c:' + HUB_SRC.inbox.color + '"></span>Inbox and Money</div><ul>' + inboxNext.map(function (i) { return '<li>' + esc(i.title) + (i.status === 'working' ? ' <small>being built</small>' : '') + '</li>'; }).join('') + '</ul></div>';
+  if (inboxNext.length) nexts += '<div class="hubnext"><div class="hubtag"><span class="hubdot" style="--c:' + HUB_SRC.inbox.color + '"></span>Inbox</div><ul>' + inboxNext.map(function (i) { return '<li>' + esc(i.title) + (i.status === 'working' ? ' <small>being built</small>' : '') + '</li>'; }).join('') + '</ul></div>';
   if (nexts) h += '<details class="hubsec"><summary class="hublab">Asked for, not built yet</summary>' + nexts + '</details>';
   var D = r0.decisions, notes = Object.keys(D).filter(function (k) { return /^note-/.test(k); }).sort().reverse().slice(0, 5);
   h += '<div class="hubsec"><div class="hublab">Something else on your mind?</div><div class="hubnote"><textarea id="rvgeneral" placeholder="Any note, about anything. I read it and act."></textarea><button class="hubbtn yes" onclick="reviewNote()">Send</button></div>'
