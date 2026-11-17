@@ -785,6 +785,10 @@ a.iconbtn { display:inline-grid; place-items:center; color:inherit; }
 .hublab em { font-style:normal; color:var(--hdim); }
 .stwhy { width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid var(--line, #ddd); border-radius:8px; background:transparent; color:inherit; font:inherit; font-weight:600; margin-bottom:6px; }
 .stwhyline { font-weight:700; font-size:15px; margin-bottom:4px; cursor:pointer; }
+.tlact { display:flex; gap:4px; padding:0 8px 6px; flex-wrap:wrap; }
+.tlact button { border:0; border-radius:6px; padding:3px 8px; font-size:12px; background:rgba(255,255,255,.12); color:inherit; cursor:pointer; }
+.tlact button:hover { background:rgba(255,255,255,.25); }
+.tlact .tlarch { margin-left:auto; }
 .hublast { display:flex; align-items:center; gap:10px; justify-content:space-between; margin:10px 0; padding:10px 14px; border-radius:10px; background:var(--hcard); border:1px solid var(--hline); color:var(--hink); font-size:14px; }
 .hubrow .hubbtn.sm { padding:3px 10px; font-size:12px; margin-left:8px; }
 .hubrow { display:flex; align-items:center; gap:10px; padding:10px 2px; border-bottom:1px solid var(--hline); color:var(--hink); text-decoration:none; cursor:pointer; font-size:14px; }
@@ -2215,7 +2219,7 @@ function trello() {
   if (!b || TL.loadingBoard) return h + '<div class="empty" style="color:#fff">Loading…</div></main>';
   h += '<div class="thead"><h2>' + esc(b.name) + '</h2><a class="btn sm" target="_blank" href="' + esc(safeUrl(b.url)) + '">Open in Trello</a><button class="btn sm" onclick="openBoard(\'' + b.id + '\')">' + I.refresh + '</button></div><div class="tlists">';
   b.lists.forEach(function (l) {
-    h += '<div class="tlist" ondragover="event.preventDefault();this.classList.add(\'over\')" ondragleave="this.classList.remove(\'over\')" ondrop="dropCard(event,\'' + l.id + '\')"><div class="tlh">' + esc(l.name) + '<span>' + l.cards.length + '</span></div><div class="tcards">';
+    h += '<div class="tlist" ondragover="event.preventDefault();this.classList.add(\'over\')" ondragleave="this.classList.remove(\'over\')" ondrop="dropCard(event,\'' + l.id + '\')"><div class="tlh">' + esc(l.name) + '<span>' + l.cards.length + '</span></div>' + (l.cards.length ? '<div class="tlact"><button onclick="tlCopy(\'' + l.id + '\',false)" title="Copy every card in this list, to paste into Claude">Copy all</button><button onclick="tlCopy(\'' + l.id + '\',true)" title="Copy every card, with its pictures saved to your Mac">Copy + pictures</button><button class="tlarch" onclick="tlArchive(\'' + l.id + '\')" title="Archive every card in this list (Cmd+Z brings them back)">Archive all</button></div>' : '') + '<div class="tcards">';
     l.cards.forEach(function (c) {
       var due = c.due ? new Date(c.due) : null, late = due && !c.done && due < new Date();
       h += '<div class="tcard" draggable="true" ondragstart="event.dataTransfer.setData(\'text\',\'' + c.id + '\')" onclick="window.open(\'' + esc(c.url) + '\',\'_blank\')">'
@@ -2228,6 +2232,29 @@ function trello() {
     h += '</div><form class="tadd" onsubmit="event.preventDefault();addCard(\'' + l.id + '\',this.n.value);this.reset()"><input name="n" placeholder="+ Add a card"></form></div>';
   });
   return h + '</div></main>';
+}
+// 17 Nov 2026, Owen: "copy everything in a list ... and the pictures as well. Then a separate button that says Archive all
+// in this list." Copy = one message for Claude (pictures saved to ~/Sticky files/Trello within a minute). Archive is undoable.
+function tlCopy(listId, pics) {
+  toast('Getting the cards…');
+  var got = null, go = api('trelloListText', { list:listId, pics:!!pics }).then(function (r) { got = r; return r.text; });
+  var ok = function () { toast('Copied ' + ((got && got.cards) || '') + ' cards' + (pics && got && got.pics ? ' and ' + got.pics + ' pictures (on your Mac within a minute)' : '') + '. Paste into Claude'); };
+  var plain = function () { return go.then(function (t) { return navigator.clipboard.writeText(t); }).then(ok).catch(fail); };
+  // The clipboard write starts inside the click and waits for the text, so the browser allows it.
+  if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+    try { return navigator.clipboard.write([new ClipboardItem({ 'text/plain': go.then(function (t) { return new Blob([t], { type:'text/plain' }); }) })]).then(ok).catch(plain); } catch (e) {}
+  }
+  return plain();
+}
+function tlArchive(listId) {
+  var l = (TL.board.lists || []).filter(function (x) { return x.id === listId; })[0]; if (!l || !l.cards.length) return;
+  if (!confirm('Archive all ' + l.cards.length + ' cards in "' + l.name + '"? Cmd+Z (or Undo) brings them back.')) return;
+  var keep = l.cards.slice(); l.cards = []; render();
+  api('trelloArchiveList', { list:listId }).then(function (r) {
+    var ids = r.ids || [];
+    pushUndo(ids.length + ' Trello cards archived', function () { api('trelloUnarchive', { ids:ids }).then(function () { openBoard(TL.board.id); toast('Back on the list'); }).catch(fail); });
+    toast(ids.length + ' archived. Cmd+Z brings them back');
+  }).catch(function (e) { l.cards = keep; render(); fail(e); });
 }
 function cardName(n) {
   var m = String(n || '').trim().match(/^(.*?)\s*-?\s*(https?:\/\/\S+)$/);

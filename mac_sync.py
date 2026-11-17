@@ -159,6 +159,8 @@ def do_actions():
                 # Notes sort (13 Nov 2026): Lyrics moves a note into SONGS. Folder names are checked on the server.
                 osa("var N = Application('Notes'); var f = N.folders.whose({ name: %s })(); if (!f.length) throw new Error('No folder ' + %s); N.move(N.notes.byId(%s), { to: f[0] }); JSON.stringify('ok')" % (json.dumps(a['text']), json.dumps(a['text']), json.dumps(a['target'])), 60)
                 x("UPDATE inbox_mac SET list = '%s' WHERE id = '%s'" % (esc(a['text']), esc(a['target'])))
+            elif a['action'] == 'trellopics':
+                trello_list_pics(a['target'])
             elif a['action'] == 'note':
                 osa(NEW_JS % json.dumps(_html(a['text'])), 60)
             res = 'ok'
@@ -199,6 +201,25 @@ def trello_pics(state):
     folder = os.path.join(STICKY_DIR, 'Claude Board'); os.makedirs(folder, exist_ok=True)
     for c in cards:
         if c.get('dueComplete'): continue
+        for a in c.get('attachments') or []:
+            if not (str(a.get('mimeType') or '').startswith('image/') or re.search(r'\.(png|jpe?g|gif|heic|webp)$', a.get('name') or '', re.I)): continue
+            dest = os.path.join(folder, a['id'] + '-' + re.sub(r'[^A-Za-z0-9._-]', '_', a.get('name') or 'image'))
+            if os.path.exists(dest): continue
+            r = urllib.request.Request(a['url'], headers={'Authorization': auth})
+            with urllib.request.urlopen(r, timeout=120) as resp, open(dest, 'wb') as out: out.write(resp.read())
+            os.chmod(dest, 0o600)
+
+def trello_list_pics(list_id):
+    """17 Nov 2026: pictures on any Trello list, saved when Owen presses Copy with pictures on the Inbox Trello page.
+    ~/Sticky files/Trello/<attachment id>-<name>; the copied text already points at these paths."""
+    if not re.match(r'^[0-9a-f]{24}$', str(list_id or '')) or not os.path.exists(TRELLO_KEYS): return
+    import urllib.request
+    k = json.load(open(TRELLO_KEYS))
+    auth = 'OAuth oauth_consumer_key="%s", oauth_token="%s"' % (k['key'], k['token'])
+    req = urllib.request.Request('https://api.trello.com/1/lists/%s/cards?fields=id&attachments=true&attachment_fields=id,name,url,mimeType' % list_id, headers={'Authorization': auth})
+    cards = json.loads(urllib.request.urlopen(req, timeout=60).read())
+    folder = os.path.join(STICKY_DIR, 'Trello'); os.makedirs(folder, exist_ok=True)
+    for c in cards:
         for a in c.get('attachments') or []:
             if not (str(a.get('mimeType') or '').startswith('image/') or re.search(r'\.(png|jpe?g|gif|heic|webp)$', a.get('name') or '', re.I)): continue
             dest = os.path.join(folder, a['id'] + '-' + re.sub(r'[^A-Za-z0-9._-]', '_', a.get('name') or 'image'))
