@@ -473,6 +473,7 @@ body { background:radial-gradient(1200px 600px at 80% -10%, color-mix(in srgb, v
 .t3:hover { border-color:var(--acc); }
 .t3n { width:22px; height:22px; border-radius:50%; background:var(--acc); color:#fff; display:grid; place-items:center; font-size:12px; font-weight:700; flex:none; }
 .tasksv { max-width:1200px; }
+.seg { display:inline-flex; border:1px solid var(--line2); border-radius:8px; overflow:hidden; } .seg button { border:0; background:transparent; color:var(--faint); font-size:12px; padding:4px 10px; cursor:pointer; } .seg button.on { background:var(--acc); color:#fff; }
 .tvhead { display:flex; align-items:flex-end; gap:12px; margin-bottom:12px; } .tvhead > div { flex:1; } .tvhead h1 { margin:0; }
 .tbox .qadd { position:static; margin:4px 0 6px; padding:4px 4px 4px 10px; } .tbox .qadd input { font-size:15px; height:32px; }
 .qadd { display:flex; gap:8px; align-items:center; background:var(--panel); border:1px solid var(--line2); border-radius:12px; padding:6px 6px 6px 14px; margin-bottom:16px; position:sticky; top:0; z-index:3; }
@@ -2480,11 +2481,13 @@ function stickyView() {
 }
 function openOnMac(id) { toast('Opening on your Mac in about a minute'); api('macOpenNote', { id:id }).catch(fail); }
 function doneRem(id) { S.data.reminders = (S.data.reminders || []).filter(function (x) { return x.id !== id; }); render(); toast('Ticked. Gone from Reminders on your Mac and phone within a minute.'); api('macComplete', { id:id }).catch(fail); }
-function addRem(t, d) { t = String(t || '').trim(); if (!t) return; S.data.reminders = [{ id:'new' + Date.now(), title:t, list:'', due:d || null }].concat(S.data.reminders || []); render(); toast('Added. It lands in Reminders within a minute.'); api('macAddReminder', { text:t, due:d || '' }).catch(fail); }
+function addRem(t, d) { t = String(t || '').trim(); if (!t) return; S.data.reminders = [{ id:'new' + Date.now(), title:t, list:'', due:d || null, made:new Date().toISOString() }].concat(S.data.reminders || []); render(); toast('Added. It lands in Reminders within a minute.'); api('macAddReminder', { text:t, due:d || '' }).catch(fail); }
 // ---- Tasks page (17 Nov 2026, Owen: "Notes and reminders need to be more integrated and slick as I add lots of tasks to both") ----
 // One page: Reminders by day on the left, the loose notes (his one-line task notes) on the right, one add box on top.
 // The add box reads the day from the words ("call Joe fri", "invoice tomorrow"); tap the day chip to drop it.
-var TV = { notes:null, busy:false, noDate:false, pend:null };
+var TV = { notes:null, busy:false, noDate:false, pend:null, sort:load_('inbox-tvsort') || 'newest' };
+// Owen 17 Nov: "adjust tasks and notes to most recent to oldest". Newest first (by when added) or By date (due day).
+function tvSort(v) { TV.sort = v; try { localStorage.setItem('inbox-tvsort', JSON.stringify(v)); } catch (e) {} render(); }
 function ymd(d) { return d.toLocaleDateString('en-CA', { timeZone:'Europe/London' }); }
 function dayAdd(n) { var d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() + n); return d; }
 function parseWhen(t) {
@@ -2556,7 +2559,7 @@ function tvNoteAct(id, kind) {
   var at = TV.notes.indexOf(n); TV.notes.splice(at, 1);
   var run = function () { TV.pend = null; if (kind === 'rem') { var p = parseWhen(n.title), rest = noteLines(n).join('\n'); api('macAddReminder', { text:p.title + (rest ? '\n' + rest : ''), due:p.due }).then(function () { load('load'); }).catch(fail); }
     if (!/^new/.test(n.id)) api('macDeleteNote', { id:n.id }).then(function () { S.data.notes = (S.data.notes || []).filter(function (x) { return x.id !== n.id; }); }).catch(fail); };
-  if (kind === 'rem') { var p0 = parseWhen(n.title); S.data.reminders = [{ id:'new' + Date.now(), title:p0.title, list:'', due:p0.due ? p0.due + 'T12:00:00' : null }].concat(S.data.reminders || []); }
+  if (kind === 'rem') { var p0 = parseWhen(n.title); S.data.reminders = [{ id:'new' + Date.now(), title:p0.title, list:'', due:p0.due ? p0.due + 'T12:00:00' : null, made:new Date().toISOString() }].concat(S.data.reminders || []); }
   TV.pend = { run:run, t:setTimeout(run, 5000), undo:function () { TV.notes.splice(at, 0, n); if (kind === 'rem') S.data.reminders = (S.data.reminders || []).filter(function (r) { return !/^new/.test(r.id) || r.title !== parseWhen(n.title).title; }); } };
   render(); toast(kind === 'rem' ? 'Now a reminder, note binned. Undo for 5 seconds.' : 'Done, note binned (back for 30 days in Notes). Undo for 5 seconds.');
 }
@@ -2585,12 +2588,12 @@ function tasksView() {
   var notes = (TV.notes || []).filter(function (n) { return n.list !== 'Recently Deleted'; });
   var h = '<main class="home tasksv">' + tabs() + '<div class="tvhead"><div><h1>Tasks</h1><div class="sub">Your Reminders and your to-do notes in one place. ' + macStatus() + '</div></div>' + (TV.pend ? '<button class="btn sm" onclick="tvUndo()">Undo</button>' : '') + '</div>'
     + qaForm()
-    + '<div class="tvgrid"><div class="box"><h3>' + I.check + 'Reminders and email to-dos<span class="badge">' + (r.length + own.length + mails.length) + '</span></h3>'
-    + (mails.length ? '<div class="tvg">From email, To do <span>' + mails.length + '</span></div>' + mails.map(emailTaskRow).join('') : '')
-    + G.map(function (g) { return g[1].length ? '<div class="tvg' + (g[0] === 'Overdue' ? ' late' : '') + '">' + g[0] + ' <span>' + g[1].length + '</span></div>' + g[1].map(remRow).join('') : ''; }).join('')
+    + '<div class="tvgrid"><div class="box"><h3>' + I.check + 'Reminders and email to-dos<span class="badge">' + (r.length + own.length + mails.length) + '</span><span style="flex:1"></span><span class="seg"><button class="' + (TV.sort === 'newest' ? 'on' : '') + '" onclick="tvSort(\'newest\')">Newest first</button><button class="' + (TV.sort !== 'newest' ? 'on' : '') + '" onclick="tvSort(\'date\')">By date</button></span></h3>'
+    + (TV.sort === 'newest' ? r.map(function (x) { return { t:x.made || '', h:remRow(x) }; }).concat(mails.map(function (g) { return { t:g.items[0].received_at || '', h:emailTaskRow(g) }; })).sort(function (a, b) { return a.t < b.t ? 1 : a.t > b.t ? -1 : 0; }).map(function (x) { return x.h; }).join('') : '')
+    + (TV.sort === 'newest' ? '' : (mails.length ? '<div class="tvg">From email, To do <span>' + mails.length + '</span></div>' + mails.map(emailTaskRow).join('') : '')) + (TV.sort === 'newest' ? [] : G).map(function (g) { return g[1].length ? '<div class="tvg' + (g[0] === 'Overdue' ? ' late' : '') + '">' + g[0] + ' <span>' + g[1].length + '</span></div>' + g[1].map(remRow).join('') : ''; }).join('')
     + (own.length ? '<div class="tvg">Added here before <span>' + own.length + '</span></div>' + own.map(taskRow).join('') : '')
     + (r.length || own.length || mails.length ? '' : '<div class="empty" style="padding:16px">Nothing to do.</div>') + '</div>'
-    + '<div class="box"><h3>' + I.note + 'To-do notes<span class="badge">' + notes.length + '</span><span style="flex:1"></span><button class="btn sm ghost" onclick="noteSortOpen()">Sort notes</button></h3><div class="bsub">Notes outside SONGS, Me and Reference. Done bins the note, Reminder turns it into one.</div>'
+    + '<div class="box"><h3>' + I.note + 'To-do notes<span class="badge">' + notes.length + '</span><span class="l3" style="font-weight:400;margin-left:6px">newest first</span><span style="flex:1"></span><button class="btn sm ghost" onclick="noteSortOpen()">Sort notes</button></h3><div class="bsub">Notes outside SONGS, Me and Reference. Done bins the note, Reminder turns it into one.</div>'
     + (!TV.notes ? '<div class="l3" style="padding:12px 0">Getting your notes…</div>' : notes.map(function (n) { var more = noteLines(n);
         return '<div class="task tvnote"><span class="ck" title="Done, bin the note" onclick="tvNoteAct(\'' + esc(n.id) + '\',\'done\')"></span><span class="tt" onclick="openNote(\'' + esc(n.id) + '\')" style="cursor:pointer;min-width:0"><span class="tvt">' + esc(n.title || '(no title)') + '</span><span class="l3 tvp">' + (n.modified_at ? ago(n.modified_at) + ' ago' : '') + (more.length ? ' · ' + esc(more.slice(0, 2).join(' · ').slice(0, 90)) + (more.length > 2 ? ' +' + (more.length - 2) + ' lines' : '') : '') + '</span></span><button class="btn sm ghost" title="Make it a reminder, bin the note" onclick="tvNoteAct(\'' + esc(n.id) + '\',\'rem\')">Reminder</button></div>'; }).join('') || '<div class="empty" style="padding:16px">No loose notes.</div>')
     + '</div></div></main>';

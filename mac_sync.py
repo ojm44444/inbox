@@ -64,7 +64,12 @@ def read_reminders():
                     d = Foundation.NSCalendar.currentCalendar().dateFromComponents_(dc)
                     if d is not None: due = __import__('datetime').datetime.fromtimestamp(d.timeIntervalSince1970(), __import__('datetime').timezone.utc).isoformat()
                 except Exception: due = None
-            out.append({'id': r.calendarItemIdentifier(), 'title': r.title() or '', 'list': r.calendar().title(), 'due': due, 'body': r.notes() or ''})
+            made = None  # when he added it, for the Tasks page 'Newest first' (17 Nov 2026); kept in modified_at
+            try:
+                cd = r.creationDate()
+                if cd is not None: made = __import__('datetime').datetime.fromtimestamp(cd.timeIntervalSince1970(), __import__('datetime').timezone.utc).isoformat()
+            except Exception: made = None
+            out.append({'id': r.calendarItemIdentifier(), 'title': r.title() or '', 'list': r.calendar().title(), 'due': due, 'body': r.notes() or '', 'modified': made})
         ev.set()
     st.fetchRemindersMatchingPredicate_completion_(st.predicateForIncompleteRemindersWithDueDateStarting_ending_calendars_(None, None, None), got)
     ev.wait(120)
