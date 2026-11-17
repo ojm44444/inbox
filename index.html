@@ -775,6 +775,8 @@ a.iconbtn { display:inline-grid; place-items:center; color:inherit; }
 .hubsec > summary::before { content:'▸ '; }
 .hubsec[open] > summary::before { content:'▾ '; }
 .hublab em { font-style:normal; color:var(--hdim); }
+.hublast { display:flex; align-items:center; gap:10px; justify-content:space-between; margin:10px 0; padding:10px 14px; border-radius:10px; background:var(--hcard); border:1px solid var(--hline); color:var(--hink); font-size:14px; }
+.hubrow .hubbtn.sm { padding:3px 10px; font-size:12px; margin-left:8px; }
 .hubrow { display:flex; align-items:center; gap:10px; padding:10px 2px; border-bottom:1px solid var(--hline); color:var(--hink); text-decoration:none; cursor:pointer; font-size:14px; }
 .hubrow .t { flex:1; min-width:0; }
 .hubrow small { display:block; color:var(--hdim); font-size:12.5px; margin-top:2px; }
@@ -1693,6 +1695,7 @@ function hubDecide(key, decision, pick) {
   var pid = key.split(':')[0], id = key.slice(pid.length + 1);
   var note = decision === 'pick' ? pick : decision === 'change' ? ((document.getElementById('rvtext') || {}).value || '').trim() : '';
   if (decision === 'change' && !note) { toast('Say what to change first', true); return; }
+  S.rvLast = key;
   if (pid === 'inbox') { reviewSave(id, decision, note); return; }
   var p = HUB.p[pid], prev = p.decisions[id];
   p.decisions[id] = { decision:decision, note:note, at:new Date().toISOString() }; S.rvNote = null; render();
@@ -1733,7 +1736,7 @@ function reviewView() {
   var h = '<main class="home hubpage">' + tabs() + '<div class="hub">'
     + '<div class="hubkick">Review</div><h1 class="hubh1">Your review page</h1>'
     + '<p class="hublede">' + lead + ' across every project. One card at a time: read the three lines, tap a button, or type what to change. Nothing changes from a tap on its own; the chat that owns it acts.</p>'
-    + chips + loading + errs;
+    + chips + loading + errs + hubLastBar();
   if (c) {
     h += hubCard(c, 1, all.length);
     var upnext = all.slice(1, 6);
@@ -1744,11 +1747,11 @@ function reviewView() {
   var extra = hubPids().filter(function (p) { return f === 'all' || f === p; }).reduce(function (a, p) { return a.concat(((HUB.p[p] || {}).extra || []).map(function (x) { x.pid = p; return x; })); }, []);
   if (extra.length) h += '<div class="hubsec"><div class="hublab">To do inside the tools</div>' + extra.map(function (x) { return '<a class="hubrow" target="_blank" rel="noopener" href="' + esc(safeUrl(x.href)) + '"><span class="hubdot" style="--c:' + HUB_SRC[x.pid].color + '"></span><span class="t">' + esc(x.title) + '<small>' + esc((x.lines || []).join(' · ')) + '</small></span><span class="m">' + esc(x.button || 'Open') + ' ↗</span></a>'; }).join('') + '</div>';
   var ans = hubPids().filter(function (p) { return f === 'all' || f === p; }).reduce(function (a, p) {
-    if (p === 'inbox') { var r = reviewData(); return a.concat(r.items.filter(function (i) { return r.decisions[i.id]; }).map(function (i) { var d = r.decisions[i.id]; return { pid:p, title:i.title, decision:d.decision, note:d.note, at:d.at }; })); }
+    if (p === 'inbox') { var r = reviewData(); return a.concat(r.items.filter(function (i) { return r.decisions[i.id]; }).map(function (i) { var d = r.decisions[i.id]; return { pid:p, id:i.id, title:i.title, decision:d.decision, note:d.note, at:d.at }; })); }
     return a.concat(((HUB.p[p] || {}).answered || []).map(function (x) { x.pid = p; return x; }));
   }, []).sort(function (a, b) { return a.at < b.at ? 1 : -1; });
   var changing = ans.filter(function (x) { return x.decision === 'change'; }).slice(0, 12), done = ans.filter(function (x) { return x.decision !== 'change'; }).slice(0, 12);
-  var row = function (x) { return '<div class="hubrow"><span class="hubdot" style="--c:' + HUB_SRC[x.pid].color + '"></span><span class="t">' + esc(x.title) + (x.note ? '<small>' + (x.decision === 'change' ? 'You said: ' : 'Your pick: ') + esc(x.note) + '</small>' : '') + '</span><span class="m">' + ago(x.at) + ' ago</span></div>'; };
+  var row = function (x) { return '<div class="hubrow"><span class="hubdot" style="--c:' + HUB_SRC[x.pid].color + '"></span><span class="t">' + esc(x.title) + (x.note ? '<small>' + (x.decision === 'change' ? 'You said: ' : 'Your pick: ') + esc(x.note) + '</small>' : '') + '</span><span class="m">' + ago(x.at) + ' ago</span>' + (x.id ? '<button class="hubbtn ghost sm" title="Take this answer back: the card waits again" onclick="hubUndo(' + esc(JSON.stringify(x.pid + ':' + x.id)) + ')">Undo</button>' : '') + '</div>'; };
   if (changing.length) h += '<details class="hubsec" open><summary class="hublab">Changes you asked for <em>' + changing.length + '</em></summary>' + changing.map(row).join('') + '</details>';
   if (done.length) h += '<details class="hubsec"><summary class="hublab">You approved <em>' + done.length + '</em></summary>' + done.map(row).join('') + '</details>';
   var nexts = hubPids().filter(function (p) { return (f === 'all' || f === p) && p !== 'inbox'; }).map(function (p) { var l = (HUB.p[p] || {}).next || []; return l.length ? '<div class="hubnext"><div class="hubtag"><span class="hubdot" style="--c:' + HUB_SRC[p].color + '"></span>' + esc(HUB_SRC[p].name) + '</div><ul>' + l.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul></div>' : ''; }).join('');
@@ -1760,6 +1763,32 @@ function reviewView() {
     + (notes.length ? notes.map(function (k) { return '<div class="hubrow"><span class="t"><small>You said ' + ago(D[k].at) + ' ago: ' + esc(D[k].note) + '</small></span></div>'; }).join('') : '') + '</div>'
     + '<p class="hubfoot">RideTandem has its own page, kept on company Google: <a target="_blank" rel="noopener" href="https://ridetandem-operator-map.web.app/review">open it ↗</a></p>';
   return h + '</div>' + hubZoom() + '</main>';
+}
+// Undo (17 Nov 2026, Owen: "can we go back on review pages too please"): any answer, any project, clears and the card waits again.
+function hubFind(key) {
+  var pid = key.split(':')[0], id = key.slice(pid.length + 1);
+  if (pid === 'inbox') { var r = reviewData(), i = r.items.filter(function (x) { return x.id === id; })[0]; return i && r.decisions[id] ? { title:i.title, d:r.decisions[id] } : null; }
+  var p = HUB.p[pid] || {}, c = (p.cards || []).filter(function (x) { return x.id === id; })[0];
+  return c && p.decisions && p.decisions[id] ? { title:c.title, d:p.decisions[id] } : null;
+}
+function hubLastBar() {
+  var f = S.rvLast && hubFind(S.rvLast); if (!f) return '';
+  var lab = f.d.decision === 'change' ? 'You asked for a change' : f.d.note ? 'You picked ' + f.d.note : 'You approved';
+  return '<div class="hublast"><span class="t"><b>' + esc(lab) + '</b> on ' + esc(f.title) + '</span><button class="hubbtn ghost" onclick="hubUndo(' + esc(JSON.stringify(S.rvLast)) + ')">Undo</button></div>';
+}
+function hubUndo(key) {
+  var pid = key.split(':')[0], id = key.slice(pid.length + 1);
+  if (S.rvLast === key) S.rvLast = null;
+  if (pid === 'inbox') {
+    var r = reviewData(), prevI = r.decisions[id]; delete r.decisions[id]; render();
+    return api('reviewUndo', { id:id }).then(function () { toast('Undone: it is back on your list'); }).catch(function (e) { if (prevI) r.decisions[id] = prevI; render(); fail(e); });
+  }
+  var p = HUB.p[pid]; if (!p) return;
+  var prev = p.decisions[id], prevA = p.answered;
+  delete p.decisions[id]; p.answered = (p.answered || []).filter(function (x) { return x.id !== id; }); render();
+  var body = pid === 'songdrafts' ? { op:'undo', item_id:id } : { kind:'reviewHub', op:'undo', project:pid, item_id:id };
+  hubPost(HUB_SRC[pid].saves, body).then(function () { toast('Undone: it is back on your list'); })
+    .catch(function (e) { if (prev) p.decisions[id] = prev; p.answered = prevA; render(); toast('Not undone: ' + e.message, true); });
 }
 function hubSkipTo(key) { var all = hubAll(), i = all.map(function (c) { return c.pid + ':' + c.id; }).indexOf(key); if (i > 0) { S.rvSkip = (S.rvSkip || []).concat(all.slice(0, i).map(function (c) { return c.pid + ':' + c.id; })); } S.rvNote = null; render(); var m = document.querySelector('.hubpage'); if (m) m.scrollTop = 0; }
 function reviewSave(id, decision, note) {
