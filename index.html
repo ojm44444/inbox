@@ -2603,7 +2603,7 @@ function wtDone(id) {
   toast('Done. Undo bottom left.');
 }
 function waTaskRow(w) {
-  var rest = w.kind === 'self' ? 'note to yourself, ' + ago(w.ts) + ' ago' : 'you said to ' + (w.chat || 'someone') + ', ' + ago(w.ts) + ' ago';
+  var rest = w.kind === 'self' ? 'note to yourself, ' + ago(w.ts) + ' ago' : w.kind === 'waiting' ? 'you asked ' + (w.chat || 'them') + ' ' + ago(w.ts) + ' ago, no reply yet' : 'you said to ' + (w.chat || 'someone') + ', ' + ago(w.ts) + ' ago';
   return '<div class="task"><span class="ck" title="Done" onclick="wtDone(\'' + esc(w.id) + '\')"></span><span class="tt" style="cursor:pointer;min-width:0" title="Open the chat" onclick="go(\'whatsapp\');waOpen(\'' + esc(w.chat_id) + '\')"><span class="tvt">' + esc(w.task) + '</span>' + srcLines('wa', rest, w.text) + '</span></div>';
 }
 function newestRows() { return allTaskRows().sort(function (a, b) { return a.t < b.t ? 1 : a.t > b.t ? -1 : 0; }); }
