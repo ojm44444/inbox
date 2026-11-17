@@ -1847,11 +1847,11 @@ function tasksBox() {
   // Home = the short Tasks list with the same switch (Owen 17 Nov: "can't see what I added yesterday", "filter by what AI thinks is a priority").
   tvLoad(); setTimeout(qaPreview, 0);
   var G = remGroups(), mails = pileList('todo'), now = G[0][1].concat(G[1][1]), soon = G[2][1].concat(G[3][1]);
-  var total = (S.data.reminders || []).length + mails.length + (TV.notes ? TV.notes.length : 0), list;
+  var total = (S.data.reminders || []).length + mails.length + (TV.notes ? TV.notes.length : 0) + waTasks().length, list;
   var sec = function (label, rows, cls) { return rows ? '<div class="tvg' + (cls || '') + '">' + label + '</div>' + rows : ''; };
   if (TV.sort === 'newest') list = newestRows().slice(0, 10).map(function (r) { return r.h; }).join('');
   else if (TV.sort === 'priority') { var p = priorityRows(); list = p ? priorityNote() + p.slice(0, 10).join('') : '<div class="l3" style="padding:12px 0">Ranking your tasks against your calendar…</div>'; }
-  else list = sec('Late and today', now.slice(0, 8).map(remRow).join(''), G[0][1].length ? ' late' : '') + sec('From email', mails.slice(0, 5).map(emailTaskRow).join('')) + sec('Next few days', soon.slice(0, 5).map(remRow).join(''));
+  else list = sec('Late and today', now.slice(0, 8).map(remRow).join(''), G[0][1].length ? ' late' : '') + sec('From email', mails.slice(0, 5).map(emailTaskRow).join('')) + sec('From WhatsApp', waTasks().slice(0, 5).map(waTaskRow).join('')) + sec('Next few days', soon.slice(0, 5).map(remRow).join(''));
   return '<div class="box tbox"><h3>' + I.check + 'Tasks<span class="badge">' + total + '</span><span style="flex:1"></span>' + sortSeg() + '<button class="btn sm ghost" onclick="go(\'tasks\')">All tasks</button></h3>'
     + qaForm() + (list || '<div class="empty" style="padding:12px">Nothing here. Nice.</div>')
     + '<button class="btn sm ghost" style="margin-top:8px" onclick="go(\'tasks\')">See all ' + total + ' →</button></div>';
@@ -2499,7 +2499,23 @@ function allTaskRows() {
   (S.data.reminders || []).forEach(function (x) { out.push({ key:'rem:' + x.id, t:x.made || '', h:remRow(x) }); });
   pileList('todo').forEach(function (g) { out.push({ key:'mail', ids:g.items.map(function (e) { return 'mail:' + e.id; }), t:g.items[0].received_at || '', h:emailTaskRow(g) }); });
   (TV.notes || []).forEach(function (n) { out.push({ key:'note:' + n.id, t:n.modified_at || '', h:noteTaskRow(n) }); });
+  waTasks().forEach(function (w) { out.push({ key:'wa:' + w.id, t:w.ts || '', h:waTaskRow(w) }); });
   return out;
+}
+// WhatsApp tasks (17 Nov 2026): notes to self and things he told someone he would do. Tick = gone for good.
+var WT = { data:null, busy:false };
+function wtLoad(force) { if (WT.busy || (WT.data && !force)) return; WT.busy = true; api('waTasks', force ? { force:true } : {}).then(function (r) { WT.data = r || { items:[] }; WT.busy = false; render(); }).catch(function (e) { WT.busy = false; WT.data = { items:[] }; render(); }); }
+function waTasks() { wtLoad(); return (WT.data && WT.data.items) || []; }
+function wtDone(id) {
+  var x = waTasks().filter(function (w) { return w.id === id; })[0]; if (!x) return;
+  WT.data.items = WT.data.items.filter(function (w) { return w.id !== id; }); render();
+  api('waTaskDone', { id:id }).catch(fail);
+  pushUndo('WhatsApp task done', function () { WT.data.items.unshift(x); render(); api('waTaskDone', { id:id, undo:true }).catch(fail); });
+  toast('Done. Undo bottom left.');
+}
+function waTaskRow(w) {
+  var src = w.kind === 'self' ? 'WhatsApp · your note to self' : 'WhatsApp · you told ' + (w.chat || 'someone') + ': "' + String(w.text || '').replace(/\s+/g, ' ').slice(0, 70) + '"';
+  return '<div class="task"><span class="ck" title="Done" onclick="wtDone(\'' + esc(w.id) + '\')"></span><span class="tt" style="cursor:pointer;min-width:0" title="Open the chat" onclick="go(\'whatsapp\');waOpen(\'' + esc(w.chat_id) + '\')"><span class="tvt">' + esc(w.task) + '</span><span class="l3 tvp">' + esc(src) + ' · ' + ago(w.ts) + ' ago</span></span></div>';
 }
 function newestRows() { return allTaskRows().sort(function (a, b) { return a.t < b.t ? 1 : a.t > b.t ? -1 : 0; }); }
 function priorityRows() {
@@ -2575,7 +2591,8 @@ function dueSelect(x) {
     + '<option value="">' + esc(x.due ? dayLabel(x.due) : 'Add date') + '</option><option value="0">Today</option><option value="1">Tomorrow</option><option value="' + wk + '">Weekend</option><option value="' + nw + '">Next week</option><option value="pick">Pick a day…</option>' + (x.due ? '<option value="none">No date</option>' : '') + '</select>';
 }
 function remRow(x) {
-  return '<div class="task"><span class="ck" title="Done" onclick="doneRem(\'' + esc(x.id) + '\')"></span><span class="tt" title="Tap to rename" style="cursor:text" onclick="renameRem(\'' + esc(x.id) + '\')">' + esc(x.title) + (x.body ? '<span class="l3"> · ' + esc(String(x.body).split('\n')[0].slice(0, 60)) + '</span>' : '') + '</span>' + dueSelect(x) + '</div>';
+  var src = 'Reminders' + (x.list ? ' · ' + x.list : '') + (x.made ? ' · added ' + (Date.now() - Date.parse(x.made) < 6 * 864e5 ? ago(x.made) + ' ago' : new Date(x.made).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'2-digit' })) : '') + (x.body ? ' · ' + String(x.body).split('\n')[0].slice(0, 60) : '');
+  return '<div class="task"><span class="ck" title="Done" onclick="doneRem(\'' + esc(x.id) + '\')"></span><span class="tt" title="Tap to rename" style="cursor:text;min-width:0" onclick="renameRem(\'' + esc(x.id) + '\')"><span class="tvt">' + esc(x.title) + '</span><span class="l3 tvp">' + esc(src) + '</span></span>' + dueSelect(x) + '</div>';
 }
 // A note that is a task: Done bins it (Recently Deleted, 30 days), Reminder turns it into one and bins the note. Both wait 5s for Undo.
 function tvNoteAct(id, kind) {
@@ -2589,7 +2606,7 @@ function tvNoteAct(id, kind) {
   render(); toast(kind === 'rem' ? 'Now a reminder, note binned. Undo for 5 seconds.' : 'Done, note binned (back for 30 days in Notes). Undo for 5 seconds.');
 }
 function noteTaskRow(n) { var more = noteLines(n);
-  return '<div class="task tvnote"><span class="ck" title="Done, bin the note" onclick="tvNoteAct(\'' + esc(n.id) + '\',\'done\')"></span><span class="tt" onclick="openNote(\'' + esc(n.id) + '\')" style="cursor:pointer;min-width:0"><span class="tvt">' + esc(n.title || '(no title)') + '</span><span class="l3 tvp">' + (n.modified_at ? ago(n.modified_at) + ' ago' : '') + (more.length ? ' · ' + esc(more.slice(0, 2).join(' · ').slice(0, 90)) + (more.length > 2 ? ' +' + (more.length - 2) + ' lines' : '') : '') + '</span></span><button class="btn sm ghost" title="Make it a reminder, bin the note" onclick="tvNoteAct(\'' + esc(n.id) + '\',\'rem\')">Reminder</button></div>';
+  return '<div class="task tvnote"><span class="ck" title="Done, bin the note" onclick="tvNoteAct(\'' + esc(n.id) + '\',\'done\')"></span><span class="tt" onclick="openNote(\'' + esc(n.id) + '\')" style="cursor:pointer;min-width:0"><span class="tvt">' + esc(n.title || '(no title)') + '</span><span class="l3 tvp">Notes · edited ' + (n.modified_at ? ago(n.modified_at) + ' ago' : '') + (more.length ? ' · ' + esc(more.slice(0, 2).join(' · ').slice(0, 90)) + (more.length > 2 ? ' +' + (more.length - 2) + ' lines' : '') : '') + '</span></span><button class="btn sm ghost" title="Make it a reminder, bin the note" onclick="tvNoteAct(\'' + esc(n.id) + '\',\'rem\')">Reminder</button></div>';
 }
 function tvUndo() { var p = TV.pend; if (!p) { toast('Nothing to undo'); return; } clearTimeout(p.t); TV.pend = null; p.undo(); render(); toast('Undone'); }
 // To do emails sit with the tasks too (Owen 17 Nov: "happy for this to be a dashboard thing now, all in one place").
@@ -2616,12 +2633,12 @@ function tasksView() {
   var notes = (TV.notes || []).filter(function (n) { return n.list !== 'Recently Deleted'; });
   var h = '<main class="home tasksv">' + tabs() + '<div class="tvhead"><div><h1>Tasks</h1><div class="sub">Your Reminders and your to-do notes in one place. ' + macStatus() + '</div></div>' + (TV.pend ? '<button class="btn sm" onclick="tvUndo()">Undo</button>' : '') + '</div>'
     + qaForm()
-    + '<div class="tvgrid"><div class="box"><h3>' + I.check + 'Reminders and email to-dos<span class="badge">' + (r.length + own.length + mails.length) + '</span><span style="flex:1"></span>' + sortSeg() + '</h3>'
+    + '<div class="tvgrid"><div class="box"><h3>' + I.check + 'Reminders, email and WhatsApp<span class="badge">' + (r.length + own.length + mails.length + waTasks().length) + '</span><span style="flex:1"></span>' + sortSeg() + '</h3>'
     + (TV.sort === 'priority' ? (function () { var p = priorityRows(); return p ? priorityNote() + (p.join('') || '<div class="empty">Nothing ranked yet.</div>') : '<div class="l3" style="padding:12px 0">Ranking your tasks against your calendar…</div>'; })() : '')
-    + (TV.sort === 'newest' ? r.map(function (x) { return { t:x.made || '', h:remRow(x) }; }).concat(mails.map(function (g) { return { t:g.items[0].received_at || '', h:emailTaskRow(g) }; })).sort(function (a, b) { return a.t < b.t ? 1 : a.t > b.t ? -1 : 0; }).map(function (x) { return x.h; }).join('') : '')
-    + (TV.sort !== 'date' ? '' : (mails.length ? '<div class="tvg">From email, To do <span>' + mails.length + '</span></div>' + mails.map(emailTaskRow).join('') : '')) + (TV.sort !== 'date' ? [] : G).map(function (g) { return g[1].length ? '<div class="tvg' + (g[0] === 'Overdue' ? ' late' : '') + '">' + g[0] + ' <span>' + g[1].length + '</span></div>' + g[1].map(remRow).join('') : ''; }).join('')
+    + (TV.sort === 'newest' ? r.map(function (x) { return { t:x.made || '', h:remRow(x) }; }).concat(mails.map(function (g) { return { t:g.items[0].received_at || '', h:emailTaskRow(g) }; })).concat(waTasks().map(function (w) { return { t:w.ts || '', h:waTaskRow(w) }; })).sort(function (a, b) { return a.t < b.t ? 1 : a.t > b.t ? -1 : 0; }).map(function (x) { return x.h; }).join('') : '')
+    + (TV.sort !== 'date' ? '' : (mails.length ? '<div class="tvg">From email, To do <span>' + mails.length + '</span></div>' + mails.map(emailTaskRow).join('') : '') + (waTasks().length ? '<div class="tvg">From WhatsApp <span>' + waTasks().length + '</span></div>' + waTasks().map(waTaskRow).join('') : '')) + (TV.sort !== 'date' ? [] : G).map(function (g) { return g[1].length ? '<div class="tvg' + (g[0] === 'Overdue' ? ' late' : '') + '">' + g[0] + ' <span>' + g[1].length + '</span></div>' + g[1].map(remRow).join('') : ''; }).join('')
     + (own.length ? '<div class="tvg">Added here before <span>' + own.length + '</span></div>' + own.map(taskRow).join('') : '')
-    + (r.length || own.length || mails.length ? '' : '<div class="empty" style="padding:16px">Nothing to do.</div>') + '</div>'
+    + (r.length || own.length || mails.length || waTasks().length ? '' : '<div class="empty" style="padding:16px">Nothing to do.</div>') + '</div>'
     + '<div class="box"><h3>' + I.note + 'To-do notes<span class="badge">' + notes.length + '</span><span class="l3" style="font-weight:400;margin-left:6px">newest first</span><span style="flex:1"></span><button class="btn sm ghost" onclick="noteSortOpen()">Sort notes</button></h3><div class="bsub">Notes outside SONGS, Me and Reference. Done bins the note, Reminder turns it into one.</div>'
     + (!TV.notes ? '<div class="l3" style="padding:12px 0">Getting your notes…</div>' : notes.map(function (n) { var more = noteLines(n);
         return noteTaskRow(n); }).join('') || '<div class="empty" style="padding:16px">No loose notes.</div>')
