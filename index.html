@@ -2362,9 +2362,15 @@ function dropsCard() {
   }).join('') + '</div>';
 }
 function openNote(id) { S.view = 'notes'; S.noteId = id; S.phoneOpen = true; render(); }
+// The note on screen: the one he picked, or the first in the list on a wide screen (same note the page shows).
+function curNote() {
+  if (!S.data) return null;
+  var all = S.data.notes || [], n = S.noteQ ? noteHits() : all;
+  return n.concat(all, S.noteHits || []).filter(function (x) { return x.id === S.noteId; })[0] || (window.innerWidth > 800 ? n[0] : null);
+}
 function notesView() {
   var all = S.data.notes || [], n = S.noteQ ? noteHits() : all;
-  var cur = n.concat(all, S.noteHits || []).filter(function (x) { return x.id === S.noteId; })[0] || (window.innerWidth > 800 ? n[0] : null);
+  var cur = curNote();
   var list = '<section class="list">' + tabs() + '<div class="listhead"><div style="flex:1;min-width:0"><h1>Notes</h1><div class="sub">' + (S.noteQ ? n.length + ' found in all your Apple Notes' : 'Your latest Apple Notes. Search finds any of them.') + '</div></div><button class="btn sm" onclick="newNote()">New note</button></div>'
     + '<div class="filters"><button class="btn sm" onclick="noteSortOpen()">Sort notes</button></div>'
     + '<div class="filters"><div class="search">' + I.search + '<input id="nq" placeholder="Search all your notes" value="' + esc(S.noteQ || '') + '"></div></div><div class="rows">'
@@ -3306,7 +3312,7 @@ document.addEventListener('keydown', function (ev) {
   else if (k === 'e' && S.open) markRead();
   else if (k === 'u' && S.open) markUnread();
   else if (k === 'd' && S.open && S.view !== 'notes') doneWith();
-  else if ((ev.key === 'Backspace' || ev.key === 'Delete') && S.view === 'notes' && S.noteId && !S.noteEdit && !S.noteNew) { ev.preventDefault(); delNote(S.noteId, true); }
+  else if ((ev.key === 'Backspace' || ev.key === 'Delete') && S.view === 'notes' && !S.noteEdit && !S.noteNew && curNote()) { ev.preventDefault(); delNote(curNote().id, true); }
   else if ((ev.key === 'Backspace' || ev.key === 'Delete') && S.view !== 'notes' && S.view !== 'sort' && S.view !== 'whatsapp' && S.view !== 'slack' && (S.open || Object.keys(S.sel || {}).length)) { ev.preventDefault(); binOne(); }
   else if (k === 'w' && S.open) writeD();
   else if (k === 'x' && S.open) pick(S.open);
