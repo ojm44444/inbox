@@ -930,7 +930,9 @@ function freshGoogle() {
 }
 function send(op, args, again) {
   return freshToken().then(function () { return send1(op, args); }).catch(function (e) {
-    if (again || S.key || !/sign|token|auth|allowed|expired/i.test(String(e.message))) throw e;
+    // 20 Nov 2026 (Owen: "the tool keeps logging me out"): only the server's own session failure signs him out.
+    // Before, any error whose words included token/auth/allowed wiped the 30-day pass as well.
+    if (again || S.key || !/^(please )?sign in again/i.test(String(e.message))) throw e;
     S.token = ''; stClear(); try { localStorage.removeItem('inbox-id'); } catch (x) {}
     freshToken.p = null; S.token = 'x';
     return freshToken().then(function () { if (!S.token || S.token === 'x') { S.token = ''; render(); throw new Error('Please sign in again.'); } return send(op, args, true); });
@@ -2469,17 +2471,39 @@ function newNote() { S.noteNew = true; S.noteEdit = null; S.phoneOpen = true; re
 function saveNewNote() { var t = (document.getElementById('noteed') || {}).value || ''; if (!t.trim()) return; S.noteNew = false; render(); toast('Saved. It appears in Notes within a minute.'); api('macAddNote', { text:t }).catch(fail); }
 function saveNote(id) {
   var x = (S.data.notes || []).concat(S.noteHits || []).filter(function (n) { return n.id === id; })[0], t = (document.getElementById('noteed') || {}).value || ''; if (!x || !t.trim()) return;
-  var base = x.modified_at; x.body = t; x.title = t.split('\n')[0]; S.noteEdit = null; render(); toast('Saved. Notes updates within a minute.');
-  api('macEditNote', { id:id, text:t, base:base }).catch(fail);
+  var base = x.modified_at; x.body = t; x.title = t.split('\n')[0]; S.noteEdit = null; render(); toast('Saving to Notes…');
+  api('macEditNote', { id:id, text:t, base:base }).then(function () { macWatch('Saved'); }).catch(fail);
+}
+// 20 Nov 2026 (Owen: "I edit something, click Save, and it doesn't actually save"): the page used to say Saved the
+// moment it queued the change. The Mac carries it out within a minute, and it can refuse (a note changed on the Mac
+// since, or one with pictures). So wait for the real answer, reload quietly, and say which it was.
+function macWatch(label) {
+  var waits = [25000, 30000, 40000], since = Date.now() - 4000;
+  var step = function (i) {
+    setTimeout(function () {
+      var a = document.activeElement;
+      if (a && /^(INPUT|TEXTAREA)$/.test(a.tagName)) return i + 1 < waits.length ? step(i + 1) : null;  // never swap the page under his typing
+      api('load').then(function (d) {
+        var sent = Date.now(); S.dataSent = sent; S.data = applyLocal(d, sent); saveCache(d); render();
+        var e = (d.macErrors || []).filter(function (r) { return Date.parse(r.done_at) > since; })[0];
+        if (e) { toast(label + ' did not work: ' + String(e.result).replace(/^error:\s*/, '').replace(/^execution error: (Error: )+/, ''), true); return; }
+        if ((d.macPending || 0) > 0 && i + 1 < waits.length) return step(i + 1);
+        toast(label + ' in Apple Notes.');
+      }).catch(function () { if (i + 1 < waits.length) step(i + 1); });
+    }, waits[i]);
+  };
+  step(0);
 }
 function linkify(h) { return h.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" onclick="event.stopPropagation()">$1</a>'); }
 function load_(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
 // Delete goes to Recently Deleted in Apple Notes (back for 30 days), same on his phone.
-function delNote(id) {
-  if (!confirm('Delete this note? It goes to Recently Deleted in Apple Notes, back for 30 days.')) return;
+function delNote(id, quick) {
+  // quick = he pressed Backspace on the open note (Owen, 20 Nov 2026). No question asked: it sits in
+  // Recently Deleted in Apple Notes for 30 days, on his Mac and his phone.
+  if (!quick && !confirm('Delete this note? It goes to Recently Deleted in Apple Notes, back for 30 days.')) return;
   var drop = function (l) { return (l || []).filter(function (n) { return n.id !== id; }); };
   S.data.notes = drop(S.data.notes); if (S.noteHits) S.noteHits = drop(S.noteHits); S.noteId = null; S.noteEdit = null; S.phoneOpen = false; render();
-  toast('Deleted. Gone from Notes on your Mac and phone within a minute.'); api('macDeleteNote', { id:id }).catch(fail);
+  toast('Binned. It is in Recently Deleted in Notes for 30 days.'); api('macDeleteNote', { id:id }).then(function () { macWatch('Binned'); }).catch(fail);
 }
 // ---- Sticky notes, one per project (7 Nov 2026). Add anything; Copy and clear pastes it all into one Claude chat. ----
 function stickies() { return (S.data && S.data.stickies) || []; }
@@ -3237,7 +3261,7 @@ function load(op) {
   clearTimeout(load.slow); S.loadSlow = false; load.slow = setTimeout(function () { if (S.loading) { S.loadSlow = true; render(); } }, 12000);
   if (op === 'refresh') S.refreshing = true; render();
   var sent = Date.now();
-  return api(op || 'load').then(function (d) { if (sent < (S.dataSent || 0)) { S.loading = false; S.refreshing = false; render(); return; } S.dataSent = sent; S.data = applyLocal(d, sent); if (S.needRegroup) { S.needRegroup = false; reGroup(); } slackNames(); S.loading = false; S.refreshing = false; S.stale = false; saveCache(d); render(); })
+  return api(op || 'load').then(function (d) { if (sent < (S.dataSent || 0)) { S.loading = false; S.refreshing = false; render(); return; } S.dataSent = sent; S.data = applyLocal(d, sent); if (S.needRegroup) { S.needRegroup = false; reGroup(); } slackNames(); S.loading = false; S.refreshing = false; S.stale = false; saveCache(d); render(); renewPass(); })
     .catch(function (e) {
       S.loading = false; S.refreshing = false;
       if (/sign in again/i.test(e.message)) { S.token = ''; S.key = ''; stClear(); try { localStorage.removeItem('inbox-id'); } catch (x) {} }
@@ -3266,6 +3290,9 @@ function tokenExp(t) { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g
 function onCred(r) { var renew = !!S.data; S.token = r.credential; HUB.at = 0; setTimeout(function () { if (S.view === 'review' || S.view === 'home') hubLoad(true); }, 300); try { localStorage.setItem('inbox-id', S.token); } catch (e) {} stGet(); if (freshToken.ok) { freshToken.ok(); freshToken.ok = null; } if (!renew) { S.loading = true; load('load'); } }
 // Stay signed in (13 Nov): one Google sign-in gets a 30-day pass from the server, renewed while it is used. Sign out clears it.
 function stOk() { return !!S.st && S.stExp > Date.now() + 60000; }
+// The pass lasts 30 days. Renew it while he is using the tool, so it never quietly runs out and sends him
+// back to Google (which can fail silently when One Tap is on cooldown).
+function renewPass() { if (S.key) return; if (!S.st || S.stExp < Date.now() + 7 * 86400000) stGet(); }
 function stClear() { S.st = ''; S.stExp = 0; try { localStorage.removeItem('inbox-st'); } catch (e) {} }
 function stGet() { if (stGet.busy) return; stGet.busy = true; send1('session').then(function (d) { stGet.busy = false; if (d && d.st) { S.st = d.st; S.stExp = d.exp; try { localStorage.setItem('inbox-st', JSON.stringify(d)); } catch (e) {} } }).catch(function () { stGet.busy = false; }); }
 function signOut() { S.token = ''; stClear(); S.data = null; try { localStorage.removeItem('inbox-id'); localStorage.removeItem('inbox-cache'); } catch (e) {} if (window.google && google.accounts) google.accounts.id.disableAutoSelect(); render(); }
@@ -3279,6 +3306,7 @@ document.addEventListener('keydown', function (ev) {
   else if (k === 'e' && S.open) markRead();
   else if (k === 'u' && S.open) markUnread();
   else if (k === 'd' && S.open && S.view !== 'notes') doneWith();
+  else if ((ev.key === 'Backspace' || ev.key === 'Delete') && S.view === 'notes' && S.noteId && !S.noteEdit && !S.noteNew) { ev.preventDefault(); delNote(S.noteId, true); }
   else if ((ev.key === 'Backspace' || ev.key === 'Delete') && S.view !== 'notes' && S.view !== 'sort' && S.view !== 'whatsapp' && S.view !== 'slack' && (S.open || Object.keys(S.sel || {}).length)) { ev.preventDefault(); binOne(); }
   else if (k === 'w' && S.open) writeD();
   else if (k === 'x' && S.open) pick(S.open);
