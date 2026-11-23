@@ -66,13 +66,27 @@ async function voice(a: string, to: string) {
   return out.filter(Boolean).join('\n---\n');
 }
 
-/** Same as emailPullInbox_: every unread inbox email; read or archived in Gmail since -> off the list. */
+/**
+ * Same as emailPullInbox_: the inbox as Gmail has it (Owen, 23 Nov 2026). Every unread email
+ * whatever its age, plus the last two days read as well, so reading one on your phone greys it out
+ * here instead of hiding it. Out of the inbox in Gmail (archived, binned, moved) = off this page.
+ */
 async function pullInbox(a: string) {
-  const threads: any[] = []; let page = '';
-  for (let pg = 0; pg < 4; pg++) {
-    const l = await gmail(a, 'threads?maxResults=100&q=' + encodeURIComponent('in:inbox is:unread') + (page ? '&pageToken=' + page : ''));
-    threads.push(...(l.threads || [])); page = l.nextPageToken || ''; if (!page) break;
+  const threads: any[] = [], unread: Record<string, boolean> = {}, seen: Record<string, boolean> = {};
+  for (const [qi, qs] of ['in:inbox is:unread', 'in:inbox newer_than:2d'].entries()) {
+    let page = '';
+    for (let pg = 0; pg < 3; pg++) {
+      const l = await gmail(a, 'threads?maxResults=100&q=' + encodeURIComponent(qs) + (page ? '&pageToken=' + page : ''));
+      for (const t of l.threads || []) {
+        const k = rowId(a, t.id);
+        if (!qi) unread[k] = true;
+        if (!seen[k]) { seen[k] = true; threads.push(t); }
+      }
+      page = l.nextPageToken || ''; if (!page) break;
+    }
   }
+  // Unread first, so a run cut short never leaves new mail waiting behind old read mail.
+  threads.sort((ta, tb) => (unread[rowId(a, tb.id)] ? 1 : 0) - (unread[rowId(a, ta.id)] ? 1 : 0));
   const ids = threads.map((t) => rowId(a, t.id));
   const hist: Record<string, string> = {}; threads.forEach((t) => hist[rowId(a, t.id)] = String(t.historyId || ''));
   let added = 0;
@@ -88,14 +102,14 @@ async function pullInbox(a: string) {
     }
     if (stale.length) await x('DELETE FROM inbox_emails WHERE id IN (' + stale.map(lit).join(',') + ')');
     for (const id of ids) {
-      if (have[id]) continue;
+      if (have[id] || added >= 40) continue;
       const th = await gmail(a, 'threads/' + threadOf(id) + '?format=full');
       const ms = (th.messages || []).filter((m: any) => (m.labelIds || []).indexOf('DRAFT') < 0 && !/reacted via Gmail/i.test(String(m.snippet || '')));
       if (!ms.length) continue;
       const last = ms[ms.length - 1], from = addr(header(last, 'From')), to = addr(header(last, 'To')).email;
       const text = ms.slice(-3).map((m: any) => 'From: ' + header(m, 'From') + '\nDate: ' + header(m, 'Date') + '\n\n' + body(m).slice(0, 1500)).join('\n\n=====\n\n');
       const mine = OWN.test(from.email) && !OWN.test(to);
-      let v = ''; try { v = await voice(a, from.email); } catch { v = ''; }
+      let v = ''; try { v = unread[id] ? await voice(a, from.email) : ''; } catch { v = ''; }
       await x('INSERT INTO inbox_emails (id, account, kind, from_name, from_email, to_email, subject, snippet, thread_text, voice_examples, received_at, gmail_url, msg_id, history_id) VALUES ('
         + [id, a, 'in', from.name, from.email, to, header(last, 'Subject') || '(no subject)', unhtml(last.snippet), text, v].map(lit).join(', ')
         + ', to_timestamp(' + Math.floor(Number(last.internalDate) / 1000) + '), ' + lit(await gurl(a, 'inbox', threadOf(id))) + ', ' + lit(header(last, 'Message-ID')) + ', ' + lit(String(th.historyId || '')) + ') ON CONFLICT (id) DO NOTHING');
@@ -103,11 +117,17 @@ async function pullInbox(a: string) {
       added++;
     }
     // Marked unread again in Gmail: back on the list ('gone' ones too would be wrong: Done with stays done).
-    await x("UPDATE inbox_emails SET status = 'open', gmail_done = false, done_at = NULL WHERE status IN ('done', 'to_claude') AND gmail_done AND done_at < now() - interval '10 minutes' AND id IN (" + ids.map(lit).join(',') + ')');
-    await x('UPDATE inbox_emails SET seen_at = now() WHERE id IN (' + ids.map(lit).join(',') + ')');
+    const uIds = ids.filter((id) => unread[id]);
+    if (uIds.length) await x("UPDATE inbox_emails SET status = 'open', gmail_done = false, done_at = NULL WHERE status IN ('done', 'to_claude') AND gmail_done AND done_at < now() - interval '10 minutes' AND id IN (" + uIds.map(lit).join(',') + ')');
+    // Read in Gmail but still in the inbox: it stays on the page, greyed, like Gmail shows it.
+    await x('UPDATE inbox_emails SET gmail_read = ' + (uIds.length ? 'id NOT IN (' + uIds.map(lit).join(',') + ')' : 'true')
+      + ', seen_at = now() WHERE id IN (' + ids.map(lit).join(',') + ')');
+    // Out of the inbox in Gmail, or read and now older than two days: off this page. Only ever run
+    // against a list Gmail actually answered with.
+    await x("UPDATE inbox_emails SET status = 'gone', gmail_done = true, done_at = now() WHERE kind = 'in' AND status IN ('open', 'done', 'to_claude') AND account = " + lit(a)
+      + " AND (received_at > now() - interval '2 days' OR NOT gmail_read) AND id NOT IN (" + ids.map(lit).join(',') + ')');
   }
-  await x("UPDATE inbox_emails SET status = 'done', gmail_done = true, done_at = now() WHERE kind = 'in' AND status = 'open' AND account = " + lit(a) + (ids.length ? ' AND id NOT IN (' + ids.map(lit).join(',') + ')' : ''));
-  return { unread: ids.length, added };
+  return { unread: Object.keys(unread).length, added };
 }
 
 /** Done on the page: read in Gmail (never archived). */

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="1794835336">
+<html lang="en" data-build="1795458662">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -139,6 +139,13 @@ svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8;
 .row .ck { opacity:0; margin-top:2px; }
 .row:hover .ck, .row .ck.show { opacity:1; }
 .row.read .who, .row.read .l2 { font-weight:400; color:var(--dim); }
+.row.read .l3 { opacity:.72; }
+.row .who { font-weight:700; }
+.acctbar { margin-top:2px; }
+.achip { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line2); background:none; border-radius:20px; padding:3px 10px; font-size:12px; color:var(--dim); cursor:pointer; }
+.achip:hover { border-color:var(--c, var(--line2)); color:var(--text); }
+.achip.on { background:var(--text); color:var(--bg); border-color:var(--text); }
+.achip b { font-weight:650; }
 .ck { width:16px; height:16px; border-radius:5px; border:1.5px solid var(--line2); display:grid; place-items:center; cursor:pointer; }
 .ck.show { background:var(--acc); border-color:var(--acc); }
 .ck.show::after { content:""; width:8px; height:4px; border:2px solid #fff; border-top:0; border-right:0; transform:rotate(-45deg) translate(1px,-1px); }
@@ -886,7 +893,7 @@ var I = {
 };
 I.reply = PILE_ICON.reply;
 var S = { token:'', key:'', data:null, view:'home', open:null, sel:{}, drafts:{}, threads:{}, openIssue:{}, busy:'', loading:true, refreshing:false, phoneOpen:false,
-  f:{ q:'', unread:true, chat:'', acct:'' } };
+  f:{ q:'', unread:true, unreadAll:false, chat:'', acct:'' } };
 
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]; }); }
 function ago(at) { var m = (Date.now() - Date.parse(at)) / 60000; if (m < 60) return Math.max(1, Math.floor(m)) + 'm'; if (m < 1440) return Math.floor(m / 60) + 'h'; return Math.floor(m / 1440) + 'd'; }
@@ -946,7 +953,11 @@ function send1(op, args) {
     .then(function (j) { if (!j.ok) throw new Error(j.error || 'Something went wrong'); return j.data; });
 }
 
-function isRead(e) { return e.status && e.status !== 'open'; }
+// Read here, or read in Gmail itself: same thing on this page (Owen, 23 Nov 2026).
+function isRead(e) { return !!e.gmail_read || (e.status && e.status !== 'open'); }
+// All mail is the Gmail-like view: everything, read and unread. The piles stay unread-first.
+function uRead() { return S.view === 'all' ? !!S.f.unreadAll : !!S.f.unread; }
+function uKey() { return S.view === 'all' ? 'unreadAll' : 'unread'; }
 function groups() {
   var by = {}, out = [];
   ((S.data && S.data.emails) || []).forEach(function (e) {
@@ -962,7 +973,7 @@ function groups() {
   });
   return out;
 }
-function visible(g) { return S.f.unread ? g.unread.length > 0 || g.id === S.keepOpen : true; }
+function visible(g) { return uRead() ? g.unread.length > 0 || g.id === S.keepOpen : true; }
 function matches(g) {
   if (S.f.chat && g.chat !== S.f.chat) return false;
   if (S.f.acct && !g.items.some(function (e) { return (e.account || 'personal') === S.f.acct; })) return false;
@@ -990,6 +1001,7 @@ function pileList(p) {
   else if (p === 'chase') l.sort(function (a, b) { return Date.parse(a.items[0].received_at) - Date.parse(b.items[0].received_at); });
   return l;
 }
+function acctUnread(a) { return ((S.data && S.data.emails) || []).filter(function (e) { return (e.account || 'personal') === a && !isRead(e); }).length; }
 function unreadCount(p) { return groups().filter(function (g) { return (p === 'all' || g.pile === p) && (!S.f.acct || g.items.some(function (e) { return (e.account || 'personal') === S.f.acct; })) && (!S.f.plat || g.items.some(function (e) { return (e.account === 'slack') === (S.f.plat === 'slack'); })); }).reduce(function (s, g) { return s + g.unread.length; }, 0); }
 function current() { return groups().filter(function (g) { return g.id === S.open; })[0] || null; }
 function pileOf(k) { return PILES.filter(function (p) { return p.key === k; })[0] || PILES[1]; }
@@ -2804,22 +2816,23 @@ function list() {
     + (S.view === 'noise' && pileList('noise').length ? '<button class="btn sm" onclick="binNoise()">' + I.bin + 'Bin all</button>' : '')
     + '<button class="iconbtn' + (S.refreshing ? ' spin' : '') + '" onclick="refresh()" title="Check Gmail now">' + I.refresh + '</button></div>'
     + '<div class="filters"><div class="search">' + I.search + '<input id="q" placeholder="Search sender, subject, words" value="' + esc(S.f.q) + '"></div>'
-    + '<div class="chips"><button class="fchip' + (S.f.unread ? ' on' : '') + '" onclick="setF(\'unread\',true)">Unread</button><button class="fchip' + (!S.f.unread ? ' on' : '') + '" onclick="setF(\'unread\',false)">All</button>'
+    + '<div class="chips"><button class="fchip' + (uRead() ? ' on' : '') + '" onclick="setF(\'' + uKey() + '\',true)">Unread</button><button class="fchip' + (!uRead() ? ' on' : '') + '" onclick="setF(\'' + uKey() + '\',false)">All</button>'
     + '<span class="seg plat"><button class="' + (!S.f.plat ? 'on' : '') + '" onclick="setF(\'plat\',\'\')">Everything</button><button class="' + (S.f.plat === 'email' ? 'on' : '') + '" onclick="setF(\'plat\',\'email\')">' + I.inbox + 'Email</button><button class="' + (S.f.plat === 'slack' ? 'on' : '') + '" onclick="setF(\'plat\',\'slack\')">' + I.slack + 'Slack</button></span>'
-    + '<select class="fsel" onchange="setF(\'acct\',this.value)"><option value="">All inboxes</option>' + Object.keys(ACCOUNTS).map(function (a) { return '<option value="' + a + '"' + (S.f.acct === a ? ' selected' : '') + '>' + ACCOUNTS[a].label + '</option>'; }).join('') + '</select>'
+    + '</div><div class="chips acctbar"><button class="achip' + (!S.f.acct ? ' on' : '') + '" onclick="setF(\'acct\',\'\')">All inboxes</button>'
+    + Object.keys(ACCOUNTS).map(function (a) { var n = acctUnread(a); return '<button class="achip' + (S.f.acct === a ? ' on' : '') + '" style="--c:' + ACCOUNTS[a].color + '" onclick="setF(\'acct\',\'' + a + '\')"><span class="dot" style="background:' + ACCOUNTS[a].color + '"></span>' + ACCOUNTS[a].label + (n ? '<b>' + n + '</b>' : '') + '</button>'; }).join('')
     + '<select class="fsel" onchange="setF(\'chat\',this.value)"><option value="">Any project</option>' + chats.map(function (c) { return '<option value="' + esc(c) + '"' + (S.f.chat === c ? ' selected' : '') + '>' + esc(chatShort(c)) + '</option>'; }).join('') + '</select></div></div>';
   var errs = ((S.data && S.data.errors) || []).concat((S.data && S.data.last && S.data.last.errors) || []);
   if (errs.length) h += '<div class="warn">' + esc(errs.join(' · ').slice(0, 240)) + '</div>';
   if (S.loading) return h + '<div class="rows">' + '<div class="skel"></div>'.repeat(8) + '</div></section>';
   var l = pileList(S.view);
-  if (!l.length) return h + '<div class="rows"><div class="empty"><b>All clear</b>' + (S.f.unread ? 'No unread here. Tap All to see read ones.' : 'Nothing here.') + '</div></div></section>';
+  if (!l.length) return h + '<div class="rows"><div class="empty"><b>All clear</b>' + (uRead() ? 'No unread here. Tap All to see read ones.' : 'Nothing here.') + '</div></div></section>';
   h += '<div class="rows">';
   l.forEach(function (g) {
     var e = g.items[0], chase = e.kind === 'chase' || e.kind === 'owed', prom = e.kind === 'promise', read = !g.unread.length;
     var who = g.isChat ? chatShort(g.chat) + ' chat' : chase || prom ? 'To ' + (e.from_name || e.to_email) : (e.from_name || e.from_email);
     var l2 = prom ? e.why : g.isChat ? issues({ items:S.f.unread && g.unread.length ? g.unread : g.items }).map(function (x) { return x.title; }).slice(0, 3).join(' · ') : e.subject;
     var when = chase ? '<span class="wait">' + Math.floor((Date.now() - Date.parse(e.received_at)) / 86400000) + 'd waiting</span>' : prom ? (promDue(e) ? '<span style="color:' + (promDue(e).d <= 0 ? 'var(--fix)' : 'var(--promise)') + '">' + promDue(e).label + '</span>' : '<span style="color:var(--promise)">said ' + ago(e.received_at) + ' ago</span>') : chasedTwice(e) ? '<span style="color:var(--fix)">Chased twice</span>' : ago(e.received_at);
-    var n = S.f.unread ? g.unread.length : g.items.length;
+    var n = uRead() ? g.unread.length : g.items.length;
     h += '<div class="row' + (S.open === g.id ? ' on' : '') + (read ? ' read' : '') + '"' + (g.isChat || /^(slack|whatsapp)$/.test(e.account || '') ? '' : ' draggable="true" ondragstart="event.dataTransfer.setData(\'text/inbox-group\',\'' + g.id + '\');event.dataTransfer.effectAllowed=\'copy\';document.body.classList.add(\'dragging\')" ondragend="document.body.classList.remove(\'dragging\')"') + ' onclick="if(event.shiftKey||event.metaKey){event.preventDefault();pick(\'' + g.id + '\',event)}else openG(\'' + g.id + '\')">'
       + '<div class="ck' + (S.sel[g.id] ? ' show' : '') + '" onclick="event.stopPropagation();pick(\'' + g.id + '\',event)"></div>'
       + '<div class="rowav" style="background:' + (g.isChat ? (CHAT_COLOURS[g.chat] || '#6c6d79') : hue(e.from_email)) + '">' + esc(initials(g.isChat ? chatShort(g.chat) : (e.from_name || e.from_email))) + '</div>'
@@ -3331,7 +3344,7 @@ function quickSync() {
   api('sync', { fp:S.data.fp || '' }).then(function (d) { quickSync.busy = false; if (!d || d.same || !d.emails || sent < (S.dataSent || 0)) return; S.dataSent = sent; S.data = applyLocal(d, sent); if (S.needRegroup) { S.needRegroup = false; reGroup(); } slackNames(); saveCache(d); render(); })
     .catch(function () { quickSync.busy = false; });
 }
-setInterval(quickSync, 120000);
+setInterval(quickSync, 30000);
 setInterval(function () { if (!document.hidden && S.data && S.view !== 'whatsapp') { WA.busy = false; waLoad(); } }, 120000);
 document.addEventListener('visibilitychange', function () { if (!document.hidden) quickSync(); });
 
