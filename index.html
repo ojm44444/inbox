@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="1795466497">
+<html lang="en" data-build="1795466713">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -902,7 +902,7 @@ var I = {
 };
 I.reply = PILE_ICON.reply;
 var S = { token:'', key:'', data:null, view:'home', open:null, sel:{}, drafts:{}, threads:{}, openIssue:{}, busy:'', loading:true, refreshing:false, phoneOpen:false,
-  f:{ q:'', unread:true, unreadAll:false, chat:'', acct:'', tab:'' } };
+  f:{ q:'', unread:true, unreadAll:false, chat:'', acct:'' } };
 
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]; }); }
 function ago(at) { var m = (Date.now() - Date.parse(at)) / 60000; if (m < 60) return Math.max(1, Math.floor(m)) + 'm'; if (m < 1440) return Math.floor(m / 60) + 'h'; return Math.floor(m / 1440) + 'd'; }
@@ -985,7 +985,6 @@ function groups() {
 function visible(g) { return uRead() ? g.unread.length > 0 || g.id === S.keepOpen : true; }
 function matches(g) {
   if (S.view === 'all' && !g.items.some(inMail)) return false;
-  if (S.view === 'all' && S.f.tab && !g.items.some(function (e) { return inMail(e) && (e.gmail_tab || 'primary') === S.f.tab; })) return false;
   if (S.f.chat && g.chat !== S.f.chat) return false;
   if (S.f.acct && !g.items.some(function (e) { return (e.account || 'personal') === S.f.acct; })) return false;
   if (!(!S.f.plat || g.items.some(function (e) { return (e.account === 'slack') === (S.f.plat === 'slack'); }))) return false;
@@ -1015,8 +1014,7 @@ function pileList(p) {
 // Gmail counts unread INCOMING mail. His chases are emails he sent, so they never count here
 // (Owen, 23 Nov: Gmail said 14, the page said 42).
 function inMail(e) { return e.kind === 'in'; }
-function acctUnread(a) { return ((S.data && S.data.emails) || []).filter(function (e) { return inMail(e) && (e.account || 'personal') === a && !isRead(e) && (!S.f.tab || (e.gmail_tab || 'primary') === S.f.tab); }).length; }
-function tabUnread(t) { return ((S.data && S.data.emails) || []).filter(function (e) { return inMail(e) && !isRead(e) && (!S.f.acct || (e.account || 'personal') === S.f.acct) && (!t || (e.gmail_tab || 'primary') === t); }).length; }
+function acctUnread(a) { return ((S.data && S.data.emails) || []).filter(function (e) { return inMail(e) && (e.account || 'personal') === a && !isRead(e); }).length; }
 function unreadCount(p) { return groups().filter(function (g) { return (p === 'all' ? g.items.some(inMail) : g.pile === p) && (!S.f.acct || g.items.some(function (e) { return (e.account || 'personal') === S.f.acct; })) && (!S.f.plat || g.items.some(function (e) { return (e.account === 'slack') === (S.f.plat === 'slack'); })); }).reduce(function (s, g) { return s + g.unread.filter(p === 'all' ? inMail : function () { return true; }).length; }, 0); }
 function current() { return groups().filter(function (g) { return g.id === S.open; })[0] || null; }
 function pileOf(k) { return PILES.filter(function (p) { return p.key === k; })[0] || PILES[1]; }
@@ -2836,10 +2834,7 @@ function list() {
     + '<span class="seg plat"><button class="' + (!S.f.plat ? 'on' : '') + '" onclick="setF(\'plat\',\'\')">Everything</button><button class="' + (S.f.plat === 'email' ? 'on' : '') + '" onclick="setF(\'plat\',\'email\')">' + I.inbox + 'Email</button><button class="' + (S.f.plat === 'slack' ? 'on' : '') + '" onclick="setF(\'plat\',\'slack\')">' + I.slack + 'Slack</button></span>'
     + '</div><div class="chips acctbar"><button class="achip' + (!S.f.acct ? ' on' : '') + '" onclick="setF(\'acct\',\'\')">All inboxes</button>'
     + Object.keys(ACCOUNTS).map(function (a) { var n = acctUnread(a); return '<button class="achip' + (S.f.acct === a ? ' on' : '') + '" style="--c:' + ACCOUNTS[a].color + '" onclick="setF(\'acct\',\'' + a + '\')"><span class="dot" style="background:' + ACCOUNTS[a].color + '"></span>' + ACCOUNTS[a].label + (n ? '<b>' + n + '</b>' : '') + '</button>'; }).join('')
-    + (S.view === 'all' ? '</div><div class="chips acctbar">' + [['', 'Every tab'], ['primary', 'Primary'], ['promotions', 'Promotions'], ['social', 'Social'], ['updates', 'Updates'], ['forums', 'Forums']].map(function (t) {
-      var n = tabUnread(t[0]); if (t[0] && !n && S.f.tab !== t[0]) return '';
-      return '<button class="achip' + (S.f.tab === t[0] ? ' on' : '') + '" onclick="setF(\'tab\',\'' + t[0] + '\')">' + t[1] + (n ? '<b>' + n + '</b>' : '') + '</button>';
-    }).join('') : '')
+
     + '<select class="fsel" onchange="setF(\'chat\',this.value)"><option value="">Any project</option>' + chats.map(function (c) { return '<option value="' + esc(c) + '"' + (S.f.chat === c ? ' selected' : '') + '>' + esc(chatShort(c)) + '</option>'; }).join('') + '</select></div></div>';
   var errs = ((S.data && S.data.errors) || []).concat((S.data && S.data.last && S.data.last.errors) || []);
   if (errs.length) h += '<div class="warn">' + esc(errs.join(' · ').slice(0, 240)) + '</div>';

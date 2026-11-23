@@ -72,18 +72,14 @@ async function voice(a: string, to: string) {
  * here instead of hiding it. Out of the inbox in Gmail (archived, binned, moved) = off this page.
  */
 async function pullInbox(a: string) {
-  const threads: any[] = [], unread: Record<string, boolean> = {}, seen: Record<string, boolean> = {}, tab: Record<string, string> = {};
-  const QS: [string, string][] = [['in:inbox is:unread', ''], ['in:inbox newer_than:2d', ''],
-    ['in:inbox category:promotions', 'promotions'], ['in:inbox category:social', 'social'],
-    ['in:inbox category:updates', 'updates'], ['in:inbox category:forums', 'forums']];
-  for (const [qi, qq] of QS.entries()) {
+  const threads: any[] = [], unread: Record<string, boolean> = {}, seen: Record<string, boolean> = {};
+  for (const [qi, qs] of ['in:inbox is:unread', 'in:inbox newer_than:2d'].entries()) {
     let page = '';
     for (let pg = 0; pg < 3; pg++) {
-      const l = await gmail(a, 'threads?maxResults=100&q=' + encodeURIComponent(qq[0]) + (page ? '&pageToken=' + page : ''));
+      const l = await gmail(a, 'threads?maxResults=100&q=' + encodeURIComponent(qs) + (page ? '&pageToken=' + page : ''));
       for (const t of l.threads || []) {
         const k = rowId(a, t.id);
-        if (qi === 0) unread[k] = true;
-        if (qq[1]) { tab[k] = qq[1]; continue; }  // tab lists only label rows, never add them
+        if (!qi) unread[k] = true;
         if (!seen[k]) { seen[k] = true; threads.push(t); }
       }
       page = l.nextPageToken || ''; if (!page) break;
@@ -127,10 +123,6 @@ async function pullInbox(a: string) {
     // Back in the inbox after being archived: left_inbox clears, so it shows again.
     await x('UPDATE inbox_emails SET gmail_read = ' + (uIds.length ? 'id NOT IN (' + uIds.map(lit).join(',') + ')' : 'true')
       + ', left_inbox = false, seen_at = now() WHERE id IN (' + ids.map(lit).join(',') + ')');
-    // Which Gmail tab each one sits in. Anything no tab list claimed is Primary, like Gmail.
-    const byTab: Record<string, string[]> = {};
-    for (const id of ids) { const t = tab[id] || 'primary'; (byTab[t] = byTab[t] || []).push(id); }
-    for (const t of Object.keys(byTab)) await x('UPDATE inbox_emails SET gmail_tab = ' + lit(t) + ' WHERE id IN (' + byTab[t].map(lit).join(',') + ')');
     // Out of the inbox in Gmail (archived, binned, moved), or read and now older than two days: off
     // this page. left_inbox, not 'gone': 'gone' is his own Done with, and this comes straight back
     // if he puts the email back in his inbox. Only run against a list Gmail actually answered with.
