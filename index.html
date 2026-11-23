@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="1795458662">
+<html lang="en" data-build="1795459299">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -39,13 +39,20 @@ a { color:var(--acc2); text-decoration:none; }
 svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; flex:none; }
 .app { display:grid; grid-template-columns:220px minmax(0,1fr); height:100vh; height:100dvh; }
 .app.mail { grid-template-columns:220px 420px minmax(0,1fr); }
+/* Nothing open: the list takes the whole width, one line per email like Gmail (Owen, 23 Nov: "half the page, you can't see it"). */
+.app.mail.wide { grid-template-columns:220px minmax(0,1fr); }
+.app.mail.wide .detail { display:none; }
+.app.mail.wide .list { border-right:0; }
+.app.mail.wide .rows { padding:0 16px 80px; }
+.app.mail.wide .row > div:nth-child(3) { display:grid; grid-template-columns:230px minmax(0,1.25fr) minmax(0,1fr); gap:18px; align-items:baseline; }
+.app.mail.wide .listhead, .app.mail.wide .filters { padding-left:16px; padding-right:16px; }
 .nav em.lbl, .brand em.lbl, .newmail em.lbl { font-style:normal; }
 .brand { display:flex; align-items:center; gap:10px; } .slimbtn { margin-left:auto; color:var(--faint); font-size:16px; }
 .lblsec { display:none; } .lblsec.show, body.dragging .lblsec { display:block; } body.dragging .lblsec { outline:1px dashed var(--acc); border-radius:10px; }
 .lblacct { display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--faint); padding:8px 10px 2px; } .lblacct .dot { width:7px; height:7px; border-radius:50%; }
 .nav.lbl { padding-top:5px; padding-bottom:5px; font-size:13px; } .nav.lbl em { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .ltag { width:9px; height:9px; border-radius:3px; flex:none; }
 .nav.lbl.drop { background:color-mix(in srgb, var(--acc) 30%, transparent); outline:1px solid var(--acc); }
-.app.slim { grid-template-columns:64px minmax(0,1fr); } .app.slim.mail { grid-template-columns:64px 420px minmax(0,1fr); }
+.app.slim { grid-template-columns:64px minmax(0,1fr); } .app.slim.mail { grid-template-columns:64px 420px minmax(0,1fr); } .app.slim.mail.wide { grid-template-columns:64px minmax(0,1fr); }
 .app.slim .side { padding:14px 8px; } .app.slim .side em.lbl, .app.slim .navmore, .app.slim .side .navlabel, .app.slim .side .navrow, .app.slim .sidefoot span { display:none; }
 .app.slim .brand { justify-content:center; } .app.slim .brand .slimbtn { display:none; } .app.slim .brand .logo { margin:0; }
 .app.slim .nav { justify-content:center; position:relative; padding:9px 0; } .app.slim .nav .n { position:absolute; top:2px; right:2px; font-size:10px; min-width:16px; }
@@ -583,11 +590,13 @@ a.mini { color:var(--text); }
 .gate { display:grid; place-items:center; height:100vh; }
 .gate .box2 { width:min(360px,90vw); text-align:center; }
 .back, .tabs { display:none; }
-@media (max-width:1300px) { .app.mail { grid-template-columns:190px 320px minmax(0,1fr); } .dhead, .bar, .dbody { padding-left:18px; padding-right:18px; } .explain { margin-left:18px; margin-right:18px; } }
+@media (max-width:1300px) { .app.mail { grid-template-columns:190px 320px minmax(0,1fr); } .app.mail.wide { grid-template-columns:190px minmax(0,1fr); } .app.mail.wide .row > div:nth-child(3) { grid-template-columns:200px minmax(0,1.2fr) minmax(0,0.9fr); gap:14px; } .dhead, .bar, .dbody { padding-left:18px; padding-right:18px; } .explain { margin-left:18px; margin-right:18px; } }
 @media (max-width:1100px) { .tiles { grid-template-columns:repeat(3,minmax(0,1fr)); } .grid2 { grid-template-columns:minmax(0,1fr); } }
 @media (max-width:900px) {
   body { overflow:auto; }
-  .app, .app.mail { grid-template-columns:1fr; height:auto; min-height:100dvh; }
+  .app, .app.mail, .app.mail.wide { grid-template-columns:1fr; height:auto; min-height:100dvh; }
+  .app.mail.wide .row > div:nth-child(3) { display:block; }
+  .app.mail.wide .rows { padding:0 8px 80px; }
   .side { display:none; }
   .home { padding:calc(18px + env(safe-area-inset-top)) 16px 60px; overflow:visible; }
   html, body { overflow-x:hidden; }
@@ -1014,7 +1023,8 @@ function render() {
   document.querySelectorAll('#rvtext').forEach(function (el) { if (el.value) typed[el.id] = el.value; });
   if (S.view === 'money' || S.view === 'outreach') S.view = 'home';
   var mail = S.view !== 'sort' && S.view !== 'compose' && S.view !== 'money' && S.view !== 'home' && S.view !== 'reading' && S.view !== 'trello' && S.view !== 'person' && S.view !== 'review' && S.view !== 'notesort' && S.view !== 'outreach' && S.view !== 'tasks';
-  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + (S.slim ? ' slim' : '') + (S.menu ? ' menuopen' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'sticky' ? stickyView() : S.view === 'whatsapp' ? waView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'sort' ? sortView() : S.view === 'notesort' ? noteSortView() : S.view === 'tasks' ? tasksView() : S.view === 'outreach' ? outreachView() : S.view === 'money' ? moneyView() : S.view === 'compose' ? composeView() : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : S.view === 'review' ? reviewView() : home()) + '</div>';
+  var wideList = mail && !S.open && !/^(notes|sticky|whatsapp|slack)$/.test(S.view) && !/^box:/.test(S.view);
+  document.getElementById('root').innerHTML = '<div class="app' + (mail ? ' mail' : '') + (wideList ? ' wide' : '') + (S.slim ? ' slim' : '') + (S.menu ? ' menuopen' : '') + '">' + side() + (mail ? (S.view === 'notes' ? notesView() : S.view === 'sticky' ? stickyView() : S.view === 'whatsapp' ? waView() : S.view === 'slack' ? slackView() : /^box:/.test(S.view) ? folderView() : list() + detail()) : S.view === 'sort' ? sortView() : S.view === 'notesort' ? noteSortView() : S.view === 'tasks' ? tasksView() : S.view === 'outreach' ? outreachView() : S.view === 'money' ? moneyView() : S.view === 'compose' ? composeView() : S.view === 'reading' ? reading() : S.view === 'trello' ? trello() : S.view === 'person' ? personView() : S.view === 'review' ? reviewView() : home()) + '</div>';
   var ns = document.querySelector('.rows, .home'); if (ns) ns.scrollTop = keep;
   Object.keys(typed).forEach(function (id) { var el = document.getElementById(id); if (el && !el.value) el.value = typed[id]; });
   if (actId) { var af = document.getElementById(actId); if (af && af !== document.activeElement) { try { af.focus(); if (sel != null && af.setSelectionRange) af.setSelectionRange(sel, sel); } catch (e) {} } }
@@ -3344,7 +3354,7 @@ function quickSync() {
   api('sync', { fp:S.data.fp || '' }).then(function (d) { quickSync.busy = false; if (!d || d.same || !d.emails || sent < (S.dataSent || 0)) return; S.dataSent = sent; S.data = applyLocal(d, sent); if (S.needRegroup) { S.needRegroup = false; reGroup(); } slackNames(); saveCache(d); render(); })
     .catch(function () { quickSync.busy = false; });
 }
-setInterval(quickSync, 30000);
+setInterval(quickSync, 15000);
 setInterval(function () { if (!document.hidden && S.data && S.view !== 'whatsapp') { WA.busy = false; waLoad(); } }, 120000);
 document.addEventListener('visibilitychange', function () { if (!document.hidden) quickSync(); });
 
